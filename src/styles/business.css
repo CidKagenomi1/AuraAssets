@@ -1,0 +1,519 @@
+/* ========================================
+   BUSINESS PAGE STYLES
+   Setup Wizard & Management Dashboard
+   ======================================== */
+
+/* Full-screen overlay container */
+#business-page {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: var(--bg-primary);
+    overflow-y: auto;
+    animation: slideInRight 0.3s ease;
+}
+
+/* Center content wrapper - matches home screen width */
+#business-page .page-content {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: var(--space-md) var(--space-lg);
+    padding-bottom: 80px;
+}
+
+/* Dashboard needs wider layout */
+#business-page .page-content.dashboard-grid {
+    max-width: 900px;
+    padding: var(--space-md);
+    height: auto;
+    min-height: calc(100vh - 80px);
+}
+
+#business-page .page-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--bg-tertiary);
+}
+
+#business-page .page-header-inner {
+    max-width: 480px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+}
+
+.header-info h1 {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    margin: 0;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge.umkm {
+    background: var(--accent-green);
+    color: black;
+}
+
+.badge.startup {
+    background: var(--accent-purple);
+    color: white;
+}
+
+/* ========================================
+   SETUP WIZARD
+   ======================================== */
+.wizard-card {
+    background: var(--bg-secondary);
+    padding: var(--space-xl);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--bg-tertiary);
+    text-align: center;
+}
+
+.business-types-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-lg);
+    margin-top: var(--space-lg);
+}
+
+.biz-type-card {
+    background: var(--bg-tertiary);
+    padding: var(--space-lg);
+    border-radius: var(--radius-md);
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.biz-type-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--text-muted);
+}
+
+.biz-type-card.selected {
+    background: var(--accent-gold-soft);
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+}
+
+.biz-icon {
+    font-size: 3rem;
+    margin-bottom: var(--space-md);
+}
+
+.tag-high-risk {
+    display: inline-block;
+    background: var(--accent-red);
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-bottom: var(--space-sm);
+}
+
+.biz-cost {
+    font-weight: 700;
+    color: var(--accent-gold);
+    margin: var(--space-md) 0;
+    font-size: var(--font-size-lg);
+}
+
+.biz-pros {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.biz-pros li {
+    margin-bottom: 4px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: var(--space-md);
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: var(--space-xs);
+    color: var(--text-secondary);
+}
+
+.modern-input,
+.modern-select {
+    width: 100%;
+    padding: var(--space-md);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--text-muted);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--font-size-md);
+}
+
+.modern-input:focus,
+.modern-select:focus {
+    border-color: var(--accent-gold);
+    outline: none;
+}
+
+.full-width {
+    width: 100%;
+}
+
+/* ========================================
+   DASHBOARD LAYOUT
+   ======================================== */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: var(--space-lg);
+    padding: var(--space-lg);
+    height: calc(100vh - 80px);
+    /* Adjust based on header */
+}
+
+.dashboard-sidebar {
+    background: var(--bg-secondary);
+    padding: var(--space-md);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.nav-btn {
+    text-align: left;
+    padding: var(--space-md);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: var(--font-size-md);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.nav-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.nav-btn.active {
+    background: var(--accent-gold);
+    color: black;
+    font-weight: 600;
+}
+
+.dashboard-main {
+    overflow-y: auto;
+    padding-right: var(--space-md);
+}
+
+/* Overview Tab */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
+    margin-bottom: var(--space-xl);
+}
+
+.stat-card {
+    background: var(--bg-secondary);
+    padding: var(--space-lg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--bg-tertiary);
+}
+
+.stat-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin-bottom: var(--space-xs);
+}
+
+.stat-value {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+}
+
+.stat-value.highlight {
+    color: var(--accent-gold);
+}
+
+.stat-value.positive {
+    color: var(--accent-green);
+}
+
+.stat-sub {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-top: var(--space-xs);
+}
+
+.chart-container-biz {
+    background: var(--bg-secondary);
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    min-height: 300px;
+}
+
+.placeholder-chart {
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    border: 2px dashed var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    margin-top: var(--space-md);
+}
+
+/* Operations Tab */
+.ops-panel {
+    background: var(--bg-secondary);
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+}
+
+.ops-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md);
+    border-bottom: 1px solid var(--bg-tertiary);
+}
+
+.ops-icon {
+    font-size: 2rem;
+    margin-right: var(--space-md);
+}
+
+.ops-info {
+    display: flex;
+    align-items: center;
+}
+
+.ops-info h4 {
+    margin: 0;
+}
+
+.ops-info p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+}
+
+.btn-action {
+    padding: 8px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--text-muted);
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.btn-action:hover {
+    background: var(--accent-gold);
+    color: black;
+    border-color: var(--accent-gold);
+}
+
+/* Exit Tab */
+.exit-panel {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.exit-option-card {
+    background: var(--bg-secondary);
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    margin-top: var(--space-md);
+    border: 1px solid var(--bg-tertiary);
+}
+
+.exit-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-sm);
+}
+
+.exit-icon {
+    font-size: 1.5rem;
+}
+
+.exit-value {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--accent-gold);
+    margin: var(--space-md) 0;
+}
+
+.warning-text {
+    font-size: var(--font-size-xs);
+    color: var(--accent-red);
+    margin-top: var(--space-sm);
+}
+
+.exit-option-card.locked {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.lock-req {
+    color: var(--accent-red);
+    font-weight: 600;
+}
+
+/* ========================================
+   MOBILE RESPONSIVE STYLES
+   ======================================== */
+
+/* Tablets and below */
+@media (max-width: 900px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+
+    .dashboard-sidebar {
+        flex-direction: row;
+        overflow-x: auto;
+        gap: var(--space-xs);
+        padding: var(--space-sm);
+    }
+
+    .dashboard-sidebar .nav-btn {
+        white-space: nowrap;
+        padding: var(--space-sm) var(--space-md);
+        font-size: var(--font-size-sm);
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Mobile phones */
+@media (max-width: 600px) {
+    .page-header {
+        padding: var(--space-sm) var(--space-md);
+        flex-wrap: wrap;
+    }
+
+    .header-info h1 {
+        font-size: var(--font-size-lg);
+    }
+
+    .page-content {
+        padding: var(--space-md) !important;
+    }
+
+    /* Wizard Mobile */
+    .wizard-card {
+        padding: var(--space-md);
+    }
+
+    .business-types-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+
+    .biz-type-card {
+        padding: var(--space-md);
+    }
+
+    .biz-icon {
+        font-size: 2.5rem;
+    }
+
+    .biz-cost {
+        font-size: var(--font-size-md);
+    }
+
+    .biz-pros {
+        font-size: var(--font-size-xs);
+    }
+
+    /* Dashboard Mobile */
+    .dashboard-grid {
+        padding: var(--space-md);
+    }
+
+    .dashboard-sidebar {
+        margin-bottom: var(--space-md);
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+        padding: var(--space-md);
+    }
+
+    .stat-value {
+        font-size: var(--font-size-lg);
+    }
+
+    .chart-container-biz {
+        padding: var(--space-md);
+        min-height: 200px;
+    }
+
+    .placeholder-chart {
+        height: 150px;
+        font-size: var(--font-size-xs);
+    }
+
+    /* Operations Mobile */
+    .ops-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-sm);
+    }
+
+    .ops-info {
+        width: 100%;
+    }
+
+    .btn-action {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* Exit Mobile */
+    .exit-panel {
+        max-width: 100%;
+    }
+
+    .exit-option-card {
+        padding: var(--space-md);
+    }
+
+    .exit-value {
+        font-size: var(--font-size-md);
+    }
+}
