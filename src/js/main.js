@@ -45,9 +45,8 @@ class BusinessTycoonGame {
         try {
             ui.init();
 
-            // Check if user is logged in, or if logged in but has no active character
-            const hasCharacters = gameState.getCharacters().length > 0;
-            if (!gameState.currentUser || (!gameState.activeCharacter && hasCharacters)) {
+            // Show portal if: not logged in, OR logged in but no character is active yet
+            if (!gameState.currentUser || !gameState.activeCharacter) {
                 await loginPortal.show();
             }
 
