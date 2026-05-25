@@ -157,7 +157,7 @@ export const RetailSector = {
         if (!retail) return { wages: 0, cost: 0, revenue: 0 };
 
         // 1. Consumer demand fluctuations (dynamically driven by the global economic cycle)
-        const econMult = globalEconomy.getDemandMultiplier();
+        const econMult = globalEconomy.getDemandMultiplier('retail');
         const randDev = (Math.random() - 0.5) * 0.10; // slight consumer trend variance
         retail.demandFluctuation = parseFloat(Math.max(0.4, Math.min(2.0, econMult + randDev)).toFixed(2));
 

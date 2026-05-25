@@ -180,7 +180,7 @@ export const InfrastructureSector = {
         if (!infra) return { wages: 0, cost: 0, revenue: 0 };
 
         // 1. Demand Fluctuation (between 0.80 and 1.30)
-        const econMult = globalEconomy.getDemandMultiplier();
+        const econMult = globalEconomy.getDemandMultiplier('infrastructure');
         const randDev = (Math.random() - 0.5) * 0.15;
         infra.demandFluctuation = parseFloat(Math.max(0.6, Math.min(2.0, econMult + randDev)).toFixed(2));
 

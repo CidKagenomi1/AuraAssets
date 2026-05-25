@@ -28,24 +28,38 @@ class HomeScreen {
         RoleModules.updateAll();
         this.updateRecentTransactions();
 
+        // Initialize dashboard main chart
+        this.initDashboardChart();
+
         // Listen for state changes
-        gameState.on('change', () => this.updateBalanceCard());
+        gameState.on('change', () => {
+            this.updateBalanceCard();
+            this.updateDashboardChart();
+        });
         gameState.on('economyUpdate', () => RoleModules.InvestorModule.renderMarketPulse());
         gameState.on('earnTick', (data) => RoleModules.BusinessModule.updateEarnUI(data));
-        gameState.on('earnClaim', () => this.updateBalanceCard());
+        gameState.on('earnClaim', () => {
+            this.updateBalanceCard();
+            this.updateDashboardChart();
+        });
         gameState.on('earnUpgrade', () => RoleModules.BusinessModule.updateEarnUI());
         gameState.on('dayPass', () => this.updateStatusBar());
         gameState.on('monthPass', () => {
             this.updateStatusBar();
             RoleModules.updateAll();
             this.updateRecentTransactions();
+            this.updateDashboardChart();
         });
         gameState.on('roleChange', () => {
             roleManager.applyVisibility();
             this.updateBalanceCard();
             RoleModules.updateAll();
+            this.updateDashboardChart();
         });
-        gameState.on('transaction', () => this.updateRecentTransactions());
+        gameState.on('transaction', () => {
+            this.updateRecentTransactions();
+            this.updateDashboardChart();
+        });
 
         // Stagger fade-up cards on load
         setTimeout(() => {
@@ -253,6 +267,22 @@ class HomeScreen {
         document.getElementById('btn-settings')?.addEventListener('click', () => this.showSettings());
         document.getElementById('btn-notifications')?.addEventListener('click', () => this.showNotifications());
 
+        // Fear & Greed widget click navigation to trading-signal
+        const widget = document.getElementById('market-pulse-widget');
+        if (widget) {
+            widget.addEventListener('click', () => {
+                import('./ViewManager.js').then(m => m.default.switchView('trading-signal'));
+            });
+            widget.addEventListener('mouseenter', () => {
+                widget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                widget.style.background = 'rgba(255, 255, 255, 0.02)';
+            });
+            widget.addEventListener('mouseleave', () => {
+                widget.style.borderColor = 'var(--border-color)';
+                widget.style.background = 'rgba(0, 0, 0, 0.25)';
+            });
+        }
+
         // Speed Control Cycling Button
         const speedEl = document.getElementById('game-speed');
         if (speedEl) {
@@ -332,8 +362,8 @@ class HomeScreen {
             case 'trading-signal':
                 import('./panels/TradingSignalPanel.js').then(m => m.default.show());
                 break;
-            case 'transfer':
-                this.handleTransfer();
+            case 'donate':
+                this.handleDonate();
                 break;
             case 'finance':
                 import('./panels/FinancePanel.js').then(m => m.default.show());
@@ -347,12 +377,12 @@ class HomeScreen {
         }
     }
 
-    async handleTransfer() {
+    async handleDonate() {
         const balance = gameState.getBalance();
         const amount = await ui.promptMoney({ title: 'Donasi Amal', icon: '🎁', maxAmount: balance, confirmText: 'Donasikan' });
         if (amount && amount > 0) {
             try {
-                financeManager.transfer(amount, 'Donasi Amal', 'Donasi');
+                financeManager.donate(amount, 'Donasi Amal', 'Donasi');
                 ui.success(`$ ${financeManager.formatCurrency(amount)} berhasil didonasikan! Keberuntungan Anda meningkat! ✨`);
                 this.updateBalanceCard();
             } catch (e) {
@@ -694,6 +724,194 @@ class HomeScreen {
             </div>
         `;
         ui.showModal({ title: '📖 Panduan', content });
+    }
+
+    loadECharts() {
+        if (window.echarts) return Promise.resolve(window.echarts);
+        if (window._echartsLoadingPromise) return window._echartsLoadingPromise;
+
+        window._echartsLoadingPromise = new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js';
+            script.onload = () => {
+                window._echartsLoadingPromise = null;
+                resolve(window.echarts);
+            };
+            script.onerror = () => {
+                console.error("Failed to load ECharts");
+                window._echartsLoadingPromise = null;
+                resolve(null);
+            };
+            document.head.appendChild(script);
+        });
+
+        return window._echartsLoadingPromise;
+    }
+
+    initDashboardChart() {
+        const chartDom = document.getElementById('balance-sparkline');
+        if (!chartDom) return;
+
+        this.loadECharts().then(echarts => {
+            if (!echarts) return;
+            
+            if (this.dashboardChart) {
+                this.updateDashboardChart();
+                return;
+            }
+
+            this.dashboardChart = echarts.init(chartDom, 'dark');
+            this.updateDashboardChart();
+
+            const resizeHandler = () => {
+                if (this.dashboardChart) this.dashboardChart.resize();
+            };
+            window.addEventListener('resize', resizeHandler);
+            chartDom.resizeHandler = resizeHandler;
+        });
+    }
+
+    updateDashboardChart() {
+        if (!this.dashboardChart) {
+            this.initDashboardChart();
+            return;
+        }
+
+        const currentMonth = gameState.get('gameTime.month') || 1;
+        const currentYear = gameState.get('gameTime.year') || 2026;
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+        const historyData = [];
+
+        for (let i = 11; i >= 0; i--) {
+            let m = currentMonth - i;
+            let y = currentYear;
+            if (m <= 0) {
+                m += 12;
+                y -= 1;
+            }
+            historyData.push({
+                month: m,
+                year: y,
+                label: `${monthNames[m - 1]} ${y}`,
+                bankAtEnd: 0
+            });
+        }
+
+        const allTransactions = gameState.get('transactions') || [];
+
+        historyData.forEach(h => {
+            const monthTx = allTransactions.filter(t => t.gameTime?.month === h.month && t.gameTime?.year === h.year);
+
+            if (monthTx.length > 0) {
+                h.bankAtEnd = monthTx[0].balance || 0;
+            } else {
+                const beforeTx = allTransactions.find(t => {
+                    const tVal = (t.gameTime?.year || 0) * 12 + (t.gameTime?.month || 0);
+                    const hVal = h.year * 12 + h.month;
+                    return tVal < hVal;
+                });
+                h.bankAtEnd = beforeTx ? (beforeTx.balance || 0) : gameState.getBalance();
+            }
+        });
+
+        historyData.forEach((h, idx) => {
+            if (h.bankAtEnd === 0) {
+                if (idx > 0) {
+                    h.bankAtEnd = historyData[idx - 1].bankAtEnd;
+                } else {
+                    h.bankAtEnd = gameState.getBalance();
+                }
+            }
+        });
+
+        const labels = historyData.map(h => h.label);
+        const bankAtEnds = historyData.map(h => h.bankAtEnd);
+
+        const option = {
+            backgroundColor: 'transparent',
+            tooltip: {
+                show: true,
+                trigger: 'axis',
+                backgroundColor: 'rgba(24, 24, 27, 0.95)',
+                borderColor: 'rgba(255, 255, 255, 0.15)',
+                borderWidth: 1,
+                padding: [6, 10],
+                textStyle: {
+                    color: '#f4f4f5',
+                    fontSize: 11
+                },
+                axisPointer: {
+                    type: 'line',
+                    lineStyle: {
+                        color: 'rgba(255, 255, 255, 0.15)'
+                    }
+                },
+                formatter(params) {
+                    const item = params[0];
+                    const displayVal = `$ ${new Intl.NumberFormat('en-US').format(Math.round(item.value))}`;
+                    return `
+                        <div style="font-size: 11px;">
+                            <div style="color: #a1a1aa; margin-bottom: 2px;">${item.axisValue}</div>
+                            <div style="color: #10b981; font-weight: 700;">${displayVal}</div>
+                        </div>
+                    `;
+                }
+            },
+            grid: {
+                left: 0,
+                right: 0,
+                top: 15,
+                bottom: 0,
+                containLabel: false
+            },
+            xAxis: {
+                type: 'category',
+                data: labels,
+                show: false,
+                boundaryGap: false
+            },
+            yAxis: {
+                type: 'value',
+                show: false,
+                scale: true
+            },
+            series: [
+                {
+                    name: 'Kekayaan Bersih',
+                    type: 'line',
+                    smooth: true,
+                    showSymbol: false,
+                    lineStyle: {
+                        width: 2.5,
+                        color: '#10b981'
+                    },
+                    itemStyle: {
+                        color: '#10b981'
+                    },
+                    areaStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0,
+                            y: 0,
+                            x2: 0,
+                            y2: 1,
+                            colorStops: [
+                                { offset: 0, color: 'rgba(16, 185, 129, 0.22)' },
+                                { offset: 1, color: 'rgba(16, 185, 129, 0.0)' }
+                            ],
+                            global: false
+                        }
+                    },
+                    data: bankAtEnds
+                }
+            ]
+        };
+
+        this.dashboardChart.setOption(option);
+        // Force a resize calculation to adapt to flex/grid container dimensions
+        setTimeout(() => {
+            if (this.dashboardChart) this.dashboardChart.resize();
+        }, 50);
     }
 }
 

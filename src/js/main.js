@@ -45,8 +45,9 @@ class BusinessTycoonGame {
         try {
             ui.init();
 
-            // Check if user is logged in
-            if (!gameState.currentUser) {
+            // Check if user is logged in, or if logged in but has no active character
+            const hasCharacters = gameState.getCharacters().length > 0;
+            if (!gameState.currentUser || (!gameState.activeCharacter && hasCharacters)) {
                 await loginPortal.show();
             }
 
@@ -59,6 +60,11 @@ class BusinessTycoonGame {
             roleManager.applyVisibility();
 
             this.startGameSystems();
+
+            // Start 24h session checker
+            setInterval(() => {
+                gameState.checkSession();
+            }, 10000);
             
             // If not a first-time player, finish loading immediately
             if (gameState.get('player.createdAt') && gameState.get('player.role')) {
@@ -278,7 +284,7 @@ class BusinessTycoonGame {
                 gameState.set('donations', {
                     ...donations,
                     luckTicksRemaining: newTicks,
-                    luckMultiplier: newTicks > 0 ? 1.2 : 1.0
+                    luckMultiplier: newTicks > 0 ? 1.5 : 1.0
                 });
                 if (newTicks === 0) {
                     ui.info('✨ Efek Keberuntungan dari Donasi telah selesai.');

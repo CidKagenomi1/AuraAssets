@@ -7,6 +7,22 @@ class GameState {
     constructor() {
         this.listeners = new Map();
         this.currentUser = localStorage.getItem('businessTycoon_currentUser') || null;
+
+        // Auto-logout check on load
+        if (this.currentUser) {
+            let loginTime = localStorage.getItem('businessTycoon_loginTime');
+            if (!loginTime) {
+                loginTime = Date.now().toString();
+                localStorage.setItem('businessTycoon_loginTime', loginTime);
+            }
+            if (Date.now() - parseInt(loginTime) > 24 * 60 * 60 * 1000) {
+                console.log('⏰ Session expired (24 hours). Automatically logging out...');
+                this.currentUser = null;
+                localStorage.removeItem('businessTycoon_currentUser');
+                localStorage.removeItem('businessTycoon_loginTime');
+            }
+        }
+
         this.activeCharacter = this.currentUser ? localStorage.getItem(`businessTycoon_activeChar_${this.currentUser.toLowerCase()}`) || null : null;
         this.state = this.getDefaultState();
         this.load();
@@ -59,9 +75,14 @@ class GameState {
             economy: {
                 index: 1000,
                 history: [],
-                moneySupply: 1000000000,  // Total money in game economy
+                phase: 'RECOVERY',
+                cycleDays: 90,
+                momentum: 0,           // smoothed daily movement [v3.0]
+                bearStreakDays: 0,     // consecutive bear/trough days for recovery bonus [v3.0]
+                moneySupply: 1000000000,
                 playerImpact: 0
             },
+
 
             // Business (New)
             business: {
@@ -462,6 +483,7 @@ class GameState {
 
         this.currentUser = account.username;
         localStorage.setItem('businessTycoon_currentUser', account.username);
+        localStorage.setItem('businessTycoon_loginTime', Date.now().toString());
 
         this.load();
         this.emit('login', account.username);
@@ -473,9 +495,19 @@ class GameState {
         this.save();
         this.currentUser = null;
         localStorage.removeItem('businessTycoon_currentUser');
+        localStorage.removeItem('businessTycoon_loginTime');
         this.state = this.getDefaultState();
         this.emit('logout');
         location.reload();
+    }
+
+    checkSession() {
+        if (!this.currentUser) return;
+        const loginTime = localStorage.getItem('businessTycoon_loginTime');
+        if (loginTime && Date.now() - parseInt(loginTime) > 24 * 60 * 60 * 1000) {
+            alert('Sesi Anda telah berakhir (24 jam). Silakan login kembali.');
+            this.logout();
+        }
     }
 
     // Helper methods

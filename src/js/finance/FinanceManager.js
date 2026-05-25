@@ -52,7 +52,7 @@ class FinanceManager {
     /**
      * Donasi / Transfer/Withdraw - Remove money (affects global economy)
      */
-    transfer(amount, recipient = 'Donasi Amal', category = 'Donasi') {
+    donate(amount, recipient = 'Donasi Amal', category = 'Donasi') {
         if (amount <= 0) throw new Error('Amount must be positive');
 
         const balance = gameState.getBalance();
@@ -84,7 +84,7 @@ class FinanceManager {
             
             gameState.set('donations', {
                 totalDonated: newTotal,
-                luckMultiplier: 1.2,
+                luckMultiplier: 1.5,
                 luckTicksRemaining: newTicks
             });
             console.log(`🎁 Donation made! Total: $${newTotal}. Luck active for ${newTicks} days.`);
@@ -94,7 +94,7 @@ class FinanceManager {
         const isWhale = globalEconomy.isWhaleTransaction(amount);
         const economyResult = globalEconomy.applyPlayerAction(amount, 'withdraw');
 
-        gameState.emit('transfer', {
+        gameState.emit('donate', {
             amount,
             isWhale,
             whaleTier: globalEconomy.getWhaleTier(amount),
@@ -300,7 +300,7 @@ class FinanceManager {
             'Transport': '🚗',
             'Tagihan': '📄',
             'Pajak': '🧾',
-            'Transfer': '💸',
+            'Donate': '🎁',
             'Donasi': '🎁',
             'Cicilan': '🏦',
             'loan_received': '🏦',

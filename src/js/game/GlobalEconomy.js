@@ -1,18 +1,69 @@
 /**
- * GlobalEconomy.js - Enhanced Cycle-Based Economy (v2.2)
- * Markets now follow structured, immersive economic cycles lasting 6-12 months per phase.
- * Broadcasts global economic bulletins to the player on major phase transitions.
+ * GlobalEconomy.js - Smart Economy Engine (v3.0)
+ *
+ * ALGORITHM UPGRADES:
+ *  [B] Adaptive Phase Transitions: probability-based, not a fixed sequence
+ *  [B] Mini CORRECTION phase: a soft cooldown between Bull and Bear
+ *  [C] Safety Net: demand floor protects new players (first 180 game-days)
+ *  [C] Sector Sensitivity: defensive sectors (Healthcare, Infra) resist recession
+ *  [C] Progressive Recovery Bonus: longer bear/trough → stronger recovery
+ *  [C] Stronger Mean Reversion: 0.001 → 0.004 so crashes self-correct faster
+ *  [C] Kinder TROUGH floor: 0.62 → 0.72
+ *  [FIX] Player Impact dampened: no longer moves global index directly
  */
 
 import gameState from './GameState.js';
 import ui from '../ui/UIManager.js';
 
+// ---------------------------------------------------------------------------
+// Phase Definitions
+// ---------------------------------------------------------------------------
 export const ECONOMY_PHASES = {
-    RECOVERY: { name: 'Recovery (Pemulihan)', drift: 0.001, volatility: 0.006, color: '#60a5fa' },
-    BULL: { name: 'Bull Market (Ekspansi)', drift: 0.003, volatility: 0.012, color: '#10b981' },
-    PEAK: { name: 'Market Peak (Puncak Keemasan)', drift: -0.0005, volatility: 0.008, color: '#f59e0b' },
-    BEAR: { name: 'Bear Market (Resesi)', drift: -0.0025, volatility: 0.018, color: '#ef4444' },
-    TROUGH: { name: 'Market Trough (Depresi/Dasar)', drift: 0.0005, volatility: 0.004, color: '#94a3b8' }
+    RECOVERY:   { name: 'Recovery (Pemulihan)',        drift:  0.0012, volatility: 0.006, color: '#60a5fa' },
+    BULL:       { name: 'Bull Market (Ekspansi)',       drift:  0.0025, volatility: 0.010, color: '#10b981' },
+    CORRECTION: { name: 'Correction (Koreksi Sehat)',  drift: -0.0006, volatility: 0.007, color: '#f59e0b' },
+    PEAK:       { name: 'Market Peak (Puncak)',         drift: -0.0004, volatility: 0.008, color: '#fbbf24' },
+    BEAR:       { name: 'Bear Market (Resesi)',         drift: -0.0018, volatility: 0.015, color: '#ef4444' },
+    TROUGH:     { name: 'Market Trough (Dasar)',        drift:  0.0006, volatility: 0.004, color: '#94a3b8' }
+};
+
+// ---------------------------------------------------------------------------
+// Probabilistic Transition Matrix  [B]
+// Row = current phase, columns = probability of transitioning to each phase
+// ---------------------------------------------------------------------------
+const TRANSITION_MATRIX = {
+    //                  RECOVERY  BULL   CORRECTION  PEAK   BEAR   TROUGH
+    RECOVERY:   { RECOVERY: 0.05, BULL: 0.75, CORRECTION: 0.10, PEAK: 0.08, BEAR: 0.02, TROUGH: 0.00 },
+    BULL:       { RECOVERY: 0.03, BULL: 0.10, CORRECTION: 0.52, PEAK: 0.30, BEAR: 0.05, TROUGH: 0.00 },
+    CORRECTION: { RECOVERY: 0.15, BULL: 0.30, CORRECTION: 0.05, PEAK: 0.05, BEAR: 0.40, TROUGH: 0.05 },
+    PEAK:       { RECOVERY: 0.08, BULL: 0.10, CORRECTION: 0.15, PEAK: 0.05, BEAR: 0.55, TROUGH: 0.07 },
+    BEAR:       { RECOVERY: 0.28, BULL: 0.04, CORRECTION: 0.05, PEAK: 0.00, BEAR: 0.18, TROUGH: 0.45 },
+    TROUGH:     { RECOVERY: 0.60, BULL: 0.25, CORRECTION: 0.05, PEAK: 0.02, BEAR: 0.05, TROUGH: 0.03 }
+};
+
+// Phase duration ranges (in game-days) [min, max]
+const PHASE_DURATION = {
+    RECOVERY:   [90,  180],
+    BULL:       [120, 240],
+    CORRECTION: [30,   60],
+    PEAK:       [60,  120],
+    BEAR:       [90,  180],
+    TROUGH:     [60,  120]
+};
+
+// ---------------------------------------------------------------------------
+// Sector Sensitivity Coefficients  [C]
+// How strongly each sector reacts to the demand multiplier (1.0 = full impact)
+// ---------------------------------------------------------------------------
+export const SECTOR_SENSITIVITY = {
+    retail:        1.00,   // Full market exposure
+    automotive:    1.10,   // Slightly amplified (discretionary spend)
+    aerospace:     0.90,   // Moderate
+    healthcare:    0.30,   // Defensive – very recession-resistant
+    infrastructure:0.35,   // Defensive – government-backed demand
+    fnb:           0.75,   // People still eat, but restaurants suffer
+    tech:          0.85,
+    default:       1.00
 };
 
 class GlobalEconomy {
@@ -20,193 +71,251 @@ class GlobalEconomy {
         this.baseIndex = 1000;
     }
 
-    /**
-     * Natural market fluctuation (called daily by TimeManager)
-     */
+    // -------------------------------------------------------------------------
+    // Core daily tick – called by TimeManager via main.js
+    // -------------------------------------------------------------------------
     naturalFluctuation() {
         const currentIndex = gameState.get('economy.index') || this.baseIndex;
         let phase = gameState.get('economy.phase') || 'RECOVERY';
         let remainingDays = gameState.get('economy.cycleDays') || 0;
 
-        // Cycle Management (extended to 180 - 360 days: approx 6-12 months per cycle phase)
+        // Phase transition
         if (remainingDays <= 0) {
-            phase = this.getNextPhase(phase);
-            remainingDays = Math.floor(Math.random() * 180) + 180; // 6-12 months duration
+            phase = this._pickNextPhase(phase);
+            const [minDays, maxDays] = PHASE_DURATION[phase];
+            remainingDays = Math.floor(Math.random() * (maxDays - minDays)) + minDays;
+
             gameState.set('economy.phase', phase);
             gameState.set('economy.cycleDays', remainingDays);
-            
-            // Broadcast the economic shift to the player
-            this.broadcastPhaseChange(phase);
-            console.log(`🌍 Economy Phase Change: ${phase} for ${remainingDays} days`);
+
+            // Track consecutive bear/trough days for recovery bonus  [C]
+            if (phase === 'BEAR' || phase === 'TROUGH') {
+                const prev = gameState.get('economy.bearStreakDays') || 0;
+                gameState.set('economy.bearStreakDays', prev + remainingDays);
+            } else if (phase === 'RECOVERY' || phase === 'BULL') {
+                gameState.set('economy.bearStreakDays', 0);
+            }
+
+            this._broadcastPhaseChange(phase);
+            console.log(`🌍 Economy → ${phase} (${remainingDays} days)`);
         } else {
             remainingDays--;
             gameState.set('economy.cycleDays', remainingDays);
         }
 
         const config = ECONOMY_PHASES[phase];
-        
-        // Algorithmic Movement
-        const randomFactor = (Math.random() - 0.5) * 2 * config.volatility;
-        const trendDrift = config.drift;
-        const meanReversion = (this.baseIndex - currentIndex) / this.baseIndex * 0.001;
 
-        const change = randomFactor + trendDrift + meanReversion;
-        const newIndex = Math.max(100, currentIndex * (1 + change));
+        // Smoothed random factor (mild momentum)  [A-lite]
+        const prevMomentum = gameState.get('economy.momentum') || 0;
+        const rawRandom = (Math.random() - 0.5) * 2 * config.volatility;
+        const momentum = 0.65 * prevMomentum + 0.35 * rawRandom;
+        gameState.set('economy.momentum', momentum);
+
+        // Stronger mean reversion  [C]
+        const meanReversion = (this.baseIndex - currentIndex) / this.baseIndex * 0.004;
+
+        // Progressive recovery bonus – longer bear → stronger pull back  [C]
+        const bearStreak = gameState.get('economy.bearStreakDays') || 0;
+        const recoveryBonus =
+            (phase === 'RECOVERY' || phase === 'TROUGH')
+                ? Math.min(bearStreak * 0.000015, 0.003)
+                : 0;
+
+        const change = momentum + config.drift + meanReversion + recoveryBonus;
+        const newIndex = Math.max(150, currentIndex * (1 + change)); // floor at 150 [C]
 
         gameState.set('economy.index', newIndex);
-        gameState.emit('economyUpdate', { index: newIndex, change: change * 100, phase: config.name });
+        gameState.emit('economyUpdate', {
+            index: newIndex,
+            change: change * 100,
+            phase: config.name
+        });
 
         return newIndex;
     }
 
-    /**
-     * Broadcasts elegant in-game bulletins notifying the player of economic shifts
-     */
-    broadcastPhaseChange(phase) {
-        let title = '';
-        let message = '';
-        
-        if (phase === 'BULL') {
-            title = '🌍 BULETIN EKONOMI: BULL MARKET!';
-            message = 'Sentimen pasar sangat optimis! Permintaan konsumen melonjak tinggi. Sektor Ritel, Otomotif, dan Maskapai akan menikmati peningkatan profitabilitas besar-besaran! 📈🚀';
-        } else if (phase === 'PEAK') {
-            title = '🌍 BULETIN EKONOMI: MARKET PEAK';
-            message = 'Ekonomi mencapai puncak keemasan. Transaksi saham sangat aktif, waspadai potensi koreksi atau gelembung aset jangka pendek. 📊⚖️';
-        } else if (phase === 'BEAR') {
-            title = '🌍 BULETIN EKONOMI: BEAR MARKET!';
-            message = 'Awas resesi global! Daya beli masyarakat merosot drastis. Penjualan mobil premium, tiket maskapai, dan retail akan terpukul hebat. Siapkan dana darurat! 📉🔴';
-        } else if (phase === 'TROUGH') {
-            title = '🌍 BULETIN EKONOMI: TROUGH (DEPRESI)';
-            message = 'Ekonomi menyentuh titik terendah. Aktivitas industri melambat. Namun, ini adalah momentum terbaik untuk membeli aset saham dan kontrak supplier dengan harga obral! 🛡️💼';
-        } else { // RECOVERY
-            title = '🌍 BULETIN EKONOMI: RECOVERY';
-            message = 'Sinyal pemulihan terdeteksi! Rantai pasok mulai stabil dan daya beli masyarakat perlahan bangkit kembali dari masa bear market. 📈🟢';
+    // -------------------------------------------------------------------------
+    // Probabilistic phase picker  [B]
+    // -------------------------------------------------------------------------
+    _pickNextPhase(current) {
+        const probs = TRANSITION_MATRIX[current] || TRANSITION_MATRIX['RECOVERY'];
+        const roll = Math.random();
+        let cumulative = 0;
+        for (const [phase, prob] of Object.entries(probs)) {
+            cumulative += prob;
+            if (roll < cumulative) return phase;
         }
-
-        setTimeout(() => {
-            ui.info(message, title);
-        }, 1000);
+        return 'RECOVERY'; // fallback
     }
 
+    // -------------------------------------------------------------------------
+    // Demand multiplier with safety nets  [C]
+    // -------------------------------------------------------------------------
     /**
-     * Calculates dynamic demand multiplier for active businesses
-     * Blends the phase base with raw index levels.
-     * @returns {number} 0.50 to 1.70 multiplier
+     * Get the base demand multiplier for a given sector.
+     * @param {string} sector - Optional sector key from SECTOR_SENSITIVITY
+     * @returns {number} Multiplier, clamped to safe playable range
      */
-    getDemandMultiplier() {
+    getDemandMultiplier(sector = 'default') {
         const phase = gameState.get('economy.phase') || 'RECOVERY';
         const index = gameState.get('economy.index') || this.baseIndex;
+        const totalDays = gameState.get('gameTime.totalDays') || 0;
+
         const indexFactor = index / this.baseIndex;
-        
+
+        // Phase base values – TROUGH floor raised 0.62 → 0.72  [C]
         let phaseMultiplier = 1.0;
-        if (phase === 'BULL') phaseMultiplier = 1.25;
-        else if (phase === 'PEAK') phaseMultiplier = 1.12;
-        else if (phase === 'RECOVERY') phaseMultiplier = 1.05;
-        else if (phase === 'BEAR') phaseMultiplier = 0.78;
-        else if (phase === 'TROUGH') phaseMultiplier = 0.62;
-        
-        const totalMultiplier = phaseMultiplier * (0.85 + indexFactor * 0.15);
-        return parseFloat(Math.max(0.5, Math.min(1.8, totalMultiplier)).toFixed(2));
+        if      (phase === 'BULL')       phaseMultiplier = 1.22;
+        else if (phase === 'PEAK')       phaseMultiplier = 1.10;
+        else if (phase === 'CORRECTION') phaseMultiplier = 0.96;
+        else if (phase === 'RECOVERY')   phaseMultiplier = 1.04;
+        else if (phase === 'BEAR')       phaseMultiplier = 0.82;
+        else if (phase === 'TROUGH')     phaseMultiplier = 0.72; // ← was 0.62
+
+        // Sector sensitivity – defensive sectors dampened  [C]
+        const sensitivity = SECTOR_SENSITIVITY[sector] ?? SECTOR_SENSITIVITY.default;
+        const sectorMult = 1.0 + (phaseMultiplier - 1.0) * sensitivity;
+
+        let totalMultiplier = sectorMult * (0.88 + indexFactor * 0.12);
+
+        // New-player safety net: first 180 game-days, floor at 0.82  [C]
+        if (totalDays <= 180) {
+            totalMultiplier = Math.max(0.82, totalMultiplier);
+        }
+
+        return parseFloat(Math.max(0.55, Math.min(1.80, totalMultiplier)).toFixed(2));
     }
 
-    getNextPhase(current) {
-        const sequence = ['RECOVERY', 'BULL', 'PEAK', 'BEAR', 'TROUGH'];
-        const idx = sequence.indexOf(current);
-        return sequence[(idx + 1) % sequence.length];
+    // -------------------------------------------------------------------------
+    // Broadcast phase change bulletin
+    // -------------------------------------------------------------------------
+    _broadcastPhaseChange(phase) {
+        const bulletins = {
+            BULL: {
+                title: '🌍 BULETIN EKONOMI: BULL MARKET!',
+                msg:   'Sentimen pasar sangat optimis! Permintaan konsumen melonjak. Sektor Ritel, Otomotif, dan Maskapai akan menikmati profitabilitas tinggi! 📈🚀'
+            },
+            CORRECTION: {
+                title: '🌍 BULETIN EKONOMI: KOREKSI PASAR',
+                msg:   'Pasar mengalami koreksi sehat setelah ekspansi. Jangan panik — ini fase transisi normal. Evaluasi portofolio dan siapkan cash. 📊⚖️'
+            },
+            PEAK: {
+                title: '🌍 BULETIN EKONOMI: MARKET PEAK',
+                msg:   'Ekonomi di puncak keemasan. Waspadai gelembung aset. Pertimbangkan diversifikasi dan kurangi eksposur risiko tinggi. 📊⚠️'
+            },
+            BEAR: {
+                title: '🌍 BULETIN EKONOMI: BEAR MARKET!',
+                msg:   'Resesi menghantam! Daya beli merosot. Bisnis non-defensif akan terpukul. Sektor Healthcare & Infrastruktur lebih tahan. Siapkan dana darurat! 📉🔴'
+            },
+            TROUGH: {
+                title: '🌍 BULETIN EKONOMI: TROUGH (DASAR PASAR)',
+                msg:   'Ekonomi menyentuh dasar. Ini momentum historis terbaik untuk akumulasi aset dan negosiasi kontrak supplier harga rendah. Recovery akan datang! 🛡️💼'
+            },
+            RECOVERY: {
+                title: '🌍 BULETIN EKONOMI: PEMULIHAN!',
+                msg:   'Sinyal recovery terdeteksi! Rantai pasok stabil dan daya beli bangkit. Mulai ekspansi bisnis secara bertahap. 📈🟢'
+            }
+        };
+        const b = bulletins[phase] || bulletins['RECOVERY'];
+        setTimeout(() => ui.info(b.msg, b.title), 1200);
     }
 
-    /**
-     * Get current index value
-     */
-    getIndex() {
-        return gameState.get('economy.index') || this.baseIndex;
+    // -------------------------------------------------------------------------
+    // Fear & Greed Index (0–100)
+    // -------------------------------------------------------------------------
+    getFearGreedIndex() {
+        const phase = gameState.get('economy.phase') || 'RECOVERY';
+        const index = gameState.get('economy.index') || this.baseIndex;
+
+        const baseMap = {
+            TROUGH:     12,
+            BEAR:       32,
+            CORRECTION: 44,
+            RECOVERY:   52,
+            BULL:       70,
+            PEAK:       85
+        };
+        const baseValue = baseMap[phase] ?? 50;
+        const deviation = ((index - this.baseIndex) / this.baseIndex) * 80;
+        return Math.max(5, Math.min(95, Math.round(baseValue + deviation)));
     }
 
-    /**
-     * Get market status with cycle info
-     */
+    // -------------------------------------------------------------------------
+    // Market status snapshot
+    // -------------------------------------------------------------------------
     getMarketStatus() {
         const currentIndex = gameState.get('economy.index') || this.baseIndex;
         const phaseKey = gameState.get('economy.phase') || 'RECOVERY';
         const phase = ECONOMY_PHASES[phaseKey];
         const change = ((currentIndex - this.baseIndex) / this.baseIndex) * 100;
-
         return {
-            index: currentIndex,
-            change24h: parseFloat(change.toFixed(2)),
-            trend: phaseKey,
-            phaseName: phase.name,
+            index:      currentIndex,
+            change24h:  parseFloat(change.toFixed(2)),
+            trend:      phaseKey,
+            phaseName:  phase.name,
             phaseColor: phase.color
         };
     }
 
-    formatNumber(num) {
-        if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
-        if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-        if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-        return num.toFixed(0);
+    getIndex() {
+        return gameState.get('economy.index') || this.baseIndex;
     }
 
+    // -------------------------------------------------------------------------
+    // Player action impact (dampened – no longer moves index directly)  [FIX]
+    // -------------------------------------------------------------------------
     /**
-     * Check if an amount qualifies as a whale transaction
-     * @param {number} amount 
-     * @returns {boolean}
-     */
-    isWhaleTransaction(amount) {
-        return amount >= 1000000; // $1 Million USD is a whale
-    }
-
-    /**
-     * Get the whale tier description based on transaction size
-     * @param {number} amount 
-     * @returns {string}
-     */
-    getWhaleTier(amount) {
-        if (amount >= 1000000000) return '🐋 MEGALODON (Ultra Whale)';
-        if (amount >= 100000000) return '🐋 BLUE WHALE (Giant)';
-        if (amount >= 10000007) return '🐋 HUMPBACK (Heavy)';
-        if (amount >= 1000000) return '🐋 BABY WHALE (Light)';
-        return 'NONE';
-    }
-
-    /**
-     * Apply player deposit (inject) or withdrawal to global economy playerImpact
-     * @param {number} amount 
-     * @param {string} actionType - 'inject' or 'withdraw'
-     * @returns {object}
+     * Record a player deposit/withdrawal. Only updates the playerImpact
+     * sentiment tracker; it does NOT directly move the economy index anymore.
+     * @param {number} amount
+     * @param {'inject'|'withdraw'} actionType
      */
     applyPlayerAction(amount, actionType) {
-        // Calculate raw impact based on transaction size
-        let rawImpact = (amount / 1000000) * 1.0; 
-        
-        // Cap the change per transaction to keep it balanced
-        rawImpact = Math.min(rawImpact, 50.0);
-
+        // Sentiment shift: capped at ±10 per transaction
+        let rawImpact = Math.min((amount / 1000000) * 0.5, 10.0);
         let currentImpact = gameState.get('economy.playerImpact') || 0;
-        let change = 0;
-
-        if (actionType === 'inject') {
-            change = rawImpact;
-        } else if (actionType === 'withdraw') {
-            change = -rawImpact;
-        }
-
+        const change = actionType === 'inject' ? rawImpact : -rawImpact;
         const newImpact = Math.max(-100, Math.min(100, currentImpact + change));
         gameState.set('economy.playerImpact', newImpact);
 
-        // Also adjust the economy index directly!
-        const currentIndex = gameState.get('economy.index') || this.baseIndex;
-        const indexChangePercent = (change / 100) * 0.05; // Max 5% change for max rawImpact
-        const newIndex = Math.max(100, currentIndex * (1 + indexChangePercent));
-        gameState.set('economy.index', newIndex);
-
-        console.log(`🌍 Player action "${actionType}" of $${amount.toLocaleString()} applied. Impact: ${change.toFixed(2)}%. New playerImpact: ${newImpact.toFixed(2)}%. New Index: ${newIndex.toFixed(2)}`);
+        console.log(`🌍 Player "${actionType}" $${amount.toLocaleString()} → sentiment ${change >= 0 ? '+' : ''}${change.toFixed(1)} (total ${newImpact.toFixed(1)})`);
 
         return {
             impact: change,
             newPlayerImpact: newImpact,
-            newIndex
+            newIndex: this.getIndex() // unchanged
         };
+    }
+
+    // -------------------------------------------------------------------------
+    // Whale helpers (unchanged)
+    // -------------------------------------------------------------------------
+    isWhaleTransaction(amount) { return amount >= 1000000; }
+
+    getWhaleTier(amount) {
+        if (amount >= 1000000000) return '🐋 MEGALODON (Ultra Whale)';
+        if (amount >= 100000000)  return '🐋 BLUE WHALE (Giant)';
+        if (amount >= 10000007)   return '🐋 HUMPBACK (Heavy)';
+        if (amount >= 1000000)    return '🐋 BABY WHALE (Light)';
+        return 'NONE';
+    }
+
+    // -------------------------------------------------------------------------
+    // Utilities
+    // -------------------------------------------------------------------------
+    formatNumber(num) {
+        if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
+        if (num >= 1e9)  return (num / 1e9).toFixed(2) + 'B';
+        if (num >= 1e6)  return (num / 1e6).toFixed(2) + 'M';
+        return num.toFixed(0);
+    }
+
+    /**
+     * Convenience: get sector-adjusted demand for sectors that pass their key.
+     * Falls back to 'default' if sector is unknown.
+     */
+    getSectorDemand(sectorKey) {
+        return this.getDemandMultiplier(sectorKey);
     }
 }
 

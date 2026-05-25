@@ -157,7 +157,7 @@ export const AutomotiveSector = {
         if (!auto) return { wages: 0, cost: 0, revenue: 0 };
 
         // 1. Demand Fluctuations (dynamically driven by the global economic cycle + prestige)
-        const econMult = globalEconomy.getDemandMultiplier();
+        const econMult = globalEconomy.getDemandMultiplier('automotive');
         const prestigeBonus = (auto.prestige || 10) / 100;
         const randDev = (Math.random() - 0.5) * 0.12; // slight model trend deviation
         auto.demandFluctuation = parseFloat(Math.min(2.0, Math.max(0.4, econMult + prestigeBonus + randDev)).toFixed(2));

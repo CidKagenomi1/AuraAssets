@@ -294,7 +294,7 @@ export const AerospaceSector = {
         if (!aerospace) return { wages: 0, cost: 0, revenue: 0 };
 
         // 1. Demand Fluctuation (dynamically driven by the global economic cycle)
-        const econMult = globalEconomy.getDemandMultiplier();
+        const econMult = globalEconomy.getDemandMultiplier('aerospace');
         const randDev = (Math.random() - 0.5) * 0.12; // slight industry variance
         aerospace.demandFluctuation = parseFloat(Math.max(0.4, Math.min(2.0, econMult + randDev)).toFixed(2));
 

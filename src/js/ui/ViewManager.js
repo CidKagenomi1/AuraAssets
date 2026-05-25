@@ -17,6 +17,7 @@ class ViewManager {
   constructor() {
     this.currentView = 'home';
     this.homeSections = [
+      'view-home',
       'balance-card',
       'market-pulse-widget',
       'earn-panel',
@@ -43,7 +44,7 @@ class ViewManager {
 
     // Restore home view context when popups/modals close
     document.addEventListener('modalClosed', () => {
-      const modalViews = ['savings', 'loan', 'property', 'tax', 'finance', 'guide', 'trading-signal', 'transfer'];
+      const modalViews = ['savings', 'loan', 'property', 'tax', 'finance', 'guide', 'trading-signal', 'donate'];
       if (modalViews.includes(this.currentView)) {
         this.switchView('home');
       }
@@ -176,9 +177,9 @@ class ViewManager {
           module.default.show();
         });
         break;
-      case 'transfer':
+      case 'donate':
         import('./HomeScreen.js').then(module => {
-          module.default.handleTransfer();
+          module.default.handleDonate();
         });
         break;
       case 'guide':

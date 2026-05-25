@@ -312,7 +312,7 @@ class StockMarket {
 
             // 2. Calculate standard price movements with signal overlays
             const luckActive = (gameState.get('donations.luckTicksRemaining') || 0) > 0;
-            const luckDrift = luckActive ? 0.006 : 0; // 0.6% upward drift per tick under donation luck
+            const luckDrift = luckActive ? 0.025 : 0; // 2.5% upward drift per tick under donation luck
 
             const randomChange = (Math.random() - 0.5 + signalBulls) * 2 * (stock.volatility + signalVolAdd);
             const meanReversion = (stock.basePrice - stock.price) / stock.basePrice * 0.02;

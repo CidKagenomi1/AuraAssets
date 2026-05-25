@@ -199,7 +199,7 @@ export const HealthcareSector = {
         if (!hc) return { wages: 0, cost: 0, revenue: 0 };
 
         // 1. Patient Demand Fluctuation (based on global economy)
-        const econMult = globalEconomy.getDemandMultiplier();
+        const econMult = globalEconomy.getDemandMultiplier('healthcare');
         const randDev = (Math.random() - 0.5) * 0.10;
         hc.demandFluctuation = parseFloat(Math.max(0.5, Math.min(2.0, econMult + randDev)).toFixed(2));
 

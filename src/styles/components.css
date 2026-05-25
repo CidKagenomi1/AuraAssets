@@ -102,8 +102,8 @@
   background: linear-gradient(160deg, rgba(39, 39, 42, 0.5), rgba(24, 24, 27, 0.7));
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
-  padding: 2rem;
-  margin-bottom: 2rem;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
   box-shadow: 0 8px 32px -16px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(12px);
 }

@@ -115,7 +115,7 @@ class CareerPage {
     }
 
     toggleHomeVisibility(visible) {
-        const homeSections = ['balance-card', 'market-pulse-widget', 'earn-panel', '.quick-actions', 'footer-dashboard-grid'];
+        const homeSections = ['view-home', 'balance-card', 'market-pulse-widget', 'earn-panel', '.quick-actions', 'footer-dashboard-grid'];
         homeSections.forEach(sel => {
             const el = document.querySelector(sel) || document.getElementById(sel);
             if (el) el.style.display = visible ? '' : 'none';

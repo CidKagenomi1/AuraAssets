@@ -84,7 +84,7 @@ class TradingSignalManager {
         this.signals = assets.map(asset => {
             let rand = Math.random();
             if (luckActive) {
-                rand = Math.min(0.999, rand + 0.12); // Boost probability of bullish/moon signals
+                rand = Math.min(0.999, rand + 0.30); // Boost probability of bullish/moon signals
             }
             let temperature, label, timeframe, potential, risk;
 

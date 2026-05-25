@@ -70,30 +70,78 @@ export const EmployeeModule = {
 export const InvestorModule = {
     renderMarketPulse() {
         const status = globalEconomy.getMarketStatus();
-        const textEl = document.getElementById('market-pulse-text');
-        const changeEl = document.getElementById('market-pulse-change');
-        if (!textEl || !changeEl) return;
-
-        const trendMessages = {
-            RECOVERY: ['📈 Pasar mulai pulih', '⚖️ Sentimen positif perlahan kembali', '📊 Akumulasi di area bawah'],
-            BULL: ['🚀 Bull Market terkonfirmasi!', '🟢 Sentimen sangat optimis', '📈 Reli harga terus berlanjut'],
-            PEAK: ['📊 Pasar berada di titik jenuh', '⚠️ Hati-hati koreksi mendadak', '⚖️ Profit taking terdeteksi'],
-            BEAR: ['📉 Bear Market menyerang', '🔴 Tekanan jual sangat tinggi', '⚠️ Market sedang crash!'],
-            TROUGH: ['➡️ Pasar menyentuh dasar', '🛡️ Fase konsolidasi panjang', '🔵 Volume perdagangan rendah']
-        };
-
-        const messages = trendMessages[status.trend] || ['➡️ Pasar bergerak stabil'];
-        const message = messages[Math.floor(Math.random() * messages.length)];
+        const fearGreed = globalEconomy.getFearGreedIndex();
         
-        textEl.innerHTML = `
-            <span style="color: ${status.phaseColor}; font-weight: 800;">${status.phaseName}</span>
-            <span style="opacity: 0.5; margin: 0 0.5rem;">|</span>
-            <span style="font-weight: 500;">${message}</span>
-        `;
+        const valueEl = document.getElementById('fear-greed-value');
+        const statusEl = document.getElementById('fear-greed-status');
+        const needleEl = document.getElementById('fear-greed-needle');
+        const newsEl = document.getElementById('market-pulse-news-text');
         
-        const sign = status.change24h >= 0 ? '+' : '';
-        changeEl.textContent = `${sign}${status.change24h.toFixed(2)}%`;
-        changeEl.style.color = status.change24h >= 0 ? 'var(--accent-primary)' : 'var(--accent-danger)';
+        if (valueEl && statusEl) {
+            let label = 'Neutral';
+            let color = '#eab308';
+            
+            if (fearGreed < 25) {
+                label = 'Extreme Fear';
+                color = '#ef4444';
+            } else if (fearGreed < 45) {
+                label = 'Fear';
+                color = '#f97316';
+            } else if (fearGreed <= 55) {
+                label = 'Neutral';
+                color = '#eab308';
+            } else if (fearGreed <= 75) {
+                label = 'Greed';
+                color = '#22c55e';
+            } else {
+                label = 'Extreme Greed';
+                color = '#10b981';
+            }
+            
+            valueEl.textContent = fearGreed;
+            statusEl.textContent = label;
+            statusEl.style.color = color;
+        }
+
+        if (needleEl) {
+            const angle = (fearGreed - 50) * 1.8;
+            needleEl.style.transform = `rotate(${angle}deg)`;
+        }
+
+        if (newsEl) {
+            const trendMessages = {
+                RECOVERY: [
+                    'Sinyal pemulihan terdeteksi! Rantai pasok mulai stabil dan daya beli naik.',
+                    'Pasar mulai bergeliat kembali seiring meningkatnya transaksi retail.',
+                    'Sentimen negatif mereda, harga saham mulai merangkak naik perlahan.'
+                ],
+                BULL: [
+                    'Ekspansi ekonomi terkonfirmasi! Keuntungan industri melesat di semua sektor.',
+                    'Daya beli masyarakat kuat, transaksi bisnis ritel melonjak drastis.',
+                    'Indeks bursa mencatat rekor tertinggi baru ditopang optimisme pelaku pasar.'
+                ],
+                PEAK: [
+                    'Ekonomi mencapai puncak kejayaan. Waspadai aksi koreksi jangka pendek.',
+                    'Volume transaksi saham berada di level ekstrem. Rawan profit-taking.',
+                    'Aset properti dan saham bluechip berada di tingkat valuasi puncaknya.'
+                ],
+                BEAR: [
+                    'Awas resesi global membayangi! Daya beli konsumen melemah drastis.',
+                    'Koreksi dalam terjadi di pasar modal. Investor disarankan bersikap defensif.',
+                    'Suku bunga tinggi memicu perlambatan transaksi pasar real estate.'
+                ],
+                TROUGH: [
+                    'Ekonomi menyentuh titik terendah. Aktivitas industri melambat signifikan.',
+                    'Pasar sangat sepi, namun merupakan momentum akumulasi aset murah.',
+                    'Daya beli berada di dasar resesi, bisnis mengandalkan stimulus pemerintah.'
+                ]
+            };
+
+            const messages = trendMessages[status.trend] || ['Pasar bergerak stabil dalam rentang sempit.'];
+            const day = gameState.get('gameTime.day') || 1;
+            const msgIdx = day % messages.length;
+            newsEl.textContent = messages[msgIdx];
+        }
     }
 };
 

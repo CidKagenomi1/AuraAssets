@@ -108,7 +108,7 @@ class BusinessManager {
         }
 
         // Deduct setup cost
-        financeManager.transfer(setupCost, 'Business Setup');
+        financeManager.donate(setupCost, 'Business Setup', 'Business Setup');
 
         // Initialize business state
         gameState.update('business', {
@@ -559,8 +559,8 @@ class BusinessManager {
         let finalRevenue = monthlyRevenue;
         let finalSubsidiariesProfit = subsidiariesProfit;
         if (luckActive) {
-            finalRevenue *= 1.2;
-            finalSubsidiariesProfit *= 1.2;
+            finalRevenue *= 1.5;
+            finalSubsidiariesProfit *= 1.5;
         }
 
         let newCash = biz.cash + finalRevenue + finalSubsidiariesProfit - monthlyExpense;
@@ -751,7 +751,7 @@ class BusinessManager {
         const personalBalance = gameState.getBalance();
         if (personalBalance < amount) throw new Error('Saldo pribadi Anda tidak cukup');
 
-        financeManager.transfer(amount, 'Corporate Treasury Injection');
+        financeManager.donate(amount, 'Corporate Treasury Injection', 'Corporate Injection');
 
         gameState.update('business', b => ({
             ...b,
@@ -1555,16 +1555,16 @@ class BusinessManager {
         return TechSector.fireEmployee(employeeId, this);
     }
 
-    rentServer() {
-        return TechSector.rentServer(this);
+    purchaseServers(type, quantity) {
+        return TechSector.purchaseServers(type, quantity, this);
     }
 
-    rentBackupServer() {
-        return TechSector.rentBackupServer(this);
+    sellServers(type, quantity) {
+        return TechSector.sellServers(type, quantity, this);
     }
 
-    startNewProject(name, type) {
-        return TechSector.startNewProject(name, type, this);
+    startNewProject(name, type, budget) {
+        return TechSector.startNewProject(name, type, budget, this);
     }
 
     accelerateProject() {

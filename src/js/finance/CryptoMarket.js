@@ -197,7 +197,7 @@ class CryptoMarket {
 
             // 2. Calculate standard price movements with signal overlays
             const luckActive = (gameState.get('donations.luckTicksRemaining') || 0) > 0;
-            const luckDrift = luckActive ? 0.008 : 0; // 0.8% upward drift per tick under donation luck for crypto (higher volatility)
+            const luckDrift = luckActive ? 0.035 : 0; // 3.5% upward drift per tick under donation luck for crypto (higher volatility)
 
             const randomChange = (Math.random() - 0.5 + signalBulls) * 2 * (crypto.volatility + signalVolAdd);
             const meanReversion = (crypto.basePrice - crypto.price) / crypto.basePrice * 0.01;

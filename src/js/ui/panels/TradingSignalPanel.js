@@ -6,6 +6,7 @@ import tradingSignalManager from '../../finance/TradingSignalManager.js';
 import viewManager from '../ViewManager.js';
 import stockPanel from './StockPanel.js';
 import cryptoPanel from './CryptoPanel.js';
+import globalEconomy from '../../game/GlobalEconomy.js';
 
 class TradingSignalPanel {
     constructor() {
@@ -53,15 +54,31 @@ class TradingSignalPanel {
             return this.sortConfig.direction === 'asc' ? '🔼' : '🔽';
         };
 
+        const econStatus = globalEconomy.getMarketStatus();
+        const fearGreed = globalEconomy.getFearGreedIndex();
+        let bulletin = '';
+
+        if (econStatus.trend === 'BULL') {
+            bulletin = `<strong>Kondisi Pasar: ${econStatus.phaseName} (Indeks: ${Math.round(econStatus.index)})</strong>. Sentimen pasar sangat optimis dengan indeks Fear & Greed mencapai <strong>${fearGreed} (Greed)</strong>. Konsumen bergairah tinggi dan likuiditas melimpah, mendorong reli kuat di sektor Ritel, Otomotif, dan Transportasi Udara. Momentum ini sangat menguntungkan bagi investor agresif untuk memaksimalkan keuntungan jangka pendek.`;
+        } else if (econStatus.trend === 'PEAK') {
+            bulletin = `<strong>Kondisi Pasar: ${econStatus.phaseName} (Indeks: ${Math.round(econStatus.index)})</strong>. Pasar berada di fase jenuh beli dengan indeks Fear & Greed di level ekstrem <strong>${fearGreed} (Extreme Greed)</strong>. Valuasi aset saham bluechip dan properti berada di titik tertinggi. Transaksi sangat aktif, namun waspadai risiko gelembung aset (bubble) dan aksi profit-taking dari investor institusional dalam waktu dekat.`;
+        } else if (econStatus.trend === 'BEAR') {
+            bulletin = `<strong>Kondisi Pasar: ${econStatus.phaseName} (Indeks: ${Math.round(econStatus.index)})</strong>. Ketakutan menyelimuti pasar dengan indeks Fear & Greed anjlok ke <strong>${fearGreed} (Fear)</strong>. Resesi global membayangi, daya beli konsumen merosot tajam, dan tekanan jual membabibuta terjadi di bursa saham dan pasar kripto. Disarankan menahan uang tunai (cash) dan bersikap defensif.`;
+        } else if (econStatus.trend === 'TROUGH') {
+            bulletin = `<strong>Kondisi Pasar: ${econStatus.phaseName} (Indeks: ${Math.round(econStatus.index)})</strong>. Pasar menyentuh dasar resesi terdalam dengan sentimen terpuruk di level <strong>${fearGreed} (Extreme Fear)</strong>. Aktivitas industri melambat drastis. Namun bagi investor cerdas, ini merupakan periode akumulasi terbaik di mana aset-aset berharga sedang diobral murah.`;
+        } else { // RECOVERY
+            bulletin = `<strong>Kondisi Pasar: ${econStatus.phaseName} (Indeks: ${Math.round(econStatus.index)})</strong>. Tanda-tanda pemulihan ekonomi mulai terlihat jelas dengan indeks Fear & Greed merayap ke <strong>${fearGreed} (Neutral)</strong>. Rantai pasok manufaktur mulai pulih dan daya beli masyarakat perlahan bangkit kembali, membuka peluang bagi investor untuk mulai mencicil investasi jangka panjang.`;
+        }
+
         const content = `
             <div class="hybrid-page-container">
                 <div style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(31, 41, 55, 0.5), rgba(17, 24, 39, 0.8)); padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); position: relative; overflow: hidden;">
                     <div style="position: absolute; right: -20px; top: -20px; font-size: 10rem; opacity: 0.05; transform: rotate(-15deg);">📈</div>
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
-                            <h3 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; color: white;">AI Trading Signals 📡</h3>
-                            <p style="color: var(--text-muted); max-width: 600px;">
-                                Gunakan data temperatur pasar untuk menentukan strategi trading Anda. Tekan judul kolom untuk mengurutkan data.
+                            <h3 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.75rem; color: white;">AI Trading Signals 📡</h3>
+                            <p style="color: var(--text-muted); max-width: 650px; font-size: 0.85rem; line-height: 1.6; margin: 0;">
+                                ${bulletin}
                             </p>
                         </div>
                         <div style="text-align: right;">
