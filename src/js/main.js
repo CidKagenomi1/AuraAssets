@@ -276,6 +276,14 @@ class BusinessTycoonGame {
             globalEconomy.naturalFluctuation();
             businessManager.tickAuctions();
 
+            // Process assistant work for the day
+            const assistantResult = workTaskManager.tickAssistant();
+            if (assistantResult?.acted && assistantResult?.description) {
+                ui.info(assistantResult.description, '🧑‍💼 Asisten Kantor');
+            } else if (assistantResult?.acted === false && assistantResult?.description) {
+                ui.warning(assistantResult.description, '⚠️ Asisten');
+            }
+
             // Decrement luck ticks
             const donations = gameState.get('donations') || { totalDonated: 0, luckMultiplier: 1.0, luckTicksRemaining: 0 };
             if (donations.luckTicksRemaining > 0) {

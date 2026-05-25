@@ -15,7 +15,7 @@ class WorkSimulation {
     }
 
     /**
-     * Start a simulation for a specific work task
+     * Start a simulation for a specific work task (Modal fallback)
      */
     start(task, onComplete) {
         this.task = task;
@@ -26,9 +26,17 @@ class WorkSimulation {
             title: `🎮 Work Simulation: ${task.label}`,
             content: this.generateSimHTML(task.id),
             onShow: () => {
-                this.initSimLogic(task.id);
+                this.initSimLogic(task.id, document.getElementById('simulation-body-container') || document);
             }
         });
+    }
+
+    /**
+     * Render a simulation directly inside an inline container
+     */
+    renderInline(taskId, container, onComplete) {
+        container.innerHTML = this.generateSimHTML(taskId);
+        this.initSimLogic(taskId, container, onComplete);
     }
 
     generateSimHTML(taskId) {
@@ -40,15 +48,15 @@ class WorkSimulation {
                     <div style="text-align: center; margin-bottom: 1rem;">
                         <span style="font-size: 2.5rem;">📊</span>
                         <h4 style="margin: 0.5rem 0; color: white;">Compile Report</h4>
-                        <p style="font-size: 0.8rem; color: var(--text-muted);">Click the document sections in the correct logical sequence: <strong>Title → Summary → Analysis → Sign-Off</strong></p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Urutkan dokumen: <strong>Title → Summary → Analysis → Sign-Off</strong></p>
                     </div>
-                    <div id="seq-container" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+                    <div class="seq-container" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
                         <button class="btn btn-secondary seq-btn" data-step="analysis" style="text-align: left; padding: 10px 15px; font-size: 0.85rem;">📈 III. Financial Data Analysis</button>
                         <button class="btn btn-secondary seq-btn" data-step="title" style="text-align: left; padding: 10px 15px; font-size: 0.85rem;">📝 I. Report Title & Header</button>
                         <button class="btn btn-secondary seq-btn" data-step="signoff" style="text-align: left; padding: 10px 15px; font-size: 0.85rem;">✍️ IV. Executive Sign-Off</button>
                         <button class="btn btn-secondary seq-btn" data-step="summary" style="text-align: left; padding: 10px 15px; font-size: 0.85rem;">📋 II. Executive Summary</button>
                     </div>
-                    <div id="sim-feedback" style="margin-top: 1rem; height: 20px; font-size: 0.8rem; text-align: center; font-weight: 700;"></div>
+                    <div class="sim-feedback" style="margin-top: 1rem; height: 20px; font-size: 0.8rem; text-align: center; font-weight: 700;"></div>
                 `;
                 break;
 
@@ -63,9 +71,9 @@ class WorkSimulation {
                     <div style="text-align: center; margin-bottom: 1rem;">
                         <span style="font-size: 2.5rem;">✍️</span>
                         <h4 style="margin: 0.5rem 0; color: white;">Document Approval</h4>
-                        <p style="font-size: 0.8rem; color: var(--text-muted);">Read the document description below and make the correct corporate decision.</p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Beri keputusan yang tepat berdasarkan peraturan perusahaan.</p>
                     </div>
-                    <div class="card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 1.25rem; font-size: 0.9rem; line-height: 1.5; color: #fff; text-align: center; min-height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;" id="doc-card" data-correct="${docType.approve}">
+                    <div class="card doc-card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 1.25rem; font-size: 0.9rem; line-height: 1.5; color: #fff; text-align: center; min-height: 80px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;" data-correct="${docType.approve}">
                         "${docType.desc}"
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -88,9 +96,9 @@ class WorkSimulation {
                     <div style="text-align: center; margin-bottom: 1rem;">
                         <span style="font-size: 2.5rem;">🧾</span>
                         <h4 style="margin: 0.5rem 0; color: white;">Verify Invoice</h4>
-                        <p style="font-size: 0.8rem; color: var(--text-muted);">Verify the math. Rule: Total must equal Subtotal + Tax (Tax must be exactly 10% of Subtotal).</p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Periksa matematika invoice. Total harus = Subtotal + Tax (Tax = 10% Subtotal).</p>
                     </div>
-                    <div class="card" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 1.5rem; margin-bottom: 1.5rem;" id="invoice-card" data-valid="${invoice.valid}">
+                    <div class="card invoice-card" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 1.5rem; margin-bottom: 1.5rem;" data-valid="${invoice.valid}">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
                             <span style="color: var(--text-muted);">Subtotal:</span>
                             <strong style="color: white;">$${invoice.sub}</strong>
@@ -125,9 +133,9 @@ class WorkSimulation {
                     <div style="text-align: center; margin-bottom: 1rem;">
                         <span style="font-size: 2.5rem;">🗂️</span>
                         <h4 style="margin: 0.5rem 0; color: white;">Data Categorization</h4>
-                        <p style="font-size: 0.8rem; color: var(--text-muted);">Sort the transactions into their correct financial category ledger columns.</p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Klasifikasikan transaksi berikut ke kolom Kas yang benar.</p>
                     </div>
-                    <div id="drag-items-container" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 1.5rem;">
+                    <div class="drag-items-container" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 1.5rem;">
                         ${itemsToCategorize.map((item, idx) => `
                             <div class="drag-item-card" data-cat="${item.cat}" data-idx="${idx}" style="background: rgba(255,255,255,0.08); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; font-weight: 700; color: white; width: 100%; text-align: center; display: ${idx === 0 ? 'block' : 'none'}; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
                                 📝 ${item.name}
@@ -138,7 +146,7 @@ class WorkSimulation {
                         <button class="btn btn-danger btn-lg sort-btn" data-choice="expense" style="font-weight: 800;">💸 EXPENSE</button>
                         <button class="btn btn-success btn-lg sort-btn" data-choice="income" style="font-weight: 800;">💵 INCOME</button>
                     </div>
-                    <div style="text-align: center; margin-top: 1rem; font-size: 0.8rem; color: var(--text-dim);" id="sort-progress">
+                    <div style="text-align: center; margin-top: 1rem; font-size: 0.8rem; color: var(--text-dim);" class="sort-progress">
                         Items Sorted: 0 / ${itemsToCategorize.length}
                     </div>
                 `;
@@ -149,12 +157,12 @@ class WorkSimulation {
                     <div style="text-align: center; margin-bottom: 0.75rem;">
                         <span style="font-size: 2.5rem;">🔗</span>
                         <h4 style="margin: 0.5rem 0; color: white;">Reconcile Transactions</h4>
-                        <p style="font-size: 0.8rem; color: var(--text-muted);">Match identical values from the Bank Statement (Left) with the Ledger entries (Right).</p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Cocokkan nilai Bank Statement (Kiri) dan Company Ledger (Kanan).</p>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
                         <div>
                             <div style="font-size: 0.75rem; text-align: center; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Bank Statement</div>
-                            <div style="display: flex; flex-direction: column; gap: 0.5rem;" id="match-left-col">
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;" class="match-left-col">
                                 <button class="btn btn-secondary match-btn left-btn" data-val="1240">$1,240</button>
                                 <button class="btn btn-secondary match-btn left-btn" data-val="485">$485</button>
                                 <button class="btn btn-secondary match-btn left-btn" data-val="9300">$9,300</button>
@@ -162,14 +170,14 @@ class WorkSimulation {
                         </div>
                         <div>
                             <div style="font-size: 0.75rem; text-align: center; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Company Ledger</div>
-                            <div style="display: flex; flex-direction: column; gap: 0.5rem;" id="match-right-col">
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;" class="match-right-col">
                                 <button class="btn btn-secondary match-btn right-btn" data-val="485">$485</button>
                                 <button class="btn btn-secondary match-btn right-btn" data-val="9300">$9,300</button>
                                 <button class="btn btn-secondary match-btn right-btn" data-val="1240">$1,240</button>
                             </div>
                         </div>
                     </div>
-                    <div style="text-align: center; font-size: 0.8rem; color: var(--text-dim);" id="reconciled-status">Matches cleared: 0 / 3</div>
+                    <div style="text-align: center; font-size: 0.8rem; color: var(--text-dim);" class="reconciled-status">Matches cleared: 0 / 3</div>
                 `;
                 break;
 
@@ -181,53 +189,64 @@ class WorkSimulation {
                     <div style="text-align: center; margin-bottom: 1rem;">
                         <span style="font-size: 2.5rem;">⚖️</span>
                         <h4 style="margin: 0.5rem 0; color: white;">Balance Sheet Cashflow</h4>
-                        <p style="font-size: 0.8rem; color: var(--text-muted);">Adjust Equity to satisfy the accounting equation:<br><strong>Total Assets = Liabilities + Equity</strong></p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Sesuaikan Equity agar: <strong>Total Assets = Liabilities + Equity</strong></p>
                     </div>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; text-align: center;">
                         <div class="card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 1rem;">
                             <div style="font-size: 0.75rem; color: var(--text-muted);">TOTAL ASSETS</div>
-                            <div style="font-size: 1.5rem; font-weight: 900; color: white;" id="val-assets" data-val="${randAsset}">$${randAsset}</div>
+                            <div class="val-assets" style="font-size: 1.5rem; font-weight: 900; color: white;" data-val="${randAsset}">$${randAsset}</div>
                         </div>
                         <div class="card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 1rem;">
                             <div style="font-size: 0.75rem; color: var(--text-muted);">LIABILITIES + EQUITY</div>
-                            <div style="font-size: 1.5rem; font-weight: 900; color: white;" id="val-liab-equity">Calculating...</div>
+                            <div class="val-liab-equity" style="font-size: 1.5rem; font-weight: 900; color: white;">Calculating...</div>
                         </div>
                     </div>
 
                     <div class="card" style="background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); padding: 1rem; margin-bottom: 1.5rem;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.85rem;">
                             <span>Liabilities (Fixed):</span>
-                            <span style="font-weight: 700; color: white;" id="val-liabilities" data-val="${randLiab}">$${randLiab}</span>
+                            <span style="font-weight: 700; color: white;" class="val-liabilities" data-val="${randLiab}">$${randLiab}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem;">
                             <span>Equity (Adjustable):</span>
                             <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                <button class="btn btn-secondary btn-sm" id="btn-eq-down" style="padding: 2px 10px; font-weight: 900;">-10</button>
-                                <span style="font-weight: 800; color: var(--accent-primary); font-size: 1.1rem; width: 50px; text-align: center;" id="val-equity" data-val="0">$0</span>
-                                <button class="btn btn-secondary btn-sm" id="btn-eq-up" style="padding: 2px 10px; font-weight: 900;">+10</button>
+                                <button class="btn btn-secondary btn-sm btn-eq-down" style="padding: 2px 10px; font-weight: 900;">-10</button>
+                                <span style="font-weight: 800; color: var(--accent-primary); font-size: 1.1rem; width: 50px; text-align: center;" class="val-equity" data-val="0">$0</span>
+                                <button class="btn btn-secondary btn-sm btn-eq-up" style="padding: 2px 10px; font-weight: 900;">+10</button>
                             </div>
                         </div>
                     </div>
-                    <button class="btn btn-primary" id="btn-submit-balance" style="width: 100%; font-weight: 800;">SUBMIT SHEET</button>
+                    <button class="btn btn-primary btn-submit-balance" style="width: 100%; font-weight: 800;">SUBMIT SHEET</button>
                 `;
                 break;
         }
 
         return `
-            <div style="padding: 1rem;" id="simulation-body-container">
+            <div style="padding: 1rem;" class="simulation-body-container">
                 ${innerHTML}
             </div>
         `;
     }
 
-    initSimLogic(taskId) {
+    initSimLogic(taskId, container = document, onComplete = null) {
+        const handleComplete = (success) => {
+            if (onComplete) {
+                onComplete(success);
+            } else {
+                this.completeSimulation(success);
+            }
+        };
+
+        const find = (sel) => container.querySelector(sel);
+        const findAll = (sel) => container.querySelectorAll(sel);
+
         switch (taskId) {
             case 'compile_report': {
                 const targetSeq = ['title', 'summary', 'analysis', 'signoff'];
                 let currentStepIdx = 0;
-                const buttons = document.querySelectorAll('.seq-btn');
-                const feedback = document.getElementById('sim-feedback');
+                const buttons = findAll('.seq-btn');
+                const feedback = find('.sim-feedback');
 
                 buttons.forEach(btn => {
                     btn.addEventListener('click', () => {
@@ -242,7 +261,7 @@ class WorkSimulation {
 
                             if (currentStepIdx === targetSeq.length) {
                                 feedback.textContent = '🎉 Report Compiled Successfully!';
-                                this.completeSimulation(true);
+                                handleComplete(true);
                             }
                         } else {
                             btn.classList.add('shake');
@@ -256,9 +275,9 @@ class WorkSimulation {
             }
 
             case 'document_approval': {
-                const docCard = document.getElementById('doc-card');
+                const docCard = find('.doc-card');
                 const isCorrectApprove = docCard.dataset.correct === 'true';
-                const buttons = document.querySelectorAll('.approval-btn');
+                const buttons = findAll('.approval-btn');
 
                 buttons.forEach(btn => {
                     btn.addEventListener('click', () => {
@@ -267,13 +286,13 @@ class WorkSimulation {
                         
                         if (isApproved === isCorrectApprove) {
                             btn.classList.add('btn-success');
-                            this.completeSimulation(true);
+                            handleComplete(true);
                         } else {
                             btn.classList.add('shake');
                             ui.error("Wrong decision for this document's rules!");
                             setTimeout(() => {
                                 btn.classList.remove('shake');
-                                this.completeSimulation(false);
+                                handleComplete(false);
                             }, 1000);
                         }
                     });
@@ -282,22 +301,22 @@ class WorkSimulation {
             }
 
             case 'verify_invoice': {
-                const card = document.getElementById('invoice-card');
+                const card = find('.invoice-card');
                 const isValid = card.dataset.valid === 'true';
-                const buttons = document.querySelectorAll('.verify-btn');
+                const buttons = findAll('.verify-btn');
 
                 buttons.forEach(btn => {
                     btn.addEventListener('click', () => {
                         const choice = btn.dataset.val === 'true';
                         if (choice === isValid) {
                             btn.classList.add('btn-success');
-                            this.completeSimulation(true);
+                            handleComplete(true);
                         } else {
                             btn.classList.add('shake');
                             ui.error("Incorrect verification analysis!");
                             setTimeout(() => {
                                 btn.classList.remove('shake');
-                                this.completeSimulation(false);
+                                handleComplete(false);
                             }, 1000);
                         }
                     });
@@ -306,9 +325,9 @@ class WorkSimulation {
             }
 
             case 'drag_drop_data': {
-                const cards = Array.from(document.querySelectorAll('.drag-item-card'));
-                const buttons = document.querySelectorAll('.sort-btn');
-                const progressText = document.getElementById('sort-progress');
+                const cards = Array.from(findAll('.drag-item-card'));
+                const buttons = findAll('.sort-btn');
+                const progressText = find('.sort-progress');
                 let currentIndex = 0;
 
                 buttons.forEach(btn => {
@@ -327,7 +346,7 @@ class WorkSimulation {
                             if (currentIndex < cards.length) {
                                 cards[currentIndex].style.display = 'block';
                             } else {
-                                this.completeSimulation(true);
+                                handleComplete(true);
                             }
                         } else {
                             btn.classList.add('shake');
@@ -343,9 +362,9 @@ class WorkSimulation {
                 let selectedLeft = null;
                 let selectedRight = null;
                 let matchesCleared = 0;
-                const lCol = document.getElementById('match-left-col');
-                const rCol = document.getElementById('match-right-col');
-                const status = document.getElementById('reconciled-status');
+                const lCol = find('.match-left-col');
+                const rCol = find('.match-right-col');
+                const status = find('.reconciled-status');
 
                 const checkMatch = () => {
                     if (selectedLeft && selectedRight) {
@@ -361,7 +380,7 @@ class WorkSimulation {
                             status.textContent = `Matches cleared: ${matchesCleared} / 3`;
 
                             if (matchesCleared === 3) {
-                                this.completeSimulation(true);
+                                handleComplete(true);
                             }
                         } else {
                             selectedLeft.classList.remove('btn-primary');
@@ -404,10 +423,10 @@ class WorkSimulation {
             }
 
             case 'balance_cashflow': {
-                const valAssets = parseInt(document.getElementById('val-assets').dataset.val);
-                const valLiab = parseInt(document.getElementById('val-liabilities').dataset.val);
-                const eqText = document.getElementById('val-equity');
-                const valLiabEqText = document.getElementById('val-liab-equity');
+                const valAssets = parseInt(find('.val-assets').dataset.val);
+                const valLiab = parseInt(find('.val-liabilities').dataset.val);
+                const eqText = find('.val-equity');
+                const valLiabEqText = find('.val-liab-equity');
                 let currentEquity = 0;
 
                 const updateSum = () => {
@@ -425,24 +444,24 @@ class WorkSimulation {
 
                 updateSum();
 
-                document.getElementById('btn-eq-up').addEventListener('click', () => {
+                find('.btn-eq-up').addEventListener('click', () => {
                     currentEquity += 10;
                     updateSum();
                 });
 
-                document.getElementById('btn-eq-down').addEventListener('click', () => {
+                find('.btn-eq-down').addEventListener('click', () => {
                     currentEquity -= 10;
                     updateSum();
                 });
 
-                document.getElementById('btn-submit-balance').addEventListener('click', () => {
+                find('.btn-submit-balance').addEventListener('click', () => {
                     const finalSum = valLiab + currentEquity;
                     if (finalSum === valAssets) {
-                        this.completeSimulation(true);
+                        handleComplete(true);
                     } else {
-                        document.getElementById('btn-submit-balance').classList.add('shake');
+                        find('.btn-submit-balance').classList.add('shake');
                         ui.error("Equation does not balance! Total Assets must equal Liabilities + Equity.");
-                        setTimeout(() => document.getElementById('btn-submit-balance').classList.remove('shake'), 400);
+                        setTimeout(() => find('.btn-submit-balance').classList.remove('shake'), 400);
                     }
                 });
                 break;
