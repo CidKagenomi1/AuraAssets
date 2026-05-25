@@ -105,7 +105,8 @@ export const CorporateGovernance = {
 
         const board = biz.ipo.board || [];
         const percent = biz.ipo.publicSharePercent;
-        const playerSharesPercent = 100 - percent - 15 - 12 - 10; // Combined 37% for board, rest is player and public
+        const boardSharesPercent = board.reduce((sum, m) => sum + (m.sharesPercent || 0), 0);
+        const playerSharesPercent = 100 - percent - boardSharesPercent;
 
         let votesYes = playerSharesPercent; // Player automatically votes YES
         let votesNo = 0;

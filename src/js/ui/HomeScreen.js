@@ -340,7 +340,7 @@ class HomeScreen {
                 import('./ViewManager.js').then(m => {
                     m.default.switchView('market');
                     setTimeout(() => {
-                        document.querySelector(`[data-market-tab="${action === 'crypto' ? 'crypto' : 'stocks'}"]`)?.click();
+                        document.querySelector(`[data-tab="${action === 'crypto' ? 'crypto' : 'stocks'}"]`)?.click();
                     }, 100);
                 });
                 break;

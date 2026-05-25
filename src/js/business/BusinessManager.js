@@ -649,7 +649,8 @@ class BusinessManager {
             const avgRelation = updatedBoard.reduce((sum, m) => sum + m.relationship, 0) / updatedBoard.length;
             if (avgRelation < 25 && Math.random() < 0.15) {
                 const percent = biz.ipo.publicSharePercent;
-                const playerSharesPercent = 100 - percent - 15 - 12 - 10;
+                const boardSharesPercent = updatedBoard.reduce((sum, m) => sum + (m.sharesPercent || 0), 0);
+                const playerSharesPercent = 100 - percent - boardSharesPercent;
                 
                 let boardVotesNo = 0;
                 let boardVotesYes = 0;
@@ -966,7 +967,7 @@ class BusinessManager {
     /**
      * Launch Initial Public Offering (IPO)
      */
-    launchIPO(tickerSymbol, publicSharePercent) {
+    launchIPO(tickerSymbol, publicSharePercent, boardSharePercent = 37) {
         const biz = gameState.get('business');
         if (!biz || !biz.active) return;
 
@@ -994,12 +995,27 @@ class BusinessManager {
             throw new Error('Alokasi IPO saham ke publik harus berkisar antara 10% s.d 49% (Founder tetap memegang kendali privat mayoritas).');
         }
 
+        const boardPercent = parseFloat(boardSharePercent);
+        if (isNaN(boardPercent) || boardPercent < 0 || boardPercent > 40) {
+            throw new Error('Alokasi saham ke Dewan Direksi harus berkisar antara 0% s.d 40%.');
+        }
+
+        const founderPercent = 100 - percent - boardPercent;
+        if (founderPercent < 30) {
+            throw new Error('Founder harus mempertahankan minimal 30% kepemilikan saham untuk memimpin perusahaan!');
+        }
+
         const publicShares = totalShares * (percent / 100);
-        const founderShares = totalShares - publicShares;
+        const founderShares = totalShares * (founderPercent / 100);
         const initialPrice = biz.valuation / totalShares;
 
         // Calculate direct treasury funding raised
         const fundingRaised = publicShares * initialPrice;
+
+        // Calculate dynamic board shares proportionally
+        const nusantaraShare = boardPercent > 0 ? Math.round(boardPercent * (15 / 37) * 10) / 10 : 0;
+        const arthaShare = boardPercent > 0 ? Math.round(boardPercent * (12 / 37) * 10) / 10 : 0;
+        const globalShare = boardPercent > 0 ? Math.max(0, Math.round((boardPercent - nusantaraShare - arthaShare) * 10) / 10) : 0;
 
         // 1. Update Corporate state
         gameState.update('business', b => ({
@@ -1013,9 +1029,9 @@ class BusinessManager {
                 publicSharePercent: percent,
                 sharePrice: initialPrice,
                 board: [
-                    { id: 'board_nusantara', name: 'Suryo Hadiningrat', title: 'Perwakilan Nusantara Fund', sharesPercent: 15, relationship: 50, preference: 'dividend' },
-                    { id: 'board_artha', name: 'Clarissa Wijaya', title: 'Managing Partner Artha Capital', sharesPercent: 12, relationship: 55, preference: 'growth' },
-                    { id: 'board_global', name: 'Hendry Morgan', title: 'Director of Global Sentinel Trust', sharesPercent: 10, relationship: 50, preference: 'compliance' }
+                    { id: 'board_nusantara', name: 'Suryo Hadiningrat', title: 'Perwakilan Nusantara Fund', sharesPercent: nusantaraShare, relationship: 50, preference: 'dividend' },
+                    { id: 'board_artha', name: 'Clarissa Wijaya', title: 'Managing Partner Artha Capital', sharesPercent: arthaShare, relationship: 55, preference: 'growth' },
+                    { id: 'board_global', name: 'Hendry Morgan', title: 'Director of Global Sentinel Trust', sharesPercent: globalShare, relationship: 50, preference: 'compliance' }
                 ]
             }
         }));
@@ -1067,7 +1083,9 @@ class BusinessManager {
         }));
 
         // Transfer player portion
-        const playerShares = biz.ipo.totalShares - biz.ipo.publicShares;
+        const ticker = biz.ipo.ticker;
+        const stocks = gameState.get('stocks') || {};
+        const playerShares = stocks[ticker] ? stocks[ticker].shares : (biz.ipo.totalShares - biz.ipo.publicShares - (biz.ipo.board || []).reduce((sum, m) => sum + (m.sharesPercent || 0), 0) * (biz.ipo.totalShares / 100));
         const playerDividend = playerShares * dividendPerShare;
 
         gameState.update('player', p => ({
@@ -1109,7 +1127,9 @@ class BusinessManager {
         let payout = exitValue;
         if (isPublic) {
             // Founder only gets payout for their ownership percentage
-            const playerShares = biz.ipo.totalShares - biz.ipo.publicShares;
+            const ticker = biz.ipo.ticker;
+            const stocks = gameState.get('stocks') || {};
+            const playerShares = stocks[ticker] ? stocks[ticker].shares : (biz.ipo.totalShares - biz.ipo.publicShares - (biz.ipo.board || []).reduce((sum, m) => sum + (m.sharesPercent || 0), 0) * (biz.ipo.totalShares / 100));
             const ownershipRatio = playerShares / biz.ipo.totalShares;
             payout = exitValue * ownershipRatio;
         }

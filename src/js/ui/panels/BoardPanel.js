@@ -24,7 +24,8 @@ export const BoardPanel = {
 
         const board = biz.ipo.board || [];
         const percent = biz.ipo.publicSharePercent || 25;
-        const playerSharesPercent = 100 - percent - 15 - 12 - 10; // Nusantara: 15%, Artha: 12%, Global: 10%
+        const boardSharesPercent = board.reduce((sum, m) => sum + (m.sharesPercent || 0), 0);
+        const playerSharesPercent = 100 - percent - boardSharesPercent;
 
         // Render Board Members Grid
         let boardHtml = '';
@@ -87,7 +88,7 @@ export const BoardPanel = {
                         <div>
                             <div class="text-muted" style="font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Hak Suara Direktur Utama (Founder)</div>
                             <div style="font-size: 1.85rem; font-weight: 900; color: #fff;">${playerSharesPercent.toFixed(1)}% Saham Pengendali</div>
-                            <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Sisa saham: ${percent}% Publik, 37% Dewan Direksi Big Value</div>
+                            <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Sisa saham: ${percent}% Publik, ${boardSharesPercent.toFixed(1)}% Dewan Direksi</div>
                         </div>
                         <div style="text-align:right;">
                             <span style="font-size:0.75rem; background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16,185,129,0.3); color:#10b981; font-weight:900; padding:6px 14px; border-radius:20px;">🛡️ CEO SECURE</span>

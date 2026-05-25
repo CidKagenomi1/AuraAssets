@@ -65,7 +65,7 @@ export const IPOPanel = {
                         <div style="background: rgba(129, 140, 248, 0.04); border: 1px solid rgba(129, 140, 248, 0.15); padding: 1.5rem; border-radius: 12px;">
                             <h4 style="margin:0 0 1rem 0; font-size:1.05rem; font-weight:800; color:#fff;">Formulir Perencanaan Listing Bursa</h4>
                             
-                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.2rem;">
                                 <div>
                                     <label style="font-size:0.75rem; color:var(--text-muted); font-weight:800; display:block; margin-bottom:6px;">KODE TICKER SAHAM EMITEN (3-5 HURUF)</label>
                                     <input type="text" id="ipo-ticker-input" placeholder="Misal: AURA, BIZ, CORP" maxlength="5"
@@ -77,7 +77,36 @@ export const IPOPanel = {
                                         <input type="range" id="ipo-percent-slider" min="10" max="49" value="25" style="flex:1; cursor:pointer;">
                                         <span id="ipo-percent-val" style="font-weight:900; font-size:1.1rem; color:#818cf8; min-width: 45px; text-align:right;">25%</span>
                                     </div>
-                                    <span style="font-size:0.65rem; color:var(--text-dim); display:block; margin-top:2px;">Founder memegang kendali kepemilikan privat mayoritas (51% s.d 90%) secara hukum.</span>
+                                    <span style="font-size:0.65rem; color:var(--text-dim); display:block; margin-top:2px;">Alokasi saham untuk investor publik di bursa efek.</span>
+                                </div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.2rem;">
+                                <div>
+                                    <label style="font-size:0.75rem; color:var(--text-muted); font-weight:800; display:block; margin-bottom:6px;">PROPORSI SAHAM UNTUK DEWAN DIREKSI (%)</label>
+                                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                                        <input type="range" id="ipo-board-slider" min="0" max="40" value="37" style="flex:1; cursor:pointer;">
+                                        <span id="ipo-board-val" style="font-weight:900; font-size:1.1rem; color:#6366f1; min-width: 45px; text-align:right;">37%</span>
+                                    </div>
+                                    <span style="font-size:0.65rem; color:var(--text-dim); display:block; margin-top:2px;">Alokasi saham untuk perwakilan direksi institusional.</span>
+                                </div>
+                                <div>
+                                    <label style="font-size:0.75rem; color:var(--text-muted); font-weight:800; display:block; margin-bottom:6px;">PROPORSI SAHAM FOUNDER (PRIBADI ANDA)</label>
+                                    <div style="display:flex; align-items:center; justify-content:space-between; padding: 6px 14px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; height:42px;">
+                                        <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">Kepemilikan Founder:</span>
+                                        <span id="ipo-founder-val" style="font-weight:900; font-size:1.25rem; color:#10b981;">38%</span>
+                                    </div>
+                                    <span style="font-size:0.65rem; color:var(--text-dim); display:block; margin-top:2px;" id="ipo-founder-warning">Founder harus mempertahankan minimal 30% kepemilikan saham.</span>
+                                </div>
+                            </div>
+
+                            <!-- Real-time Horizontal Stacked Progress Bar -->
+                            <div style="margin-bottom: 1.5rem;">
+                                <label style="font-size:0.72rem; color:var(--text-muted); font-weight:800; display:block; margin-bottom:6px; text-transform:uppercase;">Visualisasi Struktur Kepemilikan Baru</label>
+                                <div style="display:flex; height:20px; border-radius:10px; overflow:hidden; background:rgba(255,255,255,0.05); border:1px solid var(--border-color);">
+                                    <div id="bar-founder" style="background:#10b981; width:38%; display:flex; align-items:center; justify-content:center; color:#000; font-size:0.65rem; font-weight:900; transition: width 0.2s;">Founder (38%)</div>
+                                    <div id="bar-board" style="background:#6366f1; width:37%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:0.65rem; font-weight:900; transition: width 0.2s;">Dewan (37%)</div>
+                                    <div id="bar-public" style="background:#3b82f6; width:25%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:0.65rem; font-weight:900; transition: width 0.2s;">Publik (25%)</div>
                                 </div>
                             </div>
 
@@ -91,9 +120,13 @@ export const IPOPanel = {
                                     <span>Estimasi Harga IPO Per Lembar</span>
                                     <span style="font-weight:800; color:#fbbf24;" id="ipo-estimate-price">$ ${(biz.valuation / 1000000).toFixed(2)}</span>
                                 </div>
-                                <div style="display:flex; justify-content:space-between;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
                                     <span>Estimasi Pendanaan Segar Yang Diraih Treasury Perusahaan</span>
                                     <span style="font-weight:800; color:#10b981;" id="ipo-estimate-funding">$ ${financeManager.formatCurrency(biz.valuation * 0.25)}</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; border-top:1px dashed rgba(255,255,255,0.06); padding-top:0.4rem; margin-top:0.4rem;">
+                                    <span>Estimasi Payout Likuidasi Bersih Founder (Pribadi Anda)</span>
+                                    <span style="font-weight:800; color:#10b981;" id="ipo-estimate-liquidation">$ 0</span>
                                 </div>
                             </div>
 
@@ -117,9 +150,12 @@ export const IPOPanel = {
         const ipo = biz.ipo;
         const stockData = stockMarket.getStock(ipo.ticker) || { price: ipo.sharePrice || 1.0, change: 0.0 };
 
-        const playerShares = ipo.totalShares - ipo.publicShares;
+        const ticker = ipo.ticker;
+        const stocks = gameState.get('stocks') || {};
+        const playerShares = stocks[ticker] ? stocks[ticker].shares : (ipo.totalShares - ipo.publicShares - (ipo.board || []).reduce((sum, m) => sum + (m.sharesPercent || 0), 0) * (ipo.totalShares / 100));
         const playerValue = playerShares * stockData.price;
         const publicValue = ipo.publicShares * stockData.price;
+        const founderPercent = ((playerShares / ipo.totalShares) * 100).toFixed(1);
 
         return `
             <div class="public-console-wrapper">
@@ -152,7 +188,7 @@ export const IPOPanel = {
                             <h4 style="margin:0 0 10px 0; font-size:0.85rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Struktur Permodalan Saham Korporat</h4>
                             <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem;">
                                 <span>Kepemilikan Founder (Pribadi Anda)</span>
-                                <span id="live-stock-founder-value" style="font-weight:800; color:#fff;">${playerShares.toLocaleString()} Lembar (${100 - ipo.publicSharePercent}% Equity) | Valuasi: $ ${financeManager.formatCurrency(playerValue)}</span>
+                                <span id="live-stock-founder-value" style="font-weight:800; color:#fff;">${playerShares.toLocaleString()} Lembar (${founderPercent}% Equity) | Valuasi: $ ${financeManager.formatCurrency(playerValue)}</span>
                             </div>
                             <div style="display:flex; justify-content:space-between;">
                                 <span>Saham Publik (NYSE Exchange)</span>
@@ -185,37 +221,117 @@ export const IPOPanel = {
     bindEvents(biz, container, parentPage) {
         const slider = container.querySelector('#ipo-percent-slider');
         const valSpan = container.querySelector('#ipo-percent-val');
+        
+        const boardSlider = container.querySelector('#ipo-board-slider');
+        const boardValSpan = container.querySelector('#ipo-board-val');
+        
+        const founderValSpan = container.querySelector('#ipo-founder-val');
+        const founderWarning = container.querySelector('#ipo-founder-warning');
+        
+        const barFounder = container.querySelector('#bar-founder');
+        const barBoard = container.querySelector('#bar-board');
+        const barPublic = container.querySelector('#bar-public');
+        
         const estimatePrice = container.querySelector('#ipo-estimate-price');
         const estimateFunding = container.querySelector('#ipo-estimate-funding');
-
-        if (slider) {
-            slider.addEventListener('input', () => {
-                const percent = parseInt(slider.value);
-                if (valSpan) valSpan.textContent = `${percent}%`;
-                
-                const unitPrice = biz.valuation / 1000000;
-                if (estimatePrice) estimatePrice.textContent = `$ ${unitPrice.toFixed(2)}`;
-                
-                const funding = biz.valuation * (percent / 100);
-                if (estimateFunding) estimateFunding.textContent = `$ ${financeManager.formatCurrency(funding)}`;
-            });
-        }
-
+        const estimateLiquidation = container.querySelector('#ipo-estimate-liquidation');
+        
         const btnSubmit = container.querySelector('#btn-submit-ipo');
+
+        const updateAllEstimates = () => {
+            if (!slider || !boardSlider) return;
+            const publicPct = parseInt(slider.value);
+            const boardPct = parseInt(boardSlider.value);
+            const founderPct = 100 - publicPct - boardPct;
+
+            if (valSpan) valSpan.textContent = `${publicPct}%`;
+            if (boardValSpan) boardValSpan.textContent = `${boardPct}%`;
+            if (founderValSpan) {
+                founderValSpan.textContent = `${founderPct}%`;
+                if (founderPct < 30) {
+                    founderValSpan.style.color = '#ef4444';
+                    if (founderWarning) {
+                        founderWarning.textContent = "⚠️ Saham Founder di bawah 30%! Anda akan kehilangan kendali perusahaan dan tidak bisa meluncurkan IPO!";
+                        founderWarning.style.color = '#ef4444';
+                    }
+                    if (btnSubmit) {
+                        btnSubmit.disabled = true;
+                        btnSubmit.style.opacity = '0.5';
+                        btnSubmit.style.cursor = 'not-allowed';
+                    }
+                } else {
+                    founderValSpan.style.color = '#10b981';
+                    if (founderWarning) {
+                        founderWarning.textContent = "Founder mempertahankan hak kendali utama perusahaan (>30% saham).";
+                        founderWarning.style.color = 'var(--text-dim)';
+                    }
+                    if (btnSubmit) {
+                        btnSubmit.disabled = false;
+                        btnSubmit.style.opacity = '1';
+                        btnSubmit.style.cursor = 'pointer';
+                    }
+                }
+            }
+
+            if (barFounder) {
+                barFounder.style.width = `${founderPct}%`;
+                barFounder.textContent = `Founder (${founderPct}%)`;
+                barFounder.style.display = founderPct > 0 ? 'flex' : 'none';
+            }
+            if (barBoard) {
+                barBoard.style.width = `${boardPct}%`;
+                barBoard.textContent = `Dewan (${boardPct}%)`;
+                barBoard.style.display = boardPct > 0 ? 'flex' : 'none';
+            }
+            if (barPublic) {
+                barPublic.style.width = `${publicPct}%`;
+                barPublic.textContent = `Publik (${publicPct}%)`;
+                barPublic.style.display = publicPct > 0 ? 'flex' : 'none';
+            }
+
+            const unitPrice = biz.valuation / 1000000;
+            if (estimatePrice) estimatePrice.textContent = `$ ${unitPrice.toFixed(2)}`;
+
+            const funding = biz.valuation * (publicPct / 100);
+            if (estimateFunding) estimateFunding.textContent = `$ ${financeManager.formatCurrency(funding)}`;
+
+            const playerShares = 1000000 * (founderPct / 100);
+            const playerValue = playerShares * unitPrice;
+            const tax = playerValue * 0.15;
+            const liquidationPayout = playerValue - tax;
+            if (estimateLiquidation) {
+                estimateLiquidation.textContent = `$ ${financeManager.formatCurrency(liquidationPayout)}`;
+            }
+        };
+
+        if (slider) slider.addEventListener('input', updateAllEstimates);
+        if (boardSlider) boardSlider.addEventListener('input', updateAllEstimates);
+        
+        // Initial run
+        updateAllEstimates();
+
         if (btnSubmit) {
             btnSubmit.addEventListener('click', () => {
                 const tickerInput = container.querySelector('#ipo-ticker-input');
                 const ticker = tickerInput.value.trim().toUpperCase();
                 const percent = parseInt(slider.value);
+                const boardPercent = parseInt(boardSlider.value);
 
                 if (!ticker || ticker.length < 3) {
                     ui.error('Kode ticker emiten saham harus berukuran 3 hingga 5 huruf!', '⚠️ Kode Ticker Tidak Valid');
                     return;
                 }
 
+                const founderPct = 100 - percent - boardPercent;
+                if (founderPct < 30) {
+                    ui.error('Founder harus mempertahankan minimal 30% kepemilikan saham!', '⚠️ Kepemilikan Kurang');
+                    return;
+                }
+
                 // Launch Simulation screen on parent Page
                 parentPage.ipoTickerTmp = ticker;
                 parentPage.ipoPercentTmp = percent;
+                parentPage.ipoBoardTmp = boardPercent;
                 parentPage.ipoSimulating = true;
                 parentPage.render();
             });
@@ -240,7 +356,9 @@ export const IPOPanel = {
 
                 try {
                     // Pay out dividends to CEO personally
-                    const playerShares = biz.ipo.totalShares - biz.ipo.publicShares;
+                    const ticker = biz.ipo.ticker;
+                    const stocks = gameState.get('stocks') || {};
+                    const playerShares = stocks[ticker] ? stocks[ticker].shares : (biz.ipo.totalShares - biz.ipo.publicShares - (biz.ipo.board || []).reduce((sum, m) => sum + (m.sharesPercent || 0), 0) * (biz.ipo.totalShares / 100));
                     const ceoPayout = payout * playerShares;
                     
                     gameState.update('business', b => ({
@@ -334,7 +452,7 @@ export const IPOPanel = {
             } else {
                 // Finalize IPO State
                 try {
-                    businessManager.launchIPO(ticker, percent);
+                    businessManager.launchIPO(ticker, percent, parentPage.ipoBoardTmp || 37);
                 } catch (e) {
                     ui.error(e.message);
                 }
@@ -362,12 +480,15 @@ export const IPOPanel = {
         }
         if (mcapEl) mcapEl.textContent = `$ ${formatCompact(stock.price * biz.ipo.totalShares)}`;
         
-        const playerShares = biz.ipo.totalShares - biz.ipo.publicShares;
+        const ticker = biz.ipo.ticker;
+        const stocks = gameState.get('stocks') || {};
+        const playerShares = stocks[ticker] ? stocks[ticker].shares : (biz.ipo.totalShares - biz.ipo.publicShares - (biz.ipo.board || []).reduce((sum, m) => sum + (m.sharesPercent || 0), 0) * (biz.ipo.totalShares / 100));
         const playerValue = playerShares * stock.price;
         const publicValue = biz.ipo.publicShares * stock.price;
+        const founderPercent = ((playerShares / biz.ipo.totalShares) * 100).toFixed(1);
 
         if (founderEl) {
-            founderEl.textContent = `${playerShares.toLocaleString()} Lembar (${100 - biz.ipo.publicSharePercent}% Equity) | Valuasi: $ ${financeManager.formatCurrency(playerValue)}`;
+            founderEl.textContent = `${playerShares.toLocaleString()} Lembar (${founderPercent}% Equity) | Valuasi: $ ${financeManager.formatCurrency(playerValue)}`;
         }
         if (publicEl) {
             publicEl.textContent = `${biz.ipo.publicShares.toLocaleString()} Lembar (${biz.ipo.publicSharePercent}% Equity) | Valuasi: $ ${financeManager.formatCurrency(publicValue)}`;

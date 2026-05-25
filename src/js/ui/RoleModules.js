@@ -201,50 +201,85 @@ export const BusinessModule = {
         const revenue = biz.revenue || 0;
         const employees = biz.employees || 0;
         const valuation = biz.valuation || 0;
+        const cash = biz.cash || 0;
+        
+        // Net profit calculation
+        let netProfit = 0;
+        if (biz.lastCashFlow) {
+            netProfit = biz.lastCashFlow.netProfit;
+        } else {
+            // Fallback estimation
+            netProfit = revenue - (employees * 1000);
+        }
+        const netProfitColor = netProfit >= 0 ? '#10b981' : '#ef4444';
+
+        // Shareholder structure string
+        let shareStr = '100% Privat (Anda)';
+        if (biz.ipo && biz.ipo.active) {
+            const boardPct = (biz.ipo.board || []).reduce((sum, m) => sum + (m.sharesPercent || 0), 0);
+            const founderPct = 100 - biz.ipo.publicSharePercent - boardPct;
+            shareStr = `${founderPct.toFixed(1)}% Founder / ${biz.ipo.publicSharePercent}% Publik`;
+        }
+
+        // Subsidiaries count
+        const subsCount = (biz.subsidiaries || []).length;
+        const subsProfit = (biz.subsidiaries || []).reduce((sum, s) => sum + (s.monthlyProfit || 0), 0);
 
         el.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
                 <div>
-                    <h3 style="font-size: 1.1rem; font-weight: 800; margin:0;">Dashboard: ${biz.name}</h3>
-                    <p class="text-muted" style="font-size: 0.75rem; margin:0;">Status: <span style="color: var(--accent-primary); font-weight: 700;">OPERASIONAL</span></p>
+                    <h3 style="font-size: 1.15rem; font-weight: 900; margin:0; color:#fff; display:flex; align-items:center; gap:0.5rem;">
+                        <span>🏢</span> ${biz.name}
+                    </h3>
+                    <div style="display:flex; align-items:center; gap:0.5rem; margin-top:0.35rem;">
+                        <span style="font-size: 0.65rem; background: ${biz.ipo && biz.ipo.active ? '#10b981' : 'var(--accent-primary)'}; color: ${biz.ipo && biz.ipo.active ? '#fff' : '#000'}; padding: 2px 8px; border-radius: 4px; font-weight: 800; letter-spacing: 0.05em;">
+                            ${biz.ipo && biz.ipo.active ? `PUBLIC (NYSE: ${biz.ipo.ticker})` : biz.type.toUpperCase()}
+                        </span>
+                        <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">${biz.industry}</span>
+                    </div>
                 </div>
                 <div style="text-align: right;">
-                    <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Valuasi Bisnis</div>
-                    <div style="font-size: 1rem; font-weight: 800; color: var(--accent-primary);">$ ${formatCompact(valuation)}</div>
+                    <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight:700;">Valuasi Perusahaan</div>
+                    <div style="font-size: 1.2rem; font-weight: 900; color: #f59e0b;">$ ${formatCompact(valuation)}</div>
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;">
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md);">
-                    <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Revenue Bulanan</div>
-                    <div style="font-size: 0.9rem; font-weight: 700;">$ ${formatCompact(revenue)}</div>
+            <!-- Rough Condition 6-Grid Stats -->
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;">
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md);">
+                    <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem; font-weight:700;">Kas Treasury</div>
+                    <div style="font-size: 0.95rem; font-weight: 800; color: #fff;">$ ${formatCompact(cash)}</div>
                 </div>
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md);">
-                    <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Karyawan</div>
-                    <div style="font-size: 0.9rem; font-weight: 700;">${employees} Orang</div>
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md);">
+                    <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem; font-weight:700;">Laba Bersih Bulanan</div>
+                    <div style="font-size: 0.95rem; font-weight: 800; color: ${netProfitColor};">${netProfit >= 0 ? '+' : ''}$ ${formatCompact(netProfit)}</div>
                 </div>
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md);">
-                    <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Level Bisnis</div>
-                    <div style="font-size: 0.9rem; font-weight: 700;">Lv. ${biz.level}</div>
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md);">
+                    <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem; font-weight:700;">Revenue Operasional</div>
+                    <div style="font-size: 0.95rem; font-weight: 800; color: #fff;">$ ${formatCompact(revenue)}</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md);">
+                    <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem; font-weight:700;">Struktur Saham</div>
+                    <div style="font-size: 0.82rem; font-weight: 800; color: #fbbf24; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${shareStr}">${shareStr}</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md);">
+                    <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem; font-weight:700;">Anak Perusahaan</div>
+                    <div style="font-size: 0.95rem; font-weight: 800; color: #fff;">${subsCount} Unit ${subsProfit > 0 ? `(+$ ${formatCompact(subsProfit)}/bln)` : ''}</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md);">
+                    <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem; font-weight:700;">SDM & Operasi</div>
+                    <div style="font-size: 0.95rem; font-weight: 800; color: #fff;">Lv. ${biz.level} | ${employees} Karyawan</div>
                 </div>
             </div>
 
-            <div style="display: flex; gap: 0.5rem;">
-                <button id="btn-dashboard-ops" class="btn btn-secondary btn-sm" style="flex: 1; font-size: 0.75rem;">
-                    ⚙️ Operasional
-                </button>
-                <button id="btn-dashboard-finance" class="btn btn-secondary btn-sm" style="flex: 1; font-size: 0.75rem;">
-                    📊 Laporan
-                </button>
-            </div>
+            <button id="btn-dashboard-ops-full" class="btn btn-primary" style="width: 100%; font-weight: 800; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; letter-spacing: 0.02em;">
+                💼 Masuk Konsol Manajemen Korporasi
+            </button>
         `;
 
-        // Bind events programmatically to avoid global module path errors
-        document.getElementById('btn-dashboard-ops')?.addEventListener('click', () => {
+        // Bind events programmatically
+        document.getElementById('btn-dashboard-ops-full')?.addEventListener('click', () => {
             import('./BusinessPage.js').then(m => m.default.open());
-        });
-        document.getElementById('btn-dashboard-finance')?.addEventListener('click', () => {
-            import('./panels/FinancePanel.js').then(m => m.default.show());
         });
     }
 };

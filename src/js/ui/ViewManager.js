@@ -13,6 +13,67 @@ import { swipeTransition } from './Animations.js';
 import { businessPage } from './BusinessPage.js';
 import propertyManager from '../property/PropertyManager.js';
 
+// ===== WARNA PER SEKTOR =====
+const SECTOR_COLORS = {
+    'Technology':            '#378ADD',
+    'Financial Services':    '#1D9E75',
+    'Healthcare':            '#D85A30',
+    'Consumer Cyclical':     '#BA7517',
+    'Consumer Defensive':    '#7F77DD',
+    'Energy':                '#EF9F27',
+    'Industrials':           '#5DCAA5',
+    'Communication Services':'#D4537E',
+    'Real Estate':           '#97C459',
+    'Utilities':             '#AFA9EC',
+};
+
+// ===== RENDER BARIS SAHAM =====
+function buildStockRow(stock) {
+    const up = stock.change >= 0;
+    const color = SECTOR_COLORS[stock.sector] || '#888888';
+    const changeText = `${up ? '+' : ''}${stock.change.toFixed(2)}%`;
+    const priceText = `$${stock.price.toLocaleString('en-US', {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+    })}`;
+
+    return `
+      <div class="market-row" onclick="openStockDetail('${stock.symbol}')">
+        <span class="sector-dot" style="background:${color}"></span>
+        <span class="market-symbol">${stock.symbol}</span>
+        <span class="market-name">${stock.name}</span>
+        <span class="market-price">${priceText}</span>
+        <span class="market-change ${up ? 'up' : 'down'}">${changeText}</span>
+      </div>`;
+}
+
+// ===== RENDER BARIS KRIPTO =====
+function buildCryptoRow(crypto) {
+    const up = crypto.change >= 0;
+    const changeText = `${up ? '+' : ''}${crypto.change.toFixed(2)}%`;
+
+    let priceText;
+    if (crypto.price >= 1000)       priceText = `$${Math.round(crypto.price).toLocaleString()}`;
+    else if (crypto.price >= 1)     priceText = `$${crypto.price.toFixed(2)}`;
+    else                            priceText = `$${crypto.price.toFixed(6)}`;
+
+    return `
+      <div class="market-row" onclick="openCryptoDetail('${crypto.symbol}')">
+        <span style="font-size:17px;min-width:24px;text-align:center">${crypto.icon}</span>
+        <span class="market-symbol">${crypto.symbol}</span>
+        <span class="market-name">${crypto.name}</span>
+        <span class="market-price">${priceText}</span>
+        <span class="market-change ${up ? 'up' : 'down'}">${changeText}</span>
+      </div>`;
+}
+
+// Bind to window for onclick handlers
+window.openStockDetail = (symbol) => {
+    tradingPage.open(symbol, 'stock');
+};
+window.openCryptoDetail = (symbol) => {
+    tradingPage.open(symbol, 'crypto');
+};
+
 class ViewManager {
   constructor() {
     this.currentView = 'home';
@@ -26,7 +87,7 @@ class ViewManager {
       'footer-dashboard-grid'
     ];
     this.marketFilter = '';
-    this.marketSort = { key: 'name', dir: 'asc' };
+    this.marketSort = { key: 'default', dir: 'asc' };
     this.currentMarketTab = 'stocks';
   }
 
@@ -195,20 +256,22 @@ class ViewManager {
   // ========================================
 
   bindMarketTabs() {
-    document.querySelectorAll('[data-market-tab]').forEach(btn => {
+    const buttons = document.querySelectorAll('.tab-btn[data-tab]');
+    buttons.forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('[data-market-tab]').forEach(b => b.classList.remove('active'));
+        const tabId = btn.dataset.tab;
+
+        // update active button
+        buttons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        const tab = btn.dataset.marketTab;
-        this.currentMarketTab = tab;
-        document.getElementById('market-stocks-list').style.display = tab === 'stocks' ? 'block' : 'none';
-        document.getElementById('market-crypto-list').style.display = tab === 'crypto' ? 'block' : 'none';
-        const ordersEl = document.getElementById('market-orders-list');
-        if (ordersEl) ordersEl.style.display = tab === 'orders' ? 'block' : 'none';
+        // update visible content
+        document.querySelectorAll('.tab-content').forEach(el => {
+          el.style.display = el.dataset.tabContent === tabId ? 'block' : 'none';
+        });
 
-        if (tab === 'orders') this.updateOrdersList();
-        else this.updateMarketView(); // Refresh list on tab change
+        this.currentMarketTab = tabId;
+        this.updateMarketView();
       });
     });
   }
@@ -242,12 +305,25 @@ class ViewManager {
   }
 
   updateMarketView() {
+    // Update badge values dynamically
+    const allStocks = stockMarket.getAllStocks() || [];
+    const allCryptos = cryptoMarket.getAllCryptos() || [];
+    const portfolioCount = (stockMarket.getPortfolio() || []).length + (cryptoMarket.getWallet() || []).length;
+
+    const badgeStocks = document.getElementById('badge-stocks');
+    const badgeCrypto = document.getElementById('badge-crypto');
+    const badgePortfolio = document.getElementById('badge-portfolio');
+
+    if (badgeStocks) badgeStocks.textContent = allStocks.length;
+    if (badgeCrypto) badgeCrypto.textContent = allCryptos.length;
+    if (badgePortfolio) badgePortfolio.textContent = portfolioCount;
+
     if (this.currentView !== 'market') return;
 
     // Update stocks list
     const stocksList = document.getElementById('market-stocks-list');
     if (stocksList && this.currentMarketTab === 'stocks') {
-      let stocks = stockMarket.getAllStocks();
+      let stocks = [...allStocks];
       
       // Apply Filter
       if (this.marketFilter) {
@@ -270,34 +346,13 @@ class ViewManager {
         });
       }
 
-      stocksList.innerHTML = stocks.map(s => `
-        <div class="asset-item" data-symbol="${s.symbol}" data-type="stock">
-          <div class="asset-icon">${stockMarket.getStockIcon(s.sector)}</div>
-          <div class="asset-info">
-            <div class="asset-name">${s.symbol}</div>
-            <div class="asset-symbol">${s.name}</div>
-          </div>
-          <div class="asset-price">
-            <div class="asset-current">$ ${financeManager.formatCurrency(s.price)}</div>
-            <div class="asset-change ${(s.change || 0) >= 0 ? 'positive' : 'negative'}">
-              ${(s.change || 0) >= 0 ? '▲' : '▼'} ${Math.abs(s.change || 0).toFixed(2)}%
-            </div>
-          </div>
-        </div>
-      `).join('');
-
-      // Bind clicks
-      stocksList.querySelectorAll('.asset-item').forEach(el => {
-        el.addEventListener('click', () => {
-          tradingPage.open(el.dataset.symbol, 'stock');
-        });
-      });
+      stocksList.innerHTML = stocks.map(s => buildStockRow(s)).join('');
     }
 
     // Update crypto list
     const cryptoList = document.getElementById('market-crypto-list');
     if (cryptoList && this.currentMarketTab === 'crypto') {
-      let cryptos = cryptoMarket.getAllCryptos();
+      let cryptos = [...allCryptos];
 
       // Apply Filter
       if (this.marketFilter) {
@@ -320,27 +375,36 @@ class ViewManager {
         });
       }
 
-      cryptoList.innerHTML = cryptos.map(c => `
-        <div class="asset-item" data-symbol="${c.symbol}" data-type="crypto">
-          <div class="asset-icon" style="font-size: 1.5rem;">${c.icon}</div>
-          <div class="asset-info">
-            <div class="asset-name">${c.symbol}</div>
-            <div class="asset-symbol">${c.name}</div>
-          </div>
-          <div class="asset-price">
-            <div class="asset-current">${cryptoMarket.formatPrice(c.price)}</div>
-            <div class="asset-change ${(c.change || 0) >= 0 ? 'positive' : 'negative'}">
-              ${(c.change || 0) >= 0 ? '🚀' : '📉'} ${Math.abs(c.change || 0).toFixed(2)}%
-            </div>
-          </div>
-        </div>
-      `).join('');
+      cryptoList.innerHTML = cryptos.map(c => buildCryptoRow(c)).join('');
+    }
 
-      cryptoList.querySelectorAll('.asset-item').forEach(el => {
-        el.addEventListener('click', () => {
-          tradingPage.open(el.dataset.symbol, 'crypto');
-        });
+    // Update portfolio list
+    const portfolioList = document.getElementById('market-portfolio-list');
+    if (portfolioList && this.currentMarketTab === 'portfolio') {
+      const stockPortfolio = stockMarket.getPortfolio() || [];
+      const cryptoWallet = cryptoMarket.getWallet() || [];
+      
+      let html = '';
+      
+      stockPortfolio.forEach(h => {
+        const stock = stockMarket.getStock(h.symbol);
+        if (stock) {
+          html += buildStockRow(stock);
+        }
       });
+      
+      cryptoWallet.forEach(h => {
+        const crypto = cryptoMarket.getCrypto(h.symbol);
+        if (crypto) {
+          html += buildCryptoRow(crypto);
+        }
+      });
+      
+      if (html === '') {
+        portfolioList.innerHTML = '<div class="empty-state" style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.4);"><div class="empty-state-icon">💼</div><div class="empty-state-text">Portofolio Anda kosong</div></div>';
+      } else {
+        portfolioList.innerHTML = html;
+      }
     }
   }
 
