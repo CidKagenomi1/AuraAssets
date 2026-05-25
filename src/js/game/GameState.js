@@ -66,7 +66,7 @@ class GameState {
             gameTime: {
                 day: 1,
                 month: 1,
-                year: 2026,
+                year: 2010,
                 speed: 1,  // 1 = normal, 2 = fast, 0 = paused
                 lastTick: Date.now()
             },

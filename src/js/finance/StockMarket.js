@@ -407,7 +407,7 @@ class StockMarket {
             profit: profit,
             profitPercent: profitPercent,
             timestamp: Date.now(),
-            date: `${gameState.get('gameTime.day') || 1}/${gameState.get('gameTime.month') || 1}/${gameState.get('gameTime.year') || 2026}`
+            date: `${gameState.get('gameTime.day') || 1}/${gameState.get('gameTime.month') || 1}/${gameState.get('gameTime.year') || 2010}`
         };
         const tradeHistory = gameState.get('tradeHistory') || [];
         tradeHistory.unshift(tradeLog);
@@ -548,7 +548,7 @@ class StockMarket {
                     profit: profit,
                     profitPercent: profitPercent,
                     timestamp: Date.now(),
-                    date: `${gameState.get('gameTime.day') || 1}/${gameState.get('gameTime.month') || 1}/${gameState.get('gameTime.year') || 2026}`
+                    date: `${gameState.get('gameTime.day') || 1}/${gameState.get('gameTime.month') || 1}/${gameState.get('gameTime.year') || 2010}`
                 };
                 const tradeHistory = gameState.get('tradeHistory') || [];
                 tradeHistory.unshift(tradeLog);

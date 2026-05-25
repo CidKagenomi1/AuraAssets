@@ -902,10 +902,10 @@ class BusinessPage {
             const currentVal = biz.valuation || setupCost;
             const currentRev = biz.revenue || 0;
             history = [
-                { month: 1, year: 2026, valuation: setupCost, revenue: 0 },
-                { month: 2, year: 2026, valuation: currentVal * 0.7, revenue: currentRev * 0.5 },
-                { month: 3, year: 2026, valuation: currentVal * 0.9, revenue: currentRev * 0.8 },
-                { month: 4, year: 2026, valuation: currentVal, revenue: currentRev }
+                { month: 1, year: 2010, valuation: setupCost, revenue: 0 },
+                { month: 2, year: 2010, valuation: currentVal * 0.7, revenue: currentRev * 0.5 },
+                { month: 3, year: 2010, valuation: currentVal * 0.9, revenue: currentRev * 0.8 },
+                { month: 4, year: 2010, valuation: currentVal, revenue: currentRev }
             ];
         }
 

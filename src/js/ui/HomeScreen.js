@@ -74,7 +74,7 @@ class HomeScreen {
     updateStatusBar() {
         const day = gameState.get('gameTime.day') || 1;
         const month = gameState.get('gameTime.month') || 1;
-        const year = gameState.get('gameTime.year') || 2026;
+        const year = gameState.get('gameTime.year') || 2010;
         const speed = gameState.get('gameTime.speed') || 1;
 
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -778,7 +778,7 @@ class HomeScreen {
         }
 
         const currentMonth = gameState.get('gameTime.month') || 1;
-        const currentYear = gameState.get('gameTime.year') || 2026;
+        const currentYear = gameState.get('gameTime.year') || 2010;
         const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
         const historyData = [];
 

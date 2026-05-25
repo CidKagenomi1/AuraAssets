@@ -70,7 +70,7 @@ class BusinessManager {
         
         const day = gameState.get('gameTime.day') || 1;
         const month = gameState.get('gameTime.month') || 1;
-        const year = gameState.get('gameTime.year') || 2026;
+        const year = gameState.get('gameTime.year') || 2010;
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
         const dateText = `${day} ${months[month - 1]} ${year}`;
 
@@ -131,7 +131,7 @@ class BusinessManager {
             operations: { supplier: 'local', production: 'manual' }, // Initial Supply Chain State
             foundedAt: {
                 month: gameState.get('gameTime.month') || 1,
-                year: gameState.get('gameTime.year') || 2026
+                year: gameState.get('gameTime.year') || 2010
             },
             history: []
         });
@@ -1145,13 +1145,13 @@ class BusinessManager {
 
         // Calculate duration and details before reset
         const currentMonth = gameState.get('gameTime.month') || 1;
-        const currentYear = gameState.get('gameTime.year') || 2026;
+        const currentYear = gameState.get('gameTime.year') || 2010;
         let startMonth = 1;
-        let startYear = 2026;
+        let startYear = 2010;
         if (biz.foundedAt) {
             if (typeof biz.foundedAt === 'object') {
                 startMonth = biz.foundedAt.month || 1;
-                startYear = biz.foundedAt.year || 2026;
+                startYear = biz.foundedAt.year || 2010;
             } else if (typeof biz.foundedAt === 'number') {
                 startYear = biz.foundedAt;
             }
@@ -1369,7 +1369,7 @@ class BusinessManager {
                             valuation: auc.valuation,
                             isPremium: false,
                             icon: auc.icon,
-                            foundedAt: gameState.get('gameTime.year') || 2026
+                            foundedAt: gameState.get('gameTime.year') || 2010
                         };
 
                         gameState.update('business', b => {
@@ -1515,7 +1515,7 @@ class BusinessManager {
                 valuation: deal.valuation,
                 isPremium: true, // Special tag for direct purchases!
                 icon: deal.icon,
-                foundedAt: gameState.get('gameTime.year') || 2026
+                foundedAt: gameState.get('gameTime.year') || 2010
             };
 
             const updatedSubs = [...(biz.subsidiaries || []), newSub];

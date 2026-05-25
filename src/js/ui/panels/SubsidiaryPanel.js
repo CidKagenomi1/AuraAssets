@@ -156,7 +156,7 @@ export const SubsidiaryPanel = {
                                 ${subTypeBadge}
                             </div>
                             <h4 style="margin:0 0 2px 0; font-size: 0.95rem; font-weight:900; color:#fff;">${s.name}</h4>
-                            <div style="font-size:0.65rem; color:var(--text-dim); margin-bottom:0.5rem;">Terakuisisi Kalender: ${s.foundedAt || 2026}</div>
+                            <div style="font-size:0.65rem; color:var(--text-dim); margin-bottom:0.5rem;">Terakuisisi Kalender: ${s.foundedAt || 2010}</div>
                             
                             <div style="display:flex; flex-direction:column; gap:0.3rem; font-size:0.75rem; background:rgba(0,0,0,0.15); padding:8px; border-radius:8px;">
                                 <div style="display:flex; justify-content:space-between;">

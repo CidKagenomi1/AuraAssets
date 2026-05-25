@@ -103,7 +103,7 @@ class TimeManager {
 
         // Track absolute total days for systems that need a monotonic counter
         // (e.g. TradingSignalManager refresh cycle)
-        const totalDays = ((year - 2026) * 360) + ((month - 1) * 30) + day;
+        const totalDays = ((year - 2010) * 360) + ((month - 1) * 30) + day - 1;
         gameState.set('gameTime.totalDays', totalDays);
 
         this.triggerCallbacks('onDay');
@@ -162,7 +162,7 @@ class TimeManager {
     formatDay(totalDays) {
         const day = (totalDays % 30) + 1;
         const month = (Math.floor(totalDays / 30) % 12) + 1;
-        const year = 2024 + Math.floor(totalDays / 360);
+        const year = 2010 + Math.floor(totalDays / 360);
         
         const monthNames = [
             'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',

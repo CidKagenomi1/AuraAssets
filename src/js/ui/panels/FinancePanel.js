@@ -72,7 +72,7 @@ class FinancePanel {
 
         // Generate dynamic history data for the last 12 months
         const currentMonth = gameState.get('gameTime.month') || 1;
-        const currentYear = gameState.get('gameTime.year') || 2026;
+        const currentYear = gameState.get('gameTime.year') || 2010;
         const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
         const historyData = [];
 

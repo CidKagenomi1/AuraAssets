@@ -182,7 +182,7 @@ class WorkTaskManager {
         
         const day = gameState.get('gameTime.day') || 1;
         const month = gameState.get('gameTime.month') || 1;
-        const year = gameState.get('gameTime.year') || 2026;
+        const year = gameState.get('gameTime.year') || 2010;
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
         const dateText = `${day} ${months[month - 1]} ${year}`;
 

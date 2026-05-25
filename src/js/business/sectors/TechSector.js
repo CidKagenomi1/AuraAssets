@@ -59,7 +59,7 @@ export const TechSector = {
                         name: p.name,
                         type: newType,
                         quality: p.quality || 80,
-                        launchedAt: p.launchedAt || 2026,
+                        launchedAt: p.launchedAt || 2010,
                         users: p.users || 0,
                         monthlyRevenue: p.monthlyRevenue || 0
                     };
@@ -296,7 +296,7 @@ export const TechSector = {
             name: project.name,
             type: project.type,
             quality: finalQuality,
-            launchedAt: gameState.get('gameTime.year') || 2026,
+            launchedAt: gameState.get('gameTime.year') || 2010,
             users: project.type === 'ai_model' ? 0 : (project.type === 'system' ? 5000 : 20000),
             budget: project.type === 'ai_model' ? project.cost : 0,
             monthlyRevenue: 0

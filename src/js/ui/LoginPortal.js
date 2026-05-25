@@ -245,6 +245,10 @@ class LoginPortal {
             });
             document.body.appendChild(overlay);
 
+            // Select a random name suggestion
+            const suggestions = ['Elon Smash', 'Zark Mackerberg', 'Jeff Bozo', 'Bill Gateskeeper', 'Warren Buffetless'];
+            this.suggestedName = suggestions[Math.floor(Math.random() * suggestions.length)];
+
             // Decide entry step
             if (gameState.currentUser) {
                 this._renderCharacterStep(overlay, resolve);
@@ -324,7 +328,7 @@ class LoginPortal {
                     <div style="position:relative;">
                         <span style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:1rem;opacity:0.35;pointer-events:none;">👤</span>
                         <input id="lp-username" class="lp-input" type="text"
-                            placeholder="${isRegister ? 'Cth: Alif Rahmadi' : 'Masukkan username'}"
+                            placeholder="${isRegister ? `Cth: ${this.suggestedName || 'Elon Smash'}` : 'Masukkan username'}"
                             value="${prefillUser}" autocomplete="username" required />
                     </div>
                 </div>
@@ -408,7 +412,7 @@ class LoginPortal {
 
         const charsHTML = chars.map(charName => {
             const charKey = charName.toLowerCase();
-            let charInfo  = { role: null, balance: 0, gameTime: { day:1, month:1, year:2026 } };
+            let charInfo  = { role: null, balance: 0, gameTime: { day:1, month:1, year:2010 } };
             try {
                 const raw = localStorage.getItem(`businessTycoon_save_${lowerUser}_char_${charKey}`);
                 if (raw) {

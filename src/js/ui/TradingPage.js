@@ -46,20 +46,58 @@ class TradingPage {
 
   generatePriceHistory(asset) {
     if (!asset.priceHistory) asset.priceHistory = [];
-    
-    if (asset.priceHistory.length < 30) {
+
+    // We need at least 80 data points for rich candlestick patterns
+    if (asset.priceHistory.length < 80) {
       let price = asset.priceHistory[0] || asset.price;
-      const volatility = asset.volatility || 0.015;
+      const vol  = asset.volatility || 0.018;
       const generated = [];
-      const needed = 30 - asset.priceHistory.length;
+      const needed    = 80 - asset.priceHistory.length;
+
+      // ── Generate with alternating macro patterns ──────────────────────
+      // Pattern schedule: Elliott 5-wave impulse, then correction, then H&S
+      const patternPlan = [
+        { type: 'impulse5', bars: 30 },    // Elliott impulse wave 1-5
+        { type: 'correction3', bars: 20 }, // Elliott correction a-b-c
+        { type: 'hs', bars: 30 },          // Head & Shoulders
+      ];
+
+      let pi = 0, barInPattern = 0;
       for (let i = 0; i < needed; i++) {
-        const change = (Math.random() - 0.5) * 2 * volatility;
-        price = price * (1 + change);
-        generated.unshift(parseFloat(price.toFixed(2)));
+        const plan = patternPlan[pi % patternPlan.length];
+        const frac = barInPattern / plan.bars;
+
+        let drift = 0;
+        if (plan.type === 'impulse5') {
+          // 5-wave: upward with micro corrections
+          const wave = Math.floor(frac * 5) + 1;
+          drift = wave % 2 === 0 ? -vol * 0.4 : vol * 0.8;
+        } else if (plan.type === 'correction3') {
+          // ABC correction: down, up, down
+          const sub = Math.floor(frac * 3);
+          drift = sub === 1 ? vol * 0.5 : -vol * 0.6;
+        } else if (plan.type === 'hs') {
+          // Left shoulder → head → right shoulder → neckline break
+          if      (frac < 0.2)  drift =  vol * 0.7;  // left shoulder up
+          else if (frac < 0.3)  drift = -vol * 0.5;  // dip
+          else if (frac < 0.55) drift =  vol * 0.9;  // head up
+          else if (frac < 0.65) drift = -vol * 0.6;  // dip
+          else if (frac < 0.8)  drift =  vol * 0.5;  // right shoulder up
+          else                   drift = -vol * 0.8;  // neckline breakdown
+        }
+
+        const noise  = (Math.random() - 0.5) * 2 * vol * 0.5;
+        const change = drift + noise;
+        price = Math.max(0.0001, price * (1 + change));
+        generated.unshift(parseFloat(price.toFixed(price >= 1 ? 2 : 6)));
+
+        barInPattern++;
+        if (barInPattern >= plan.bars) { barInPattern = 0; pi++; }
       }
+
       asset.priceHistory = [...generated, ...asset.priceHistory];
     }
-    
+
     this.priceHistory = [...asset.priceHistory];
   }
 
@@ -94,74 +132,7 @@ class TradingPage {
     }).reverse().join('');
   }
 
-  renderRecentTrades(asset) {
-    return Array.from({ length: 10 }).map(() => {
-      const up = Math.random() > 0.5;
-      return `
-        <div class="trade-row" style="
-          display:flex;
-          justify-content:space-between;
-          padding:0.3rem 0.25rem;
-          font-size:0.75rem;
-          border-radius:2px;
-          transition:background 0.15s;
-        ">
-          <span style="
-            color:${up ? '#34d399' : '#f87171'};
-            font-weight:600;
-          ">
-            ${this.formatPrice(asset.price * (1 + ((Math.random()-0.5)*0.002)))}
-          </span>
-          <span style="color:white;">
-            ${(Math.random() * 2).toFixed(3)}
-          </span>
-          <span style="color:var(--text-muted);">
-            ${Math.floor(Math.random() * 59)}s
-          </span>
-        </div>
-      `;
-    }).join('');
-  }
 
-  renderAsks(asset) {
-    return Array.from({ length: 6 }).map(() => `
-      <div class="order-book-row" style="
-        display:flex;
-        justify-content:space-between;
-        font-size:0.75rem;
-        padding:0.15rem 0.25rem;
-        border-radius:2px;
-        transition:background 0.15s;
-      ">
-        <span style="color:#f87171;">
-          ${this.formatPrice(asset.price * (1 + Math.random() * 0.01))}
-        </span>
-        <span style="color:var(--text-muted);">
-          ${(Math.random() * 5).toFixed(2)}
-        </span>
-      </div>
-    `).join('');
-  }
-
-  renderBids(asset) {
-    return Array.from({ length: 6 }).map(() => `
-      <div class="order-book-row" style="
-        display:flex;
-        justify-content:space-between;
-        font-size:0.75rem;
-        padding:0.15rem 0.25rem;
-        border-radius:2px;
-        transition:background 0.15s;
-      ">
-        <span style="color:#34d399;">
-          ${this.formatPrice(asset.price * (1 - Math.random() * 0.01))}
-        </span>
-        <span style="color:var(--text-muted);">
-          ${(Math.random() * 5).toFixed(2)}
-        </span>
-      </div>
-    `).join('');
-  }
 
   render(asset) {
     const portfolio = this.assetType === 'stock'
@@ -169,6 +140,7 @@ class TradingPage {
       : gameState.get('crypto') || {};
     const holding = portfolio[this.currentAsset];
     const balance = gameState.getBalance();
+    const initialVol = Math.random() * 1e9;
 
     // Use market's price history if available, else use generated one
     const history = (asset.priceHistory && asset.priceHistory.length > 0) 
@@ -177,24 +149,6 @@ class TradingPage {
 
     const tradingPageHTML = `
       <div id="trading-page" class="trading-page" style="position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg-main); z-index: 1000; overflow: hidden; border-radius: 0;">
-        
-        <!-- HEADER -->
-        <div class="trading-header" style="border-bottom: 1px solid var(--border-color); padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 1rem;">
-            <button class="btn-back" id="btn-close-trading" style="background: none; border: none; color: white; font-size: 1.25rem; cursor: pointer;">←</button>
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-              <span style="font-size: 1.75rem;">${this.assetType === 'stock' ? stockMarket.getStockIcon(asset.sector) : asset.icon}</span>
-              <div>
-                <div style="font-weight: 800; font-size: 1.1rem; line-height: 1;">${this.currentAsset}</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">${asset.name}</div>
-              </div>
-            </div>
-          </div>
-          <div style="text-align: right;">
-             <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Trading Terminal</div>
-             <div style="font-size: 0.7rem; color: var(--accent-primary); font-weight: 700;">LIVE CONNECTED</div>
-          </div>
-        </div>
 
         <!-- MARKET STRIP -->
         <div style="
@@ -240,7 +194,7 @@ class TradingPage {
           <div>
             <div style="font-size:0.7rem;color:var(--text-muted);">Volume</div>
             <div id="strip-volume" style="font-weight:700;color:white;">
-              ${this.formatVolume(Math.random() * 1e9)}
+              ${this.formatVolume(initialVol)}
             </div>
           </div>
         </div>
@@ -250,33 +204,7 @@ class TradingPage {
           <!-- LEFT COLUMN: MARKET INTELLIGENCE -->
           <div style="flex: 1.2; padding: 1.5rem; border-right: 1px solid var(--border-color); background: rgba(0,0,0,0.1); min-width: 320px;">
             
-            <!-- Price Card -->
-            <div style="margin-bottom: 2rem;">
-              <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">Market Price</div>
-              <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                <div style="display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap;">
-                  <span id="live-price" style="font-size: 1.75rem; font-weight: 800; color: white; letter-spacing: -0.02em;">${this.formatPrice(asset.price)}</span>
-                  <span id="live-change" class="${(asset.change || 0) >= 0 ? 'positive' : 'negative'}" style="font-weight: 700; font-size: 0.95rem;">
-                    ${(asset.change || 0) >= 0 ? '▲' : '▼'} ${Math.abs(asset.change || 0).toFixed(2)}%
-                  </span>
-                </div>
-              </div>
-              
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 1.25rem; padding: 0.875rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: var(--radius-md);">
-                <div>
-                  <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">24h High</div>
-                  <div style="font-size: 0.8rem; font-weight: 700; color: white;">${this.formatPrice(asset.high24h || asset.price * 1.04)}</div>
-                </div>
-                <div>
-                  <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">24h Low</div>
-                  <div style="font-size: 0.8rem; font-weight: 700; color: white;">${this.formatPrice(asset.low24h || asset.price * 0.97)}</div>
-                </div>
-                <div>
-                  <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Vol</div>
-                  <div style="font-size: 0.8rem; font-weight: 700; color: white;">${this.formatVolume(Math.random() * 1e9)}</div>
-                </div>
-              </div>
-            </div>
+
 
             <!-- Professional Trading Chart -->
             <div style="
@@ -294,7 +222,8 @@ class TradingPage {
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <div style="font-size: 0.8rem; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 0.05em;">Interactive Market Chart</div>
                 <div style="display: flex; gap: 0.5rem;">
-                   <button id="btn-toggle-ma" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); color: #818cf8; font-size: 0.7rem; padding: 0.25rem 0.75rem; border-radius: 20px; cursor: pointer; font-weight: 600;">Toggle MA</button>
+                   <button id="btn-toggle-ma" style="background: rgba(245,158,11, 0.12); border: 1px solid rgba(245,158,11, 0.35); color: #f59e0b; font-size: 0.7rem; padding: 0.25rem 0.75rem; border-radius: 20px; cursor: pointer; font-weight: 600;">EMA</button>
+                   <button id="btn-toggle-bb" style="background: rgba(56,189,248, 0.12); border: 1px solid rgba(56,189,248, 0.35); color: #38bdf8; font-size: 0.7rem; padding: 0.25rem 0.75rem; border-radius: 20px; cursor: pointer; font-weight: 600;">MACD</button>
                 </div>
               </div>
               <div id="trading-chart-container" style="height: 520px; width: 100%;">
@@ -315,144 +244,123 @@ class TradingPage {
             </div>
 
             <!-- Professional Trading History Ledger -->
-            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); margin-bottom: 1.5rem;">
-               <div style="font-size: 0.8rem; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
-                 <span>Riwayat Trading</span>
-                 <span style="font-size: 0.7rem; color: var(--text-muted); text-transform: none; font-weight: 400;">10 transaksi terakhir</span>
-               </div>
-               <div style="max-height: 250px; overflow-y: auto; padding-right: 4px;">
-                 <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
-                   <thead>
-                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); color: var(--text-muted); font-size: 0.7rem;">
-                       <th style="padding: 0.5rem 0.25rem;">Aset</th>
-                       <th style="padding: 0.5rem 0.25rem;">Jumlah</th>
-                       <th style="padding: 0.5rem 0.25rem;">Harga Buy → Sell</th>
-                       <th style="padding: 0.5rem 0.25rem; text-align: right;">Profit / Loss</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     ${this.renderTradeHistoryRows()}
-                   </tbody>
-                 </table>
-               </div>
+            <div class="th-panel">
+              <!-- Panel header -->
+              <div class="th-header">
+                <div class="th-title">
+                  <span>📈 Riwayat Trading</span>
+                  <span id="th-count-badge" class="th-badge">${(gameState.get('tradeHistory') || []).length} transaksi</span>
+                </div>
+                <button id="btn-download-history" class="th-dl-btn" title="Download Ringkasan">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Unduh
+                </button>
+              </div>
+
+              <!-- Stats Summary Row -->
+              ${this._renderHistorySummary()}
+
+              <!-- Filter tabs -->
+              <div class="th-filters" id="th-filters">
+                <button class="th-filter active" data-filter="all">Semua</button>
+                <button class="th-filter" data-filter="win">✅ Win</button>
+                <button class="th-filter" data-filter="loss">❌ Loss</button>
+                <button class="th-filter" data-filter="stock">📊 Saham</button>
+                <button class="th-filter" data-filter="crypto">🪙 Crypto</button>
+              </div>
+
+              <!-- Card list -->
+              <div class="th-list" id="th-list" style="max-height: 300px; overflow-y: auto;">
+                ${this._renderHistoryCards('all')}
+              </div>
             </div>
 
           </div>
 
+
           <!-- RIGHT COLUMN: EXECUTION & POSITION -->
-          <div style="flex: 0.8; padding: 1.5rem; display: flex; flex-direction: column; min-width: 300px;">
-            
-            <!-- ORDER BOOK -->
-            <div style="
-              background:rgba(0,0,0,0.25);
-              border:1px solid var(--border-color);
-              border-radius:var(--radius-lg);
-              padding:1rem;
-              margin-bottom:1rem;
-            ">
-              <div style="
-                display:flex;
-                justify-content:space-between;
-                margin-bottom:0.75rem;
-              ">
-                <span style="font-size:0.8rem;font-weight:700;color:white;">
-                  Order Book
-                </span>
-                <span style="
-                  font-size:0.7rem;
-                  color:var(--text-muted);
-                ">
-                  Live
-                </span>
-              </div>
-              <div style="
-                display:grid;
-                grid-template-columns:1fr 1fr;
-                gap:1rem;
-              ">
-                <!-- SELL -->
+          <div class="tp-right-col">
+
+            <!-- ══ POSITION DETAIL CARD ══════════════════════════════════ -->
+            ${holding ? `
+            <div class="pos-detail-card" id="pos-detail-card">
+              <!-- Header row -->
+              <div class="pos-detail-header">
                 <div>
-                  <div style="
-                    color:#ef4444;
-                    font-size:0.7rem;
-                    margin-bottom:0.5rem;
-                  ">
-                    Asks
-                  </div>
-                  <div id="order-book-asks">
-                    ${this.renderAsks(asset)}
-                  </div>
+                  <span class="pos-badge">LONG</span>
+                  <span class="pos-symbol">${this.currentAsset}</span>
+                  <span class="pos-size">${this.assetType === 'stock' ? holding.shares + ' lot' : cryptoMarket.formatAmount(holding.amount) + ' ' + this.currentAsset}</span>
                 </div>
-                <!-- BUY -->
-                <div>
-                  <div style="
-                    color:#10b981;
-                    font-size:0.7rem;
-                    margin-bottom:0.5rem;
-                  ">
-                    Bids
-                  </div>
-                  <div id="order-book-bids">
-                    ${this.renderBids(asset)}
-                  </div>
+                <div id="pos-upnl" class="pos-upnl ${this.calculatePnL(holding, asset.price) >= 0 ? 'pos-upnl--profit' : 'pos-upnl--loss'}">
+                  ${this.calculatePnL(holding, asset.price) >= 0 ? '+' : ''}${this.formatPnL(holding, asset.price)}
                 </div>
               </div>
-            </div>
 
-            <!-- RECENT TRADES -->
-            <div style="
-              background:rgba(0,0,0,0.25);
-              border:1px solid var(--border-color);
-              border-radius:var(--radius-lg);
-              padding:1rem;
-              margin-bottom:1rem;
-            ">
-              <div style="
-                font-size:0.8rem;
-                font-weight:700;
-                color:white;
-                margin-bottom:0.75rem;
-              ">
-                Recent Trades
-              </div>
-              <div style="max-height:180px;overflow:auto;padding-right:4px;">
-                <div id="recent-trades-list">
-                  ${this.renderRecentTrades(asset)}
+              <!-- Metric grid -->
+              <div class="pos-metrics">
+                <div class="pos-metric">
+                  <span class="pos-metric__label">Entry Price</span>
+                  <span class="pos-metric__value" id="pos-entry">${this.formatPrice(holding.avgPrice || holding.totalInvested / (holding.shares || holding.amount))}</span>
+                </div>
+                <div class="pos-metric">
+                  <span class="pos-metric__label">Mark Price</span>
+                  <span class="pos-metric__value pos-metric__value--live" id="pos-mark">${this.formatPrice(asset.price)}</span>
+                </div>
+                <div class="pos-metric">
+                  <span class="pos-metric__label">Liq. Price</span>
+                  <span class="pos-metric__value pos-metric__value--danger" id="pos-liq">${this.formatPrice(this._calcLiqPrice(holding, asset.price))}</span>
+                </div>
+                <div class="pos-metric">
+                  <span class="pos-metric__label">Nilai Posisi</span>
+                  <span class="pos-metric__value" id="pos-value">${this.formatPrice((holding.shares || holding.amount) * asset.price)}</span>
+                </div>
+                <div class="pos-metric">
+                  <span class="pos-metric__label">Price Gap</span>
+                  <span class="pos-metric__value ${this.calculatePnL(holding, asset.price) >= 0 ? 'pos-metric__value--profit' : 'pos-metric__value--danger'}" id="pos-gap">
+                    ${this._calcPriceGap(holding, asset.price)}
+                  </span>
+                </div>
+                <div class="pos-metric">
+                  <span class="pos-metric__label">Unrealized PnL</span>
+                  <span class="pos-metric__value ${this.calculatePnL(holding, asset.price) >= 0 ? 'pos-metric__value--profit' : 'pos-metric__value--danger'}" id="pos-pnl-val">
+                    ${this.calculatePnL(holding, asset.price) >= 0 ? '+' : ''}${this.formatPrice(this.calculatePnL(holding, asset.price))}
+                  </span>
                 </div>
               </div>
-            </div>
 
-            <!-- Position Header -->
-            <div style="margin-bottom: 1.5rem;">
-              <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 1rem;">Position & Order</div>
-              
-              ${holding ? `
-                <div style="padding: 1rem; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-md);">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                    <span style="font-size: 0.75rem; color: var(--text-muted);">Posisi TeKuka</span>
-                    <span class="${this.calculatePnL(holding, asset.price) >= 0 ? 'positive' : 'negative'}" style="font-weight: 700; font-size: 0.9rem;">
-                      ${this.calculatePnL(holding, asset.price) >= 0 ? '+' : ''}${this.formatPnL(holding, asset.price)}
-                    </span>
-                  </div>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.85rem;">
-                    <div>
-                      <div style="color: var(--text-muted); font-size: 0.7rem;">Holding</div>
-                      <div style="font-weight: 600;">${this.assetType === 'stock' ? holding.shares + ' lot' : cryptoMarket.formatAmount(holding.amount) + ' ' + this.currentAsset}</div>
-                    </div>
-                    <div>
-                      <div style="color: var(--text-muted); font-size: 0.7rem;">Nilai</div>
-                      <div style="font-weight: 600;">${this.formatPrice((holding.shares || holding.amount) * asset.price)}</div>
-                    </div>
+              <!-- PnL progress bar -->
+              <div class="pos-pnl-bar-wrap">
+                <div class="pos-pnl-bar-track">
+                  <div id="pos-pnl-bar" class="pos-pnl-bar ${this.calculatePnL(holding, asset.price) >= 0 ? 'pos-pnl-bar--profit' : 'pos-pnl-bar--loss'}"
+                    style="width: ${Math.min(100, Math.abs(this.calculatePnL(holding, asset.price) / (holding.totalInvested || 1) * 100)).toFixed(1)}%">
                   </div>
                 </div>
-              ` : `
-                <div style="padding: 1rem; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); border-radius: var(--radius-md); text-align: center; color: var(--text-dim); font-size: 0.85rem;">
-                  Tidak ada posisi teKuka
-                </div>
-              `}
-            </div>
+                <span class="pos-pnl-pct" id="pos-pnl-pct">
+                  ${((this.calculatePnL(holding, asset.price) / (holding.totalInvested || 1)) * 100).toFixed(2)}%
+                </span>
+              </div>
 
-            <!-- Execution Tabs -->
+              <!-- Action buttons -->
+              <div class="pos-actions">
+                <button id="btn-close-pos" class="pos-btn-sell">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  Jual Semua
+                </button>
+                <button id="btn-download-pnl" class="pos-btn-card">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  PnL Card
+                </button>
+              </div>
+            </div>
+            ` : `
+            <div class="pos-detail-card pos-detail-card--empty">
+              <div class="pos-empty-icon">📭</div>
+              <div class="pos-empty-title">Tidak Ada Posisi</div>
+              <div class="pos-empty-sub">Beli aset untuk membuka posisi</div>
+            </div>
+            `}
+
+            <!-- ══ ORDER FORM ═════════════════════════════════════════════ -->
             <div class="order-form" style="flex: 1; padding: 0; background: none; border: none; box-shadow: none;">
               <div class="order-tabs" style="margin-bottom: 1rem;">
                 <button class="order-tab-btn active" data-side="buy">BUY</button>
@@ -478,17 +386,17 @@ class TradingPage {
 
                 <!-- Range Slider & Pct Shortcuts for Market Order -->
                 <div style="margin-bottom: 1.25rem;">
-                  <input type="range" id="market-pct-slider" class="order-pct-slider" min="0" max="100" value="0" 
+                  <input type="range" id="market-pct-slider" class="order-pct-slider" min="0" max="100" value="0"
                     style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; cursor: pointer; outline: none; margin-bottom: 0.5rem; accent-color: var(--accent-primary);">
                   <div style="display: flex; gap: 0.25rem; justify-content: space-between;">
-                    <button type="button" class="quick-pct-btn" data-pct="10" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: white; cursor: pointer;">10%</button>
-                    <button type="button" class="quick-pct-btn" data-pct="25" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: white; cursor: pointer;">25%</button>
-                    <button type="button" class="quick-pct-btn" data-pct="50" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: white; cursor: pointer;">50%</button>
-                    <button type="button" class="quick-pct-btn" data-pct="75" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: white; cursor: pointer;">75%</button>
-                    <button type="button" class="quick-pct-btn" data-pct="100" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 4px; color: #818cf8; cursor: pointer; font-weight: 800;">MAX</button>
+                    <button type="button" class="quick-pct-btn" data-pct="10" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:white;cursor:pointer;">10%</button>
+                    <button type="button" class="quick-pct-btn" data-pct="25" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:white;cursor:pointer;">25%</button>
+                    <button type="button" class="quick-pct-btn" data-pct="50" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:white;cursor:pointer;">50%</button>
+                    <button type="button" class="quick-pct-btn" data-pct="75" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:white;cursor:pointer;">75%</button>
+                    <button type="button" class="quick-pct-btn" data-pct="100" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:4px;color:#818cf8;cursor:pointer;font-weight:800;">MAX</button>
                   </div>
                 </div>
-                
+
                 <div class="order-summary" style="margin-top: 1.5rem; background: rgba(0,0,0,0.15);">
                   <div class="summary-row">
                     <span>Est. Total</span>
@@ -500,7 +408,7 @@ class TradingPage {
                   </div>
                 </div>
               </div>
- 
+
               <!-- Limit Order Form -->
               <div id="limit-form" class="order-form-content" style="display:none;">
                 <div class="form-row" style="margin-bottom: 0.25rem;">
@@ -508,13 +416,12 @@ class TradingPage {
                   <input type="number" id="limit-price" class="order-input" value="${Math.round(asset.price)}">
                 </div>
 
-                <!-- Suggested Price Offsets -->
                 <div style="display: flex; gap: 0.25rem; margin-bottom: 1.25rem; justify-content: space-between;">
-                  <button type="button" class="price-suggest-btn" data-offset="-0.05" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 4px; color: #f87171; cursor: pointer;">-5%</button>
-                  <button type="button" class="price-suggest-btn" data-offset="-0.01" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 4px; color: #f87171; cursor: pointer;">-1%</button>
-                  <button type="button" class="price-suggest-btn" data-offset="0" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: white; cursor: pointer; font-weight: 700;">Market</button>
-                  <button type="button" class="price-suggest-btn" data-offset="0.01" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 4px; color: #34d399; cursor: pointer;">+1%</button>
-                  <button type="button" class="price-suggest-btn" data-offset="0.05" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 4px; color: #34d399; cursor: pointer;">+5%</button>
+                  <button type="button" class="price-suggest-btn" data-offset="-0.05" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:4px;color:#f87171;cursor:pointer;">-5%</button>
+                  <button type="button" class="price-suggest-btn" data-offset="-0.01" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:4px;color:#f87171;cursor:pointer;">-1%</button>
+                  <button type="button" class="price-suggest-btn" data-offset="0" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:white;cursor:pointer;font-weight:700;">Market</button>
+                  <button type="button" class="price-suggest-btn" data-offset="0.01" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.2);border-radius:4px;color:#34d399;cursor:pointer;">+1%</button>
+                  <button type="button" class="price-suggest-btn" data-offset="0.05" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.2);border-radius:4px;color:#34d399;cursor:pointer;">+5%</button>
                 </div>
 
                 <div class="form-row" style="margin-bottom: 0.5rem;">
@@ -526,16 +433,15 @@ class TradingPage {
                     value="${this.assetType === 'stock' ? '100' : '1000000'}">
                 </div>
 
-                <!-- Range Slider & Pct Shortcuts for Limit Order -->
                 <div style="margin-bottom: 1.25rem;">
-                  <input type="range" id="limit-pct-slider" class="order-pct-slider" min="0" max="100" value="0" 
-                    style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; cursor: pointer; outline: none; margin-bottom: 0.5rem; accent-color: var(--accent-primary);">
+                  <input type="range" id="limit-pct-slider" class="order-pct-slider" min="0" max="100" value="0"
+                    style="width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;cursor:pointer;outline:none;margin-bottom:0.5rem;accent-color:var(--accent-primary);">
                   <div style="display: flex; gap: 0.25rem; justify-content: space-between;">
-                    <button type="button" class="quick-pct-btn" data-pct="10" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: white; cursor: pointer;">10%</button>
-                    <button type="button" class="quick-pct-btn" data-pct="25" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: white; cursor: pointer;">25%</button>
-                    <button type="button" class="quick-pct-btn" data-pct="50" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: white; cursor: pointer;">50%</button>
-                    <button type="button" class="quick-pct-btn" data-pct="75" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: white; cursor: pointer;">75%</button>
-                    <button type="button" class="quick-pct-btn" data-pct="100" style="flex: 1; font-size: 0.65rem; padding: 0.25rem 0; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 4px; color: #818cf8; cursor: pointer; font-weight: 800;">MAX</button>
+                    <button type="button" class="quick-pct-btn" data-pct="10" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:white;cursor:pointer;">10%</button>
+                    <button type="button" class="quick-pct-btn" data-pct="25" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:white;cursor:pointer;">25%</button>
+                    <button type="button" class="quick-pct-btn" data-pct="50" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:white;cursor:pointer;">50%</button>
+                    <button type="button" class="quick-pct-btn" data-pct="75" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:4px;color:white;cursor:pointer;">75%</button>
+                    <button type="button" class="quick-pct-btn" data-pct="100" style="flex:1;font-size:0.65rem;padding:0.25rem 0;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:4px;color:#818cf8;cursor:pointer;font-weight:800;">MAX</button>
                   </div>
                 </div>
 
@@ -555,24 +461,24 @@ class TradingPage {
                 </div>
                 <div id="tpsl-inputs" class="tpsl-inputs" style="display:none; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem;">
                   <div class="tpsl-input">
-                  <label class="positive">🎯 Take Profit</label>
-                  <input type="number" id="tp-price" class="order-input" placeholder="${Math.round(asset.price * 1.1)}">
-                </div>
-                <div class="tpsl-input">
-                  <label class="negative">🛑 Stop Loss</label>
-                  <input type="number" id="sl-price" class="order-input" placeholder="${Math.round(asset.price * 0.95)}">
+                    <label class="positive">🎯 Take Profit</label>
+                    <input type="number" id="tp-price" class="order-input" placeholder="${Math.round(asset.price * 1.1)}">
+                  </div>
+                  <div class="tpsl-input">
+                    <label class="negative">🛑 Stop Loss</label>
+                    <input type="number" id="sl-price" class="order-input" placeholder="${Math.round(asset.price * 0.95)}">
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Execute -->
-          <button id="execute-order" class="execute-btn buy">
-            <span class="execute-icon">🟢</span>
-            <span class="execute-text">BUY ${this.currentAsset}</span>
-          </button>
+            <!-- Execute -->
+            <button id="execute-order" class="execute-btn buy">
+              <span class="execute-icon">🟢</span>
+              <span class="execute-text">BUY ${this.currentAsset}</span>
+            </button>
+          </div>
         </div>
-      </div>
     `;
 
     const viewContainer = document.querySelector('.view-container');
@@ -590,6 +496,21 @@ class TradingPage {
     });
 
     viewContainer.insertAdjacentHTML('beforeend', tradingPageHTML);
+
+    // Inject back button dynamically into global topbar
+    const topbarLeft = document.querySelector('.app-topbar .topbar-left');
+    if (topbarLeft) {
+      document.getElementById('btn-close-trading-topbar')?.remove();
+      const backBtnHtml = `
+        <button id="btn-close-trading-topbar" class="btn-back" style="width: auto; height: 38px; display: flex; align-items: center; gap: 0.5rem; padding: 0 0.85rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-main); font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all var(--transition); margin-right: 0.75rem;">
+          <span>←</span>
+          <span style="font-size: 1.25rem;">${this.assetType === 'stock' ? stockMarket.getStockIcon(asset.sector) : asset.icon}</span>
+          <span style="font-weight: 800;">${this.currentAsset}</span>
+        </button>
+      `;
+      topbarLeft.insertAdjacentHTML('afterbegin', backBtnHtml);
+      document.getElementById('btn-close-trading-topbar').addEventListener('click', () => this.close());
+    }
 
     // Initialize Chart Engine
     this.chart = new ChartEngine('trading-chart-container');
@@ -612,18 +533,6 @@ class TradingPage {
       ? stockMarket.getStock(this.currentAsset)
       : cryptoMarket.getCrypto(this.currentAsset);
     if (!asset) return;
-
-    const priceEl = document.getElementById('live-price');
-    const changeEl = document.getElementById('live-change');
-
-    if (priceEl) {
-      priceEl.textContent = this.formatPrice(asset.price);
-      pulseElement(priceEl);
-    }
-    if (changeEl) {
-      changeEl.textContent = `${(asset.change || 0) >= 0 ? '▲' : '▼'} ${Math.abs(asset.change || 0).toFixed(2)}%`;
-      changeEl.className = `trading-change ${(asset.change || 0) >= 0 ? 'positive' : 'negative'}`;
-    }
 
     // Update Market Strip
     const stripPriceEl = document.getElementById('strip-price');
@@ -649,85 +558,281 @@ class TradingPage {
       stripVolumeEl.textContent = this.formatVolume(Math.random() * 1e9);
     }
 
-    // Update Order Book asks & bids
-    const asksEl = document.getElementById('order-book-asks');
-    const bidsEl = document.getElementById('order-book-bids');
-    if (asksEl) {
-      asksEl.innerHTML = this.renderAsks(asset);
-    }
-    if (bidsEl) {
-      bidsEl.innerHTML = this.renderBids(asset);
-    }
 
-    // Update Recent Trades
-    const tradesEl = document.getElementById('recent-trades-list');
-    if (tradesEl) {
-      tradesEl.innerHTML = this.renderRecentTrades(asset);
-    }
 
     this.updateChartData();
     this.updateOrderTotal();
     this.updateTradeHistoryTable();
+    this.updatePositionCard();
   }
 
   updateChartData() {
     if (!this.chart) return;
-    const asset = this.assetType === 'stock' ? stockMarket.getStock(this.currentAsset) : cryptoMarket.getCrypto(this.currentAsset);
+    const asset = this.assetType === 'stock'
+      ? stockMarket.getStock(this.currentAsset)
+      : cryptoMarket.getCrypto(this.currentAsset);
     if (!asset || !asset.priceHistory) return;
 
-    const candles = this.convertToCandles(asset.priceHistory.slice(-30));
+    // Use full history for richer pattern visibility
+    const hist    = asset.priceHistory.slice(-80);
+    const candles = this.convertToCandles(hist);
+
+    // Inject Elliott Wave + H&S annotations
+    this._annotatePatterns(candles);
+
+    // Inject H&S neckline into chart
+    this.chart.injectPatterns(this._hsPts || []);
     this.chart.setData(candles);
 
     // Update Stats
     const avgVolEl = document.getElementById('stat-avg-volume');
     if (avgVolEl) {
-        const avg = Math.round(candles.reduce((acc, c) => acc + c.volume, 0) / (candles.length || 1));
-        avgVolEl.textContent = avg.toLocaleString();
+      const avg = Math.round(candles.reduce((acc, c) => acc + c.volume, 0) / (candles.length || 1));
+      avgVolEl.textContent = avg.toLocaleString();
     }
-
     const volEl = document.getElementById('stat-volatility');
     if (volEl) {
-        const vol = asset.volatility || 0.05;
-        volEl.textContent = vol > 0.15 ? 'HIGH' : (vol > 0.08 ? 'MEDIUM' : 'LOW');
-        volEl.style.color = vol > 0.15 ? '#ef4444' : (vol > 0.08 ? '#f59e0b' : '#10b981');
+      const v = asset.volatility || 0.05;
+      volEl.textContent = v > 0.15 ? 'HIGH' : (v > 0.08 ? 'MEDIUM' : 'LOW');
+      volEl.style.color  = v > 0.15 ? '#ef4444' : (v > 0.08 ? '#f59e0b' : '#10b981');
     }
   }
 
+  /**
+   * Convert raw price array into rich OHLC candles.
+   * Uses 3-bar buckets → gives meaningful open/close differences.
+   * Randomly picks wick magnitudes to produce hammer, shooting star,
+   * doji, marubozu, and normal candles.
+   */
   convertToCandles(history) {
-    const bucketSize = 1; 
     const candles = [];
-    
-    for (let i = 0; i < history.length; i += bucketSize) {
-      const slice = history.slice(i, i + bucketSize);
-      if (slice.length === 0) continue;
+    const BUCKET  = 3; // group 3 raw prices into 1 candle
 
-      const open = slice[0];
+    for (let i = 0; i + 1 < history.length; i += BUCKET) {
+      const slice = history.slice(i, Math.min(i + BUCKET, history.length));
+      if (slice.length < 2) break;
+
+      const open  = slice[0];
       const close = slice[slice.length - 1];
-      const change = (Math.random() - 0.5) * 0.004;
-      const high = Math.max(open, close) * (1 + Math.max(0, change));
-      const low = Math.min(open, close) * (1 - Math.max(0, -change));
-      
-      const volume = 5000 + Math.random() * 20000;
+      const body  = Math.abs(close - open);
+      const mid   = (open + close) / 2;
+
+      // Pick a random candlestick archetype
+      const r    = Math.random();
+      let topWick, botWick;
+
+      if (r < 0.10) {
+        // ── Hammer: tiny body near high, long lower wick ──
+        topWick = body * 0.1;
+        botWick = body * 2.5 + mid * 0.005;
+      } else if (r < 0.20) {
+        // ── Shooting Star: tiny body near low, long upper wick ──
+        topWick = body * 2.5 + mid * 0.005;
+        botWick = body * 0.1;
+      } else if (r < 0.28) {
+        // ── Doji: very thin body, balanced wicks ──
+        const dojiBody = mid * 0.0008;
+        topWick = body * 0.9 + dojiBody;
+        botWick = body * 0.9 + dojiBody;
+      } else if (r < 0.36) {
+        // ── Marubozu: big body, tiny wicks (strong momentum) ──
+        topWick = body * 0.05;
+        botWick = body * 0.05;
+      } else if (r < 0.44) {
+        // ── Spinning Top: medium body, long wicks both sides ──
+        topWick = body * 1.2;
+        botWick = body * 1.2;
+      } else if (r < 0.52) {
+        // ── Rising / Falling Star: moderate upper wick ──
+        topWick = body * 1.5;
+        botWick = body * 0.3;
+      } else {
+        // ── Normal candle: random wicks ──
+        topWick = body * (0.3 + Math.random() * 0.8);
+        botWick = body * (0.3 + Math.random() * 0.8);
+      }
+
+      // Add minimum wick relative to price to avoid flat candles
+      const minWick = mid * 0.003;
+      topWick = Math.max(minWick, topWick);
+      botWick = Math.max(minWick, botWick);
+
+      const high   = Math.max(open, close) + topWick;
+      const low    = Math.min(open, close) - botWick;
+
+      // Volume: correlated with body size
+      const baseVol = 8000 + Math.random() * 25000;
+      const volume  = baseVol * (1 + (body / mid) * 10);
+
+      const idx  = candles.length;
+      const isLive = (i + BUCKET) >= history.length;
 
       candles.push({
-        time: i === history.length - 1 ? 'Live' : '',
-        open, high, low, close, volume
+        time:   isLive ? 'Live' : `T${idx + 1}`,
+        open, high, low, close, volume,
+        pattern: null, patternType: null,
       });
     }
     return candles;
   }
 
+  /**
+   * Detect and annotate Elliott Wave 1-5 and Head & Shoulders on candle array.
+   * Annotates up to 2 full Elliott cycles + 1 H&S.
+   */
+  _annotatePatterns(candles) {
+    const n = candles.length;
+    this._hsPts = [];
+    if (n < 30) return;
+
+    // ── Elliott Wave annotation (first 50% of candles) ────────────────────
+    const elliotEnd = Math.min(Math.floor(n * 0.55), n - 25);
+    const waveSize  = Math.max(8, Math.floor(elliotEnd / 5));
+
+    const waveLabels  = ['W1', 'W2', 'W3', 'W4', 'W5'];
+    const corrLabels  = ['Wa', 'Wb', 'Wc'];
+
+    // Mark wave peaks and troughs at regular intervals
+    let prices = candles.slice(0, elliotEnd).map(c => (c.high + c.low) / 2);
+    let maxIdx  = -1, maxVal = -Infinity;
+    let minIdx  = -1, minVal =  Infinity;
+
+    // Find local max & min every waveSize bars to plant Elliott labels
+    for (let w = 0; w < 5; w++) {
+      const start = w * waveSize;
+      const end   = Math.min(start + waveSize, elliotEnd);
+      if (start >= n) break;
+
+      let peakIdx = start, peakVal = -Infinity;
+      for (let i = start; i < end; i++) {
+        const v = candles[i].high;
+        if (v > peakVal) { peakVal = v; peakIdx = i; }
+      }
+      candles[peakIdx].pattern     = waveLabels[w];
+      candles[peakIdx].patternType = 'elliott';
+    }
+
+    // Correction wave a-b-c after impulse
+    const corrStart = elliotEnd;
+    const corrSize  = Math.max(5, Math.floor((n - corrStart - 20) / 3));
+    for (let w = 0; w < 3; w++) {
+      const start = corrStart + w * corrSize;
+      if (start >= n - 10) break;
+      const end = Math.min(start + corrSize, n - 5);
+
+      let peakIdx = start, peakVal = -Infinity;
+      for (let i = start; i < end; i++) {
+        const v = candles[i].high;
+        if (v > peakVal) { peakVal = v; peakIdx = i; }
+      }
+      candles[peakIdx].pattern     = corrLabels[w];
+      candles[peakIdx].patternType = 'elliott';
+    }
+
+    // ── Head & Shoulders in last 25 candles ──────────────────────────────
+    const hsStart = Math.max(0, n - 25);
+    const hsLen   = n - hsStart;
+    if (hsLen < 15) return;
+
+    const seg = Math.floor(hsLen / 5);
+
+    // Left shoulder peak
+    const lsIdx  = hsStart + Math.floor(seg * 0.8);
+    candles[lsIdx].pattern     = 'LS';
+    candles[lsIdx].patternType = 'hs';
+
+    // Head peak
+    const hIdx = hsStart + Math.floor(seg * 2.2);
+    if (hIdx < n) {
+      candles[hIdx].pattern     = 'HEAD';
+      candles[hIdx].patternType = 'hs';
+    }
+
+    // Right shoulder peak
+    const rsIdx = hsStart + Math.floor(seg * 3.6);
+    if (rsIdx < n) {
+      candles[rsIdx].pattern     = 'RS';
+      candles[rsIdx].patternType = 'hs';
+    }
+
+    // Neckline: drawn between troughs between LS–Head and Head–RS
+    const t1Idx = hsStart + Math.floor(seg * 1.5);
+    const t2Idx = hsStart + Math.floor(seg * 3.0);
+    if (t1Idx < n && t2Idx < n) {
+      this._hsPts = [
+        { idx: t1Idx, price: candles[t1Idx].low },
+        { idx: t2Idx, price: candles[t2Idx].low },
+      ];
+    }
+  }
+
 
   bindEvents() {
-    document.getElementById('btn-close-trading')?.addEventListener('click', () => this.close());
+
     
     document.getElementById('btn-toggle-ma')?.addEventListener('click', (e) => {
       if (this.chart) {
-        this.chart.config.showMA = !this.chart.config.showMA;
-        this.chart.render();
-        e.target.style.background = this.chart.config.showMA ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.05)';
+        const on = this.chart.toggleMA();
+        e.target.style.background = on ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.04)';
       }
     });
+
+    document.getElementById('btn-toggle-bb')?.addEventListener('click', (e) => {
+      if (this.chart) {
+        const on = this.chart.toggleBB();
+        e.target.style.background = on ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.04)';
+      }
+    });
+
+    // ── Position card quick-sell ─────────────────────────────────────────────
+    document.getElementById('btn-close-pos')?.addEventListener('click', () => {
+      try {
+        const asset = this.assetType === 'stock'
+          ? stockMarket.getStock(this.currentAsset)
+          : cryptoMarket.getCrypto(this.currentAsset);
+        const portfolio = this.assetType === 'stock'
+          ? gameState.get('stocks') || {}
+          : gameState.get('crypto') || {};
+        const h = portfolio[this.currentAsset];
+        if (!h || !asset) return;
+
+        if (this.assetType === 'stock') {
+          const r = stockMarket.marketSell(this.currentAsset, h.shares);
+          ui.success(`✅ Sold all ${h.shares} lot. P/L: ${r.profit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(r.profit)}`);
+        } else {
+          const r = cryptoMarket.marketSell(this.currentAsset, h.amount);
+          ui.success(`✅ Sold all ${cryptoMarket.formatAmount(h.amount)} ${this.currentAsset}. P/L: ${r.profit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(r.profit)}`);
+        }
+        setTimeout(() => {
+          const a = this.assetType === 'stock'
+            ? stockMarket.getStock(this.currentAsset)
+            : cryptoMarket.getCrypto(this.currentAsset);
+          if (a) this.render(a);
+        }, 400);
+      } catch (e) { ui.error(e.message); }
+    });
+
+    // ── PnL Card download ────────────────────────────────────────────────────
+    document.getElementById('btn-download-pnl')?.addEventListener('click', () => {
+      this.downloadPnlCard();
+    });
+
+    // ── Filter tabs ──────────────────────────────────────────────────────────
+    document.getElementById('th-filters')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.th-filter');
+      if (!btn) return;
+      document.querySelectorAll('.th-filter').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const list = document.getElementById('th-list');
+      if (list) list.innerHTML = this._renderHistoryCards(btn.dataset.filter);
+    });
+
+    // ── Download history card ────────────────────────────────────────────────
+    document.getElementById('btn-download-history')?.addEventListener('click', () => {
+      this.downloadHistoryCard();
+    });
+
+
 
     document.querySelectorAll('.order-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -977,9 +1082,361 @@ class TradingPage {
     setTimeout(() => { const a = cryptoMarket.getCrypto(this.currentAsset); if (a) this.render(a); }, 400);
   }
 
+  // ─── Position Card Helpers ────────────────────────────────────────────────
+
+  /** Liquidation price estimate: entry - (entry * 0.80) simplified as 80% cushion */
+  _calcLiqPrice(holding, currentPrice) {
+    const entry = holding.avgPrice || (holding.totalInvested / (holding.shares || holding.amount || 1));
+    // Assume 10x effective leverage proxy; liq at ~entry * (1 - 1/leverage)
+    return entry * 0.80;
+  }
+
+  /** Price gap = (mark - entry) / entry as percentage string */
+  _calcPriceGap(holding, currentPrice) {
+    const entry = holding.avgPrice || (holding.totalInvested / (holding.shares || holding.amount || 1));
+    const gap   = ((currentPrice - entry) / entry) * 100;
+    return `${gap >= 0 ? '+' : ''}${gap.toFixed(2)}%`;
+  }
+
+  /** Live-update the position detail card without full re-render */
+  updatePositionCard() {
+    const asset = this.assetType === 'stock'
+      ? stockMarket.getStock(this.currentAsset)
+      : cryptoMarket.getCrypto(this.currentAsset);
+    if (!asset) return;
+
+    const portfolio = this.assetType === 'stock'
+      ? gameState.get('stocks') || {}
+      : gameState.get('crypto') || {};
+    const h = portfolio[this.currentAsset];
+    if (!h) return;
+
+    const pnl    = this.calculatePnL(h, asset.price);
+    const pct    = (pnl / (h.totalInvested || 1)) * 100;
+    const isProfit = pnl >= 0;
+    const barW  = Math.min(100, Math.abs(pct)).toFixed(1);
+
+    const upd = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const cls = (id, ...classes) => { const el = document.getElementById(id); if (el) el.className = classes.join(' '); };
+
+    upd('pos-mark',  this.formatPrice(asset.price));
+    upd('pos-value', this.formatPrice((h.shares || h.amount) * asset.price));
+    upd('pos-gap',   this._calcPriceGap(h, asset.price));
+    upd('pos-pnl-val', `${isProfit ? '+' : ''}${this.formatPrice(pnl)}`);
+    upd('pos-pnl-pct', `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`);
+    upd('pos-upnl',  `${isProfit ? '+' : ''}${this.formatPnL(h, asset.price)}`);
+
+    const gapEl   = document.getElementById('pos-gap');
+    const pnlEl   = document.getElementById('pos-pnl-val');
+    const upnlEl  = document.getElementById('pos-upnl');
+    const barEl   = document.getElementById('pos-pnl-bar');
+
+    if (gapEl)  gapEl.className  = `pos-metric__value ${isProfit ? 'pos-metric__value--profit' : 'pos-metric__value--danger'}`;
+    if (pnlEl)  pnlEl.className  = `pos-metric__value ${isProfit ? 'pos-metric__value--profit' : 'pos-metric__value--danger'}`;
+    if (upnlEl) upnlEl.className = `pos-upnl ${isProfit ? 'pos-upnl--profit' : 'pos-upnl--loss'}`;
+    if (barEl)  { barEl.style.width = barW + '%'; barEl.className = `pos-pnl-bar ${isProfit ? 'pos-pnl-bar--profit' : 'pos-pnl-bar--loss'}`; }
+  }
+
+  /** Download a canvas-rendered PnL card as a PNG */
+  downloadPnlCard() {
+    const asset = this.assetType === 'stock'
+      ? stockMarket.getStock(this.currentAsset)
+      : cryptoMarket.getCrypto(this.currentAsset);
+    const portfolio = this.assetType === 'stock'
+      ? gameState.get('stocks') || {}
+      : gameState.get('crypto') || {};
+    const h = portfolio[this.currentAsset];
+    if (!h || !asset) { ui.error('Tidak ada posisi untuk dibagikan'); return; }
+
+    const pnl    = this.calculatePnL(h, asset.price);
+    const pct    = (pnl / (h.totalInvested || 1)) * 100;
+    const isProfit = pnl >= 0;
+    const entry  = h.avgPrice || (h.totalInvested / (h.shares || h.amount || 1));
+    const now    = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    // Canvas dimensions
+    const W = 560, H = 320;
+    const canvas = document.createElement('canvas');
+    canvas.width  = W * 2; // 2x for retina
+    canvas.height = H * 2;
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(2, 2);
+
+    // Background gradient
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, isProfit ? '#0a1a14' : '#1a0a0a');
+    bg.addColorStop(1, '#09090b');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Glow accent
+    const glow = ctx.createRadialGradient(W * 0.15, H * 0.3, 0, W * 0.15, H * 0.3, W * 0.5);
+    glow.addColorStop(0, isProfit ? 'rgba(38,166,154,0.12)' : 'rgba(239,83,80,0.12)');
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    // Border
+    ctx.strokeStyle = isProfit ? 'rgba(38,166,154,0.3)' : 'rgba(239,83,80,0.3)';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(2, 2, W - 4, H - 4, 16);
+    ctx.stroke();
+
+    // ── Text helpers ─────────────────────────────────────────────────────
+    const txt = (text, x, y, font, color, align = 'left') => {
+      ctx.font      = font;
+      ctx.fillStyle = color;
+      ctx.textAlign = align;
+      ctx.fillText(text, x, y);
+    };
+
+    const accent = isProfit ? '#26a69a' : '#ef5350';
+    const arrow  = isProfit ? '▲' : '▼';
+
+    // Logo / brand
+    txt('AuraAssets', 36, 38, 'bold 13px Inter, sans-serif', 'rgba(255,255,255,0.35)');
+    txt(now, W - 36, 38, '12px Inter, sans-serif', 'rgba(255,255,255,0.25)', 'right');
+
+    // Asset symbol
+    txt(this.currentAsset, 36, 80, 'bold 32px Inter, sans-serif', '#ffffff');
+    txt(this.assetType.toUpperCase(), 36, 102, '11px Inter, sans-serif', 'rgba(255,255,255,0.4)');
+
+    // PnL main
+    const pnlStr = `${isProfit ? '+' : ''}${this.formatPrice(Math.abs(pnl))}`;
+    txt(pnlStr, W / 2, 88, `bold 38px Inter, sans-serif`, accent, 'center');
+    txt(`${arrow} ${isProfit ? '+' : ''}${pct.toFixed(2)}%`, W / 2, 116, 'bold 18px Inter, sans-serif', accent, 'center');
+
+    // Divider
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(36, 136); ctx.lineTo(W - 36, 136);
+    ctx.stroke();
+
+    // Details grid  4 items
+    const details = [
+      ['Entry Price', this.formatPrice(entry)],
+      ['Mark Price',  this.formatPrice(asset.price)],
+      ['Liq. Price',  this.formatPrice(this._calcLiqPrice(h, asset.price))],
+      ['Price Gap',   this._calcPriceGap(h, asset.price)],
+    ];
+    details.forEach(([label, val], i) => {
+      const col = i % 2 === 0 ? 36 : W / 2 + 20;
+      const row = 162 + Math.floor(i / 2) * 52;
+      txt(label, col, row,       '10.5px Inter, sans-serif', 'rgba(255,255,255,0.4)');
+      txt(val,   col, row + 20,  'bold 14px Inter, sans-serif', '#ffffff');
+    });
+
+    // Quantity row
+    const qty = this.assetType === 'stock'
+      ? h.shares + ' lot'
+      : `${cryptoMarket.formatAmount(h.amount)} ${this.currentAsset}`;
+    txt('Jumlah Posisi', 36, H - 52, '10px Inter, sans-serif', 'rgba(255,255,255,0.35)');
+    txt(qty, 36, H - 34, 'bold 13px Inter, sans-serif', 'rgba(255,255,255,0.7)');
+
+    // QR placeholder area (decorative)
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.roundRect(W - 90, H - 80, 56, 56, 6);
+    ctx.stroke();
+    txt('SCAN', W - 62, H - 44, 'bold 8px Inter, sans-serif', 'rgba(255,255,255,0.2)', 'center');
+
+    // Download
+    const link    = document.createElement('a');
+    link.download = `${this.currentAsset}_PnL_${Date.now()}.png`;
+    link.href     = canvas.toDataURL('image/png');
+    link.click();
+    ui.success('✅ PnL card berhasil diunduh!');
+  }
+
+  /** Render 4-stat summary row for trade history */
+  _renderHistorySummary() {
+    const all = gameState.get('tradeHistory') || [];
+    if (!all.length) return '';
+
+    const wins   = all.filter(t => t.profit >= 0);
+    const losses = all.filter(t => t.profit < 0);
+    const totalPnL  = all.reduce((s, t) => s + (t.profit || 0), 0);
+    const winRate   = all.length ? ((wins.length / all.length) * 100).toFixed(0) : 0;
+    const bestTrade = all.length ? Math.max(...all.map(t => t.profit || 0)) : 0;
+    const isProfit  = totalPnL >= 0;
+
+    const stat = (label, val, color = 'white') =>
+      `<div class="th-stat"><div class="th-stat__label">${label}</div><div class="th-stat__value" style="color:${color}">${val}</div></div>`;
+
+    return `
+      <div class="th-stats">
+        ${stat('Win Rate', winRate + '%', parseInt(winRate) >= 50 ? '#26a69a' : '#ef5350')}
+        ${stat('Total P/L', (isProfit ? '+' : '') + this.formatPrice(totalPnL), isProfit ? '#26a69a' : '#ef5350')}
+        ${stat('Trades', all.length)}
+        ${stat('Best', '+' + this.formatPrice(bestTrade), '#f59e0b')}
+      </div>
+    `;
+  }
+
+  /** Render filterable trade history cards */
+  _renderHistoryCards(filter = 'all') {
+    const all = gameState.get('tradeHistory') || [];
+    if (!all.length) {
+      return `<div class="th-empty">📭 Belum ada riwayat trading</div>`;
+    }
+
+    const filtered = all.filter(t => {
+      if (filter === 'win')    return t.profit >= 0;
+      if (filter === 'loss')   return t.profit < 0;
+      if (filter === 'stock')  return t.assetType === 'stock';
+      if (filter === 'crypto') return t.assetType === 'crypto';
+      return true;
+    }).slice(0, 20);
+
+    if (!filtered.length) {
+      return `<div class="th-empty">Tidak ada data untuk filter ini</div>`;
+    }
+
+    return filtered.map(t => {
+      const isWin   = t.profit >= 0;
+      const pnlColor = isWin ? '#26a69a' : '#ef5350';
+      const pct     = t.profitPercent != null ? t.profitPercent.toFixed(2) : '0.00';
+      const pnlSign = isWin ? '+' : '';
+      const qty     = t.assetType === 'stock'
+        ? `${t.amount} lot`
+        : `${cryptoMarket.formatAmount ? cryptoMarket.formatAmount(t.amount) : t.amount.toFixed(4)}`;
+      const icon    = t.assetType === 'stock' ? '📊' : '🪙';
+      const badge   = isWin ? 'th-card__badge--win' : 'th-card__badge--loss';
+      const changeArrow = ((t.sellPrice - t.buyPrice) / t.buyPrice * 100).toFixed(2);
+
+      return `
+        <div class="th-card">
+          <div class="th-card__left">
+            <span class="th-card__icon">${icon}</span>
+            <div>
+              <div class="th-card__asset">${t.asset}</div>
+              <div class="th-card__qty">${qty}</div>
+            </div>
+          </div>
+          <div class="th-card__mid">
+            <div class="th-card__price">${this.formatPrice(t.buyPrice)}</div>
+            <div class="th-card__arrow">→</div>
+            <div class="th-card__price">${this.formatPrice(t.sellPrice)}</div>
+            <div class="th-card__chg" style="color:${(t.sellPrice - t.buyPrice) >= 0 ? '#26a69a' : '#ef5350'}">
+              ${(t.sellPrice - t.buyPrice) >= 0 ? '+' : ''}${changeArrow}%
+            </div>
+          </div>
+          <div class="th-card__right">
+            <div class="th-card__pnl" style="color:${pnlColor}">${pnlSign}${this.formatPrice(t.profit)}</div>
+            <span class="th-card__badge ${badge}">${pnlSign}${pct}%</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  /** Download a canvas PNG card summarising trade history */
+  downloadHistoryCard() {
+    const all = gameState.get('tradeHistory') || [];
+    if (!all.length) { ui.error('Tidak ada riwayat trading'); return; }
+
+    const wins     = all.filter(t => t.profit >= 0);
+    const losses   = all.filter(t => t.profit < 0);
+    const totalPnL = all.reduce((s, t) => s + (t.profit || 0), 0);
+    const winRate  = ((wins.length / all.length) * 100).toFixed(0);
+    const bestTrade = Math.max(...all.map(t => t.profit || 0));
+    const worstTrade = Math.min(...all.map(t => t.profit || 0));
+    const avgPnL    = totalPnL / all.length;
+    const isProfit  = totalPnL >= 0;
+    const now = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    const W = 560, H = 380;
+    const canvas = document.createElement('canvas');
+    canvas.width  = W * 2; canvas.height = H * 2;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(2, 2);
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, isProfit ? '#0a1a14' : '#1a0a0a');
+    bg.addColorStop(1, '#09090b');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Glow
+    const glow = ctx.createRadialGradient(W * 0.5, 60, 0, W * 0.5, 60, W * 0.6);
+    glow.addColorStop(0, isProfit ? 'rgba(38,166,154,0.1)' : 'rgba(239,83,80,0.1)');
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+
+    // Border
+    ctx.strokeStyle = isProfit ? 'rgba(38,166,154,0.3)' : 'rgba(239,83,80,0.3)';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath(); ctx.roundRect(2, 2, W - 4, H - 4, 16); ctx.stroke();
+
+    const t = (text, x, y, font, color, align = 'left') => {
+      ctx.font = font; ctx.fillStyle = color; ctx.textAlign = align; ctx.fillText(text, x, y);
+    };
+    const accent = isProfit ? '#26a69a' : '#ef5350';
+
+    t('AuraAssets', 36, 36, 'bold 12px Inter, sans-serif', 'rgba(255,255,255,0.35)');
+    t('Trading Report', W / 2, 36, 'bold 14px Inter, sans-serif', 'rgba(255,255,255,0.6)', 'center');
+    t(now, W - 36, 36, '11px Inter, sans-serif', 'rgba(255,255,255,0.25)', 'right');
+
+    // Divider
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(36, 52); ctx.lineTo(W - 36, 52); ctx.stroke();
+
+    // Total PnL hero
+    t(`${isProfit ? '+' : ''}${this.formatPrice(totalPnL)}`, W / 2, 96, 'bold 36px Inter, sans-serif', accent, 'center');
+    t('Total Profit / Loss', W / 2, 118, '12px Inter, sans-serif', 'rgba(255,255,255,0.4)', 'center');
+
+    // Stats grid (2 rows × 4 cols)
+    const stats = [
+      ['Win Rate',   winRate + '%',                        wins.length >= all.length / 2 ? '#26a69a' : '#ef5350'],
+      ['Menang',     wins.length + ' trades',              '#26a69a'],
+      ['Kalah',      losses.length + ' trades',            '#ef5350'],
+      ['Total Trade',all.length + ' trades',               '#f0f0f0'],
+      ['Best Trade', '+' + this.formatPrice(bestTrade),    '#f59e0b'],
+      ['Worst Trade', this.formatPrice(worstTrade),        '#f87171'],
+      ['Avg P/L',    (avgPnL >= 0 ? '+' : '') + this.formatPrice(avgPnL), avgPnL >= 0 ? '#26a69a' : '#ef5350'],
+      ['Simbol',     this.currentAsset || '—',             '#a78bfa'],
+    ];
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    stats.forEach(([lbl, val, color], i) => {
+      const col = i % 4;
+      const row = Math.floor(i / 4);
+      const x   = 36 + col * (W - 72) / 4;
+      const y   = 148 + row * 64;
+      const bW  = (W - 72) / 4 - 8;
+
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(x, y - 2, bW, 50, 6); ctx.stroke();
+      t(lbl, x + 8, y + 14,  '9px Inter, sans-serif',       'rgba(255,255,255,0.4)');
+      t(val, x + 8, y + 33,  'bold 12px Inter, sans-serif', color);
+    });
+
+    // Last 3 trades
+    t('Transaksi Terakhir', 36, 295, 'bold 10px Inter, sans-serif', 'rgba(255,255,255,0.4)');
+    all.slice(0, 3).forEach((tr, i) => {
+      const y2  = 312 + i * 22;
+      const win = tr.profit >= 0;
+      t(`${tr.asset}`, 36,     y2, 'bold 10px Inter, sans-serif', '#ffffff');
+      t(`${win ? '+' : ''}${this.formatPrice(tr.profit)}`, W - 36, y2, '10px Inter, sans-serif', win ? '#26a69a' : '#ef5350', 'right');
+    });
+
+    const link = document.createElement('a');
+    link.download = `TradingReport_${Date.now()}.png`;
+    link.href     = canvas.toDataURL('image/png');
+    link.click();
+    ui.success('✅ Laporan trading berhasil diunduh!');
+  }
+
   close() {
     if (this.updateInterval) { clearInterval(this.updateInterval); this.updateInterval = null; }
     document.getElementById('trading-page')?.remove();
+    document.getElementById('btn-close-trading-topbar')?.remove();
     
     const bottomNav = document.querySelector('.app-bottom-nav');
     if (bottomNav) bottomNav.style.display = '';
