@@ -1,10 +1,10 @@
-/**
+﻿/**
  * FinanceManager.js - Financial Management
  * Handles income, expenses, transactions, and balance
  */
 
-import gameState from '../game/GameState.js';
-import globalEconomy from '../game/GlobalEconomy.js';
+import gameState from '../core/GameState.js';
+import globalEconomy from '../core/GlobalEconomy.js';
 
 class FinanceManager {
     constructor() {

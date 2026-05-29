@@ -1,9 +1,9 @@
-/**
+﻿/**
  * LoginPortal.js - Unified single-page login & character selection portal.
  * Step 1: Pilih/buat akun  →  Step 2: Pilih/buat karakter  (semuanya di satu layar)
  */
 
-import gameState from '../game/GameState.js';
+import gameState from '../core/GameState.js';
 
 // ─── Inject global styles once ───────────────────────────────────────────────
 if (!document.getElementById('lp-global-style')) {

@@ -1,11 +1,11 @@
-/**
+﻿/**
  * RetailSector.js - Core Retail & Inventory Operations Engine
  * Features store construction, deconstruction, warehouse capacity upgrades, and supplier stock purchasing.
  */
-import gameState from '../../game/GameState.js';
+import gameState from '../../core/GameState.js';
 import financeManager from '../../finance/FinanceManager.js';
 import ui from '../../ui/UIManager.js';
-import globalEconomy from '../../game/GlobalEconomy.js';
+import globalEconomy from '../../core/GlobalEconomy.js';
 
 export const STORE_TIERS = [
     { id: 'toko_kelontong', name: 'Minimarket Kelontong', price: 15000, customerCapacity: 1500, maintenance: 500, prestige: 5 },

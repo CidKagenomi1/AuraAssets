@@ -1,11 +1,11 @@
-/**
+﻿/**
  * AutomotiveSector.js - Core Automotive Operations Engine
  * Features target production levels, model selection, service center network upgrades, and racing sponsors.
  */
-import gameState from '../../game/GameState.js';
+import gameState from '../../core/GameState.js';
 import financeManager from '../../finance/FinanceManager.js';
 import ui from '../../ui/UIManager.js';
-import globalEconomy from '../../game/GlobalEconomy.js';
+import globalEconomy from '../../core/GlobalEconomy.js';
 
 export const VEHICLE_MODELS = [
     { id: 'model_eco', name: 'Eco-Drive Sedan', type: 'Eco-Car', price: 18000, cost: 10000, demandFactor: 1.3, desc: 'Mobil ekonomis ramah lingkungan dengan volume demand sangat tinggi namun margin tipis.' },

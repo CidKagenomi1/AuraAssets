@@ -5,28 +5,29 @@
  */
 
 // Game Systems
-import gameState from './game/GameState.js';
-import timeManager from './game/TimeManager.js';
-import globalEconomy from './game/GlobalEconomy.js';
-import earnManager from './game/EarnManager.js';
-import roleManager from './game/RoleManager.js';
+import gameState from './core/GameState.js';
+import timeManager from './core/TimeManager.js';
+import globalEconomy from './core/GlobalEconomy.js';
+import earnManager from './core/EarnManager.js';
+import roleManager from './core/RoleManager.js';
 
 // Financial Systems
 import financeManager from './finance/FinanceManager.js';
-import stockMarket from './finance/StockMarket.js';
-import cryptoMarket from './finance/CryptoMarket.js';
+import stockMarket from './trading/StockMarket.js';
+import cryptoMarket from './trading/CryptoMarket.js';
 import bankSystem from './finance/BankSystem.js';
 import taxSystem from './finance/TaxSystem.js';
 import businessManager from './business/BusinessManager.js';
 import savingsManager from './finance/SavingsManager.js';
 import propertyManager from './property/PropertyManager.js';
+import passiveIncomeManager from './trading/PassiveIncomeManager.js';
 
 // UI
 import ui from './ui/UIManager.js';
 import homeScreen from './ui/HomeScreen.js';
 import viewManager from './ui/ViewManager.js';
 import { fadeIn, staggerFadeUp } from './ui/Animations.js';
-import workTaskManager from './game/WorkTaskManager.js';
+import workTaskManager from './core/databases/WorkTaskManager.js';
 import loginPortal from './ui/LoginPortal.js';
 import keyboardNavigation from './ui/KeyboardNavigation.js';
 
@@ -94,7 +95,8 @@ class BusinessTycoonGame {
             bank: bankSystem,
             tax: taxSystem,
             ui,
-            role: roleManager
+            role: roleManager,
+            passiveIncome: passiveIncomeManager
         };
     }
 
@@ -311,6 +313,15 @@ class BusinessTycoonGame {
                 financeManager.addIncome(careerSalary, 'Gaji', 'Gaji bulanan');
                 ui.success(`💰 Gaji bulanan +$ ${financeManager.formatCurrency(careerSalary, true)} diterima!`);
             }
+
+            // Fluctuate Rolex price in marketplace
+            const marketplace = gameState.get('marketplace') || { inventory: [], purchasedUpgrades: [], rolexMarketPrice: 15000 };
+            const changePercent = (Math.random() - 0.5) * 0.2; // -10% to +10%
+            const newPrice = Math.max(8000, Math.round(marketplace.rolexMarketPrice * (1 + changePercent)));
+            gameState.set('marketplace', {
+                ...marketplace,
+                rolexMarketPrice: newPrice
+            });
         });
 
         gameState.on('interestReceived', (data) => {

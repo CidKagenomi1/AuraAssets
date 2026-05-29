@@ -1,10 +1,10 @@
-/**
+﻿/**
  * UIManager.js - Core UI Management
  * Handles modals, toasts, and common UI interactions
  */
 
-import timeManager from '../game/TimeManager.js';
-import gameState from '../game/GameState.js';
+import timeManager from '../core/TimeManager.js';
+import gameState from '../core/GameState.js';
 
 class UIManager {
     constructor() {
@@ -64,6 +64,10 @@ class UIManager {
 
     openModal(content) {
         if (!this.modalContainer) return;
+
+        try {
+            import('./AuraSound.js').then(m => m.default.playClick());
+        } catch (e) {}
 
         // Auto pause game progression during transactions / modal screens
         if (timeManager) {
@@ -362,6 +366,18 @@ class UIManager {
         const count = (gameState.get('unreadNotificationsCount') || 0) + 1;
         gameState.set('unreadNotificationsCount', count);
         this.updateNotificationBadge();
+
+        try {
+            if (type === 'success') {
+                import('./AuraSound.js').then(m => m.default.playSuccessAlert());
+            } else if (type === 'warning') {
+                import('./AuraSound.js').then(m => m.default.playWarningAlert());
+            } else if (type === 'error') {
+                import('./AuraSound.js').then(m => m.default.playErrorAlert());
+            } else {
+                import('./AuraSound.js').then(m => m.default.playInfoAlert());
+            }
+        } catch (e) {}
 
         // Check if popup toasts are enabled in settings
         const isNotifEnabled = gameState.get('settings.notificationsEnabled') !== false;

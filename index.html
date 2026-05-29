@@ -187,6 +187,10 @@
           </span>
           <span>Riwayat</span>
         </a>
+        <a class="sidebar-link nav-btn" data-view="marketplace" data-feature="marketplace">
+          <span class="sidebar-icon">🛒</span>
+          <span>Marketplace</span>
+        </a>
         <div class="sidebar-divider"></div>
         <a class="sidebar-link nav-btn" data-view="donate" data-feature="donate">
           <span class="sidebar-icon">
@@ -556,6 +560,16 @@
                   </div>
                 </div>
 
+                <div class="menu-card action-btn" data-action="marketplace" data-feature="marketplace">
+                  <div class="menu-icon-box" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-primary);">
+                    <span>🛒</span>
+                  </div>
+                  <div>
+                    <div class="menu-card-title">Marketplace</div>
+                    <div class="menu-card-desc">Belanja booster, jas, &amp; jam tangan</div>
+                  </div>
+                </div>
+
                 <div class="menu-card action-btn" data-action="guide" data-feature="guide">
                   <div class="menu-icon-box">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
@@ -590,6 +604,18 @@
               <span class="tab-badge" id="badge-crypto">90</span>
               <span class="tab-indicator"></span>
             </button>
+            <button class="tab-btn" data-tab="staking-mining">
+              <span class="tab-icon">⛏️</span>
+              Staking & Mining
+              <span class="tab-badge" id="badge-staking-mining">0</span>
+              <span class="tab-indicator"></span>
+            </button>
+            <button class="tab-btn" data-tab="bot-trading">
+              <span class="tab-icon">🤖</span>
+              Bot Trading
+              <span class="tab-badge" id="badge-bot-trading">0</span>
+              <span class="tab-indicator"></span>
+            </button>
             <button class="tab-btn" data-tab="portfolio">
               <span class="tab-icon">💼</span>
               Portfolio
@@ -599,7 +625,7 @@
           </div>
 
           <!-- Smart Table Controls -->
-          <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: var(--radius-md);">
+          <div id="market-search-bar-container" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: var(--radius-md);">
             <div style="flex: 1; min-width: 200px; position: relative;">
               <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: 0.5;">🔍</span>
               <input type="text" id="market-search" placeholder="Cari simbol atau nama..." 
@@ -615,6 +641,8 @@
           </div>
           <div id="market-stocks-list" class="tab-content asset-list" data-tab-content="stocks"></div>
           <div id="market-crypto-list" class="tab-content asset-list" data-tab-content="crypto" style="display:none;"></div>
+          <div id="market-staking-mining" class="tab-content" data-tab-content="staking-mining" style="display:none; padding-top: 0.5rem;"></div>
+          <div id="market-bot-trading" class="tab-content" data-tab-content="bot-trading" style="display:none; padding-top: 0.5rem;"></div>
           <div id="market-portfolio-list" class="tab-content asset-list" data-tab-content="portfolio" style="display:none;"></div>
         </section>
 

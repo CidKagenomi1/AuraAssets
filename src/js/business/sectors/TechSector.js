@@ -1,13 +1,13 @@
-/**
+﻿/**
  * TechSector.js - Core Technology & AI Industry Simulation Engine
  * Encapsulates monthly ticks, server load formulas, crash odds, 
  * candidate generation, and core operational methods.
  */
 
-import gameState from '../../game/GameState.js';
+import gameState from '../../core/GameState.js';
 import financeManager from '../../finance/FinanceManager.js';
 import ui from '../../ui/UIManager.js';
-import globalEconomy from '../../game/GlobalEconomy.js';
+import globalEconomy from '../../core/GlobalEconomy.js';
 
 export const TechSector = {
     getTechState(manager) {

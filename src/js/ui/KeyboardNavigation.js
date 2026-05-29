@@ -96,6 +96,9 @@ class KeyboardNavigation {
         const isNavKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
         if (isNavKey) {
             e.preventDefault();
+            try {
+                import('./AuraSound.js').then(m => m.default.playTap());
+            } catch (err) {}
             this.navigate(e.key);
             return;
         }

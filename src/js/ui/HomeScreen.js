@@ -6,14 +6,14 @@
  * - Animations via Animations.js
  */
 
-import gameState from '../game/GameState.js';
-import globalEconomy from '../game/GlobalEconomy.js';
+import gameState from '../core/GameState.js';
+import globalEconomy from '../core/GlobalEconomy.js';
 import financeManager from '../finance/FinanceManager.js';
-import earnManager from '../game/EarnManager.js';
-import roleManager from '../game/RoleManager.js';
-import timeManager from '../game/TimeManager.js';
+import earnManager from '../core/EarnManager.js';
+import roleManager from '../core/RoleManager.js';
+import timeManager from '../core/TimeManager.js';
 import ui from './UIManager.js';
-import RoleModules from './RoleModules.js';
+import RoleModules from '../career/RoleModules.js';
 import { countUp, pulseElement, staggerFadeUp, createFloatingText } from './Animations.js';
 
 class HomeScreen {
@@ -236,6 +236,9 @@ class HomeScreen {
     handleClaim() {
         const result = earnManager.claim();
         if (result.success) {
+            try {
+                import('./AuraSound.js').then(m => m.default.playClaimMoney());
+            } catch (e) {}
             const btn = document.getElementById('btn-claim');
             if (btn) createFloatingText(btn, `+$ ${financeManager.formatCurrency(result.amount)}`, 'var(--accent-primary)');
             ui.success(`Claim berhasil: +$ ${financeManager.formatCurrency(result.amount)}`);
@@ -272,7 +275,7 @@ class HomeScreen {
     bindEvents() {
         // Show Finance Panel button on balance card
         document.getElementById('btn-show-finance')?.addEventListener('click', () => {
-            import('./panels/FinancePanel.js').then(m => m.default.show());
+            import('../finance/panels/FinancePanel.js').then(m => m.default.show());
         });
 
         // Earn buttons
@@ -350,10 +353,10 @@ class HomeScreen {
     handleQuickAction(action) {
         switch (action) {
             case 'gambling':
-                import('./panels/GamblingPanel.js').then(m => m.default.show());
+                import('../gambling/GamblingPanel.js').then(m => m.default.show());
                 break;
             case 'work':
-                import('./WorkPage.js').then(m => m.default.open());
+                import('../career/WorkPage.js').then(m => m.default.open());
                 break;
             case 'invest':
             case 'crypto':
@@ -364,32 +367,35 @@ class HomeScreen {
                     }, 100);
                 });
                 break;
+            case 'marketplace':
+                import('../marketplace/panels/MarketplacePanel.js').then(m => m.default.show());
+                break;
             case 'career':
-                import('./panels/CareerPanel.js').then(m => m.default.show());
+                import('../career/panels/CareerPanel.js').then(m => m.default.show());
                 break;
             case 'business':
-                import('./BusinessPage.js').then(m => m.default.open());
+                import('../business/BusinessPage.js').then(m => m.default.open());
                 break;
             case 'loan':
-                import('./panels/LoanPanel.js').then(m => m.default.show());
+                import('../finance/panels/LoanPanel.js').then(m => m.default.show());
                 break;
             case 'savings':
-                import('./panels/SavingsPanel.js').then(m => m.default.show());
+                import('../finance/panels/SavingsPanel.js').then(m => m.default.show());
                 break;
             case 'property':
-                import('./panels/PropertyPanel.js').then(m => m.default.show());
+                import('../property/panels/PropertyPanel.js').then(m => m.default.show());
                 break;
             case 'trading-signal':
-                import('./panels/TradingSignalPanel.js').then(m => m.default.show());
+                import('../trading/panels/TradingSignalPanel.js').then(m => m.default.show());
                 break;
             case 'donate':
                 this.handleDonate();
                 break;
             case 'finance':
-                import('./panels/FinancePanel.js').then(m => m.default.show());
+                import('../finance/panels/FinancePanel.js').then(m => m.default.show());
                 break;
             case 'tax':
-                import('./panels/TaxPanel.js').then(m => m.default.show());
+                import('../finance/panels/TaxPanel.js').then(m => m.default.show());
                 break;
             case 'guide':
                 this.showGuide();
@@ -679,7 +685,7 @@ class HomeScreen {
             </div>
             <hr style="border-color:var(--border-color);margin:1rem 0;">
             <button class="btn btn-secondary" style="width:100%; margin-bottom: 0.5rem;" id="btn-logout-game">🚪 Keluar (Logout)</button>
-            <button class="btn btn-danger" style="width:100%" id="btn-reset-game">🗑️ Reset Seluruh Permainan</button>
+            <button class="btn btn-danger" style="width:100%" id="btn-reset-game">🗑️ Reset Progress Karakter</button>
         `;
 
         ui.showModal({
@@ -800,8 +806,9 @@ class HomeScreen {
                 });
 
                 document.getElementById('btn-reset-game')?.addEventListener('click', () => {
-                    if (confirm('Yakin mau reset seluruh data permainan? Semua karakter dan akun terdaftar akan dihapus secara permanen!')) {
-                        localStorage.clear();
+                    const charName = gameState.activeCharacter || 'Pemain';
+                    if (confirm(`Yakin mau reset progress karakter "${charName}"? Semua aset dan uang karakter ini akan dikembalikan ke awal!`)) {
+                        gameState.reset();
                         location.reload();
                     }
                 });

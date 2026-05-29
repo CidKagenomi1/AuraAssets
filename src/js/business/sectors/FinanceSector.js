@@ -1,10 +1,10 @@
-/**
+﻿/**
  * FinanceSector.js - Core Financial Services & Banking Simulation Engine
  * Models retail bank deposits, loan portfolios, Net Interest Margin (NIM),
  * actuarial insurance premium/claims, and custom bond / project financing syndications.
  */
 
-import gameState from '../../game/GameState.js';
+import gameState from '../../core/GameState.js';
 import financeManager from '../../finance/FinanceManager.js';
 import ui from '../../ui/UIManager.js';
 

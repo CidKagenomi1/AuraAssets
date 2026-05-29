@@ -1,11 +1,11 @@
-/**
+﻿/**
  * BusinessAuctions.js - Corporate M&A Deal Marketplace
  *
  * Contains all auction/deal constants and M&A logic previously in BusinessManager.
  * Kept separate to reduce BusinessManager size and improve editability of M&A features.
  */
 
-import gameState from '../game/GameState.js';
+import gameState from '../core/GameState.js';
 import financeManager from '../finance/FinanceManager.js';
 import ui from '../ui/UIManager.js';
 

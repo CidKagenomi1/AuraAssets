@@ -1,13 +1,13 @@
-/**
+﻿/**
  * AerospaceSector.js - Core Aviation & Aerospace Operations Simulator Engine
  * Encapsulates airline operations, airport/terminal management, 
  * aircraft fleet purchases (Boeing, Airbus, Bombardier), automatic crew staffing, and dynamic aircraft maintenance.
  */
 
-import gameState from '../../game/GameState.js';
+import gameState from '../../core/GameState.js';
 import financeManager from '../../finance/FinanceManager.js';
 import ui from '../../ui/UIManager.js';
-import globalEconomy from '../../game/GlobalEconomy.js';
+import globalEconomy from '../../core/GlobalEconomy.js';
 
 export const AIRCRAFT_CATALOG = [
     { id: 'bombardier_crj900', name: 'Bombardier CRJ900', type: 'Regional Jet', price: 450000, capacity: 90, flightCost: 8000, ticketPrice: 150, flightsPerMonth: 40, crewRequired: 4 },

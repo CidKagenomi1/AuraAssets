@@ -1,10 +1,10 @@
-/**
+﻿/**
  * EnergySector.js - Core Energy, Utilities, & Fossil/Green Operations Simulator Engine
  * Encapsulates exploration surveys, oil/gas/coal/green energy discoveries,
  * refinery operations, dynamic capacity metrics, and monthly financials.
  */
 
-import gameState from '../../game/GameState.js';
+import gameState from '../../core/GameState.js';
 import financeManager from '../../finance/FinanceManager.js';
 import ui from '../../ui/UIManager.js';
 

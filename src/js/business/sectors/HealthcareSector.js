@@ -1,13 +1,13 @@
-/**
+﻿/**
  * HealthcareSector.js - Core Healthcare & Biotechnology Operations Simulator Engine
  * Encapsulates hospital and clinic management, auto-staffing of doctors and nurses,
  * and medicine manufacturing with custom colors, dosages, and production runs.
  */
 
-import gameState from '../../game/GameState.js';
+import gameState from '../../core/GameState.js';
 import financeManager from '../../finance/FinanceManager.js';
 import ui from '../../ui/UIManager.js';
-import globalEconomy from '../../game/GlobalEconomy.js';
+import globalEconomy from '../../core/GlobalEconomy.js';
 
 export const FACILITY_CATALOG = [
     { id: 'klinik', name: 'Klinik Pratama', type: 'Klinik', price: 100000, doctorRequired: 2, nurseRequired: 5, capacity: 500, maintenance: 3000, revenuePerPatient: 25, icon: '🩺' },

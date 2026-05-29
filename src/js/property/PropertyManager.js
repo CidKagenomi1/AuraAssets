@@ -1,12 +1,12 @@
-/**
+﻿/**
  * PropertyManager.js - Real Estate System
  * Simple property investment with rental income
  */
 
-import gameState from '../game/GameState.js';
-import timeManager from '../game/TimeManager.js';
+import gameState from '../core/GameState.js';
+import timeManager from '../core/TimeManager.js';
 import financeManager from '../finance/FinanceManager.js';
-import { PROPERTY_DATABASE, PROPERTY_TIERS } from '../game/PropertyDatabase.js';
+import { PROPERTY_DATABASE, PROPERTY_TIERS } from '../core/databases/PropertyDatabase.js';
 
 class PropertyManager {
     constructor() {

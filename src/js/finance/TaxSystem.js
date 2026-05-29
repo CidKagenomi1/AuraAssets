@@ -1,10 +1,10 @@
-/**
+﻿/**
  * TaxSystem.js - Tax Calculation and Payment
  * Pajak penghasilan dengan bracket system
  */
 
-import gameState from '../game/GameState.js';
-import timeManager from '../game/TimeManager.js';
+import gameState from '../core/GameState.js';
+import timeManager from '../core/TimeManager.js';
 import financeManager from './FinanceManager.js';
 
 class TaxSystem {

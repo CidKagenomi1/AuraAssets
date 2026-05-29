@@ -1,13 +1,13 @@
-/**
+﻿/**
  * BusinessManager.js - Manage Player's Company (Extended Enterprise Edition)
  * Handles startup/UMKM creation, operations, holding companies (subsidiaries), and IPO.
  */
 
-import gameState from '../game/GameState.js';
+import gameState from '../core/GameState.js';
 import financeManager from '../finance/FinanceManager.js';
-import globalEconomy from '../game/GlobalEconomy.js';
+import globalEconomy from '../core/GlobalEconomy.js';
 import ui from '../ui/UIManager.js';
-import stockMarket from '../finance/StockMarket.js';
+import stockMarket from '../trading/StockMarket.js';
 import TechSector from './sectors/TechSector.js';
 import FinanceSector from './sectors/FinanceSector.js';
 import EnergySector from './sectors/EnergySector.js';

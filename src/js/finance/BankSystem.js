@@ -1,10 +1,10 @@
-/**
+﻿/**
  * BankSystem.js - Bank Loans and Credit
  * Pinjaman bank dengan bunga dan credit score
  */
 
-import gameState from '../game/GameState.js';
-import timeManager from '../game/TimeManager.js';
+import gameState from '../core/GameState.js';
+import timeManager from '../core/TimeManager.js';
 import financeManager from './FinanceManager.js';
 
 class BankSystem {

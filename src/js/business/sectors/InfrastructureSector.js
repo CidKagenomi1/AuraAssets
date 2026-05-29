@@ -1,13 +1,13 @@
-/**
+﻿/**
  * InfrastructureSector.js - Core Real Estate Development & Infrastructure Operations Simulator Engine
  * Encapsulates land research, zoning developments (Commercial, Residential, Industrial),
  * construction metrics, and monthly lease/rental income.
  */
 
-import gameState from '../../game/GameState.js';
+import gameState from '../../core/GameState.js';
 import financeManager from '../../finance/FinanceManager.js';
 import ui from '../../ui/UIManager.js';
-import globalEconomy from '../../game/GlobalEconomy.js';
+import globalEconomy from '../../core/GlobalEconomy.js';
 
 export const InfrastructureSector = {
     getInfrastructureState(manager) {

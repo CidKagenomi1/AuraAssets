@@ -1,10 +1,10 @@
-/**
+﻿/**
  * SavingsManager.js - Deposito/Savings System
  * Simple savings account with monthly interest
  */
 
-import gameState from '../game/GameState.js';
-import timeManager from '../game/TimeManager.js';
+import gameState from '../core/GameState.js';
+import timeManager from '../core/TimeManager.js';
 import financeManager from './FinanceManager.js';
 
 class SavingsManager {

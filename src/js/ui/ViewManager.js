@@ -3,16 +3,17 @@
  * Removed: pie chart canvas. Added: slide transitions, text-based distribution.
  */
 
-import stockMarket from '../finance/StockMarket.js';
-import cryptoMarket from '../finance/CryptoMarket.js';
+import stockMarket from '../trading/StockMarket.js';
+import cryptoMarket from '../trading/CryptoMarket.js';
 import financeManager from '../finance/FinanceManager.js';
-import gameState from '../game/GameState.js';
+import gameState from '../core/GameState.js';
 import ui from './UIManager.js';
-import tradingPage from './TradingPage.js';
+import tradingPage from '../trading/TradingPage.js';
 import { swipeTransition, staggerFadeUp } from './Animations.js';
-import { businessPage } from './BusinessPage.js';
+import { businessPage } from '../business/BusinessPage.js';
 import propertyManager from '../property/PropertyManager.js';
-import roleManager from '../game/RoleManager.js';
+import roleManager from '../core/RoleManager.js';
+import passiveIncomeManager from '../trading/PassiveIncomeManager.js';
 
 // ===== WARNA PER SEKTOR =====
 const SECTOR_COLORS = {
@@ -118,6 +119,11 @@ class ViewManager {
     // Listen for updates
     gameState.on('stocksUpdate', () => this.updateMarketView());
     gameState.on('cryptoUpdate', () => this.updateMarketView());
+    document.addEventListener('passiveIncomeTick', () => {
+      if (this.currentView === 'market') {
+        this.updateMarketView();
+      }
+    });
     gameState.on('roleChange', () => {
       this.updateMobileBottomNav(this.currentView);
     });
@@ -175,6 +181,9 @@ class ViewManager {
     }
 
     const prevView = this.currentView;
+    try {
+      import('./AuraSound.js').then(m => m.default.playClick());
+    } catch(e){}
 
     // Update active navigation highlights
     this.updateActiveNavigationHighlights(view);
@@ -220,7 +229,12 @@ class ViewManager {
   loadViewContent(view) {
     switch (view) {
       case 'gambling':
-        import('./panels/GamblingPanel.js').then(module => {
+        import('../gambling/GamblingPanel.js').then(module => {
+          module.default.show();
+        });
+        break;
+      case 'marketplace':
+        import('../marketplace/panels/MarketplacePanel.js').then(module => {
           module.default.show();
         });
         break;
@@ -228,7 +242,7 @@ class ViewManager {
         this.updateMarketView();
         break;
       case 'portfolio':
-        import('./panels/FinancePanel.js').then(module => {
+        import('../finance/panels/FinancePanel.js').then(module => {
           module.default.show('portfolio');
         });
         break;
@@ -236,37 +250,37 @@ class ViewManager {
         this.updateHistoryView();
         break;
       case 'trading-signal':
-        import('./panels/TradingSignalPanel.js').then(module => {
+        import('../trading/panels/TradingSignalPanel.js').then(module => {
           module.default.show();
         });
         break;
       case 'business':
-        import('./BusinessPage.js').then(module => {
+        import('../business/BusinessPage.js').then(module => {
           module.default.open();
         });
         break;
       case 'loan':
-        import('./panels/LoanPanel.js').then(module => {
+        import('../finance/panels/LoanPanel.js').then(module => {
           module.default.show();
         });
         break;
       case 'savings':
-        import('./panels/SavingsPanel.js').then(module => {
+        import('../finance/panels/SavingsPanel.js').then(module => {
           module.default.show();
         });
         break;
       case 'property':
-        import('./panels/PropertyPanel.js').then(module => {
+        import('../property/panels/PropertyPanel.js').then(module => {
           module.default.show();
         });
         break;
       case 'tax':
-        import('./panels/TaxPanel.js').then(module => {
+        import('../finance/panels/TaxPanel.js').then(module => {
           module.default.show();
         });
         break;
       case 'finance':
-        import('./panels/FinancePanel.js').then(module => {
+        import('../finance/panels/FinancePanel.js').then(module => {
           module.default.show();
         });
         break;
@@ -341,14 +355,36 @@ class ViewManager {
     const allStocks = stockMarket.getAllStocks() || [];
     const allCryptos = cryptoMarket.getAllCryptos() || [];
     const portfolioCount = (stockMarket.getPortfolio() || []).length + (cryptoMarket.getWallet() || []).length;
+    const piState = passiveIncomeManager.getState();
+    
+    // Staking asset count + mining rig count
+    let stakingMiningCount = 0;
+    Object.values(piState.rigs).forEach(c => stakingMiningCount += c);
+    Object.values(piState.staked).forEach(c => { if (c > 0) stakingMiningCount += 1; });
+
+    const botCount = piState.bots.length;
 
     const badgeStocks = document.getElementById('badge-stocks');
     const badgeCrypto = document.getElementById('badge-crypto');
+    const badgeStakingMining = document.getElementById('badge-staking-mining');
+    const badgeBotTrading = document.getElementById('badge-bot-trading');
     const badgePortfolio = document.getElementById('badge-portfolio');
 
     if (badgeStocks) badgeStocks.textContent = allStocks.length;
     if (badgeCrypto) badgeCrypto.textContent = allCryptos.length;
+    if (badgeStakingMining) badgeStakingMining.textContent = stakingMiningCount;
+    if (badgeBotTrading) badgeBotTrading.textContent = botCount;
     if (badgePortfolio) badgePortfolio.textContent = portfolioCount;
+
+    // Toggle search controls bar visibility
+    const searchBar = document.getElementById('market-search-bar-container');
+    if (searchBar) {
+      if (this.currentMarketTab === 'staking-mining' || this.currentMarketTab === 'bot-trading') {
+        searchBar.style.display = 'none';
+      } else {
+        searchBar.style.display = 'flex';
+      }
+    }
 
     if (this.currentView !== 'market') return;
 
@@ -408,6 +444,18 @@ class ViewManager {
       }
 
       cryptoList.innerHTML = cryptos.map(c => buildCryptoRow(c)).join('');
+    }
+
+    // Update Staking & Mining
+    const stakingMiningPanel = document.getElementById('market-staking-mining');
+    if (stakingMiningPanel && this.currentMarketTab === 'staking-mining') {
+      stakingMiningPanel.innerHTML = this.renderStakingMiningView();
+    }
+
+    // Update Bot Trading
+    const botTradingPanel = document.getElementById('market-bot-trading');
+    if (botTradingPanel && this.currentMarketTab === 'bot-trading') {
+      botTradingPanel.innerHTML = this.renderBotTradingView();
     }
 
     // Update portfolio list
@@ -683,6 +731,497 @@ class ViewManager {
     });
   }
 }
+
+  }
+
+  // ===== RENDER STAKING & MINING TABS =====
+  renderStakingMiningView() {
+    const piState = passiveIncomeManager.getState();
+    const balance = gameState.getBalance();
+
+    // Calculate totals
+    let totalYieldBTC = 0;
+    let totalPowerCost = 0;
+    Object.entries(piState.rigs).forEach(([type, count]) => {
+      const rig = passiveIncomeManager.rigTypes[type];
+      totalYieldBTC += rig.yieldBTC * count;
+      totalPowerCost += rig.powerCost * count;
+    });
+
+    const btc = cryptoMarket.getCrypto('BTC');
+    const btcPrice = btc ? btc.price : 60000;
+    const estEarnUSD = totalYieldBTC * btcPrice;
+
+    // Build Rigs HTML
+    const rigsHTML = Object.entries(passiveIncomeManager.rigTypes).map(([type, rig]) => {
+      const count = piState.rigs[type] || 0;
+      return `
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+              <span style="font-weight: 800; color: white; font-size: 0.95rem;">${rig.name}</span>
+              <span style="font-size: 0.8rem; background: var(--accent-primary-soft); color: var(--accent-primary); padding: 2px 8px; border-radius: 99px; font-weight: 700;">${count} Rig</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+              <div>Harga: <span style="color: white; font-weight:600;">$ ${rig.cost.toLocaleString()}</span></div>
+              <div>Hasil: <span style="color: #f59e0b; font-weight:600;">+${(rig.yieldBTC * 105120).toFixed(4)} BTC/th</span></div>
+              <div>Listrik: <span style="color: var(--accent-danger); font-weight:600;">$ ${Math.round(rig.powerCost).toLocaleString()}/tick</span></div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button onclick="buyMiningRig('${type}')" class="btn btn-primary btn-sm" style="flex: 1; font-size: 0.75rem; font-weight:700; height: 32px; justify-content:center;">Beli Rig</button>
+            ${count > 0 ? `<button onclick="sellMiningRig('${type}')" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; font-weight:700; height: 32px; justify-content:center; color: var(--accent-danger); border-color: rgba(239,68,68,0.2);">Jual</button>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Build Staking HTML
+    const wallet = gameState.get('crypto') || {};
+    const stakingHTML = Object.entries(passiveIncomeManager.stakingAssets).map(([symbol, spec]) => {
+      const holding = wallet[symbol];
+      const walletAmt = holding ? holding.amount : 0;
+      const stakedAmt = piState.staked[symbol] || 0;
+      const crypto = cryptoMarket.getCrypto(symbol);
+      const coinIcon = crypto ? crypto.icon : '🪙';
+      const apyPct = (spec.apy * 100).toFixed(1);
+
+      return `
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 200px;">
+            <span style="font-size: 1.75rem; width: 32px; text-align:center;">${coinIcon}</span>
+            <div>
+              <div style="font-weight: 800; color: white;">${spec.name} (${symbol})</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">
+                Saldo Wallet: <span style="color: white;">${walletAmt.toFixed(4)}</span> | 
+                Staked: <span style="color: var(--accent-primary); font-weight:700;">${stakedAmt.toFixed(4)}</span>
+              </div>
+            </div>
+          </div>
+          <div style="text-align: right; display: flex; align-items: center; gap: 1.25rem; margin-left: auto;">
+            <div>
+              <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Est. APY</div>
+              <div style="font-size: 1.1rem; font-weight: 800; color: var(--accent-primary); text-align: right;">${apyPct}%</div>
+            </div>
+            <div style="display: flex; gap: 4px;">
+              <button onclick="stakeCryptoPrompt('${symbol}')" class="btn btn-primary btn-sm" style="font-size: 0.7rem; font-weight: 800; padding: 4px 12px; height: 28px; justify-content:center;" ${walletAmt <= 0 ? 'disabled' : ''}>Stake</button>
+              ${stakedAmt > 0 ? `<button onclick="unstakeCryptoPrompt('${symbol}')" class="btn btn-secondary btn-sm" style="font-size: 0.7rem; font-weight: 800; padding: 4px 12px; height: 28px; justify-content:center; color: var(--accent-danger); border-color: rgba(239,68,68,0.2);">Unstake</button>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div style="display: flex; flex-direction: column; gap: 1.5rem; animation: fade-up 0.3s ease;">
+        <!-- Mining Area -->
+        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 1rem;">
+            <div>
+              <h3 style="font-size: 1.15rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">⛏️ Rig Pertambangan Kripto</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted); max-width: 600px;">Beli rig untuk menambang Bitcoin (BTC) secara otomatis setiap tick. Biaya listrik akan dikurangi dari kas Anda.</p>
+            </div>
+            <div style="text-align: right; background: rgba(0,0,0,0.3); padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Total Hasil Miner</div>
+              <div style="font-size: 1.1rem; font-weight: 800; color: #f59e0b;">+${(totalYieldBTC * 105120).toFixed(4)} BTC/tahun</div>
+              <div style="font-size: 0.75rem; color: var(--accent-primary); font-weight:600;">≈ $ ${estEarnUSD.toFixed(2)}/tick (Listrik: $ ${totalPowerCost.toFixed(0)})</div>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem;">
+            ${rigsHTML}
+          </div>
+        </div>
+
+        <!-- Staking Area -->
+        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem;">
+          <div style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">🔒 Vault Staking Kripto</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Kunci aset kripto Anda di Smart Contract Staking untuk mendapatkan hasil bunga (yield) tahunan secara kontinu.</p>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            ${stakingHTML}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ===== RENDER BOT TRADING TABS =====
+  renderBotTradingView() {
+    const piState = passiveIncomeManager.getState();
+    const balance = gameState.getBalance();
+
+    // Active Bots HTML
+    const activeBotsHTML = piState.bots.length === 0 
+      ? `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 2.5rem 1.5rem; border: 1.5px dashed var(--border-color); border-radius: var(--radius-md); background: rgba(0,0,0,0.15);">
+           <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">🤖</span>
+           <div style="font-weight:700; color: white; font-size: 1rem; margin-bottom: 0.25rem;">Tidak Ada Bot yang Berjalan</div>
+           <div style="font-size:0.8rem;">Buat dan deploy bot pertama Anda untuk menghasilkan pasif income secara otomatis.</div>
+         </div>`
+      : piState.bots.map(bot => {
+          const up = bot.profit >= 0;
+          const color = up ? 'var(--accent-primary)' : 'var(--accent-danger)';
+          const changeText = `${up ? '+' : ''}${bot.profitPct.toFixed(2)}%`;
+          const assetData = bot.assetType === 'stock' ? stockMarket.getStock(bot.asset) : cryptoMarket.getCrypto(bot.asset);
+          const currentPrice = assetData ? assetData.price : bot.entryPrice;
+
+          return `
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                  <div>
+                    <div style="font-weight: 800; color: white; font-size: 0.95rem; display: flex; align-items: center; gap: 0.35rem;">
+                      🤖 ${bot.asset}
+                      <span style="font-size: 0.6rem; padding: 1px 4px; border-radius: 3px; background: rgba(255,255,255,0.08); color: var(--text-muted); font-weight: 600;">${bot.assetType.toUpperCase()}</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">${passiveIncomeManager.botStrategies[bot.type].name}</div>
+                  </div>
+                  <span style="font-size: 0.75rem; background: ${up ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'}; color: ${color}; border: 1px solid ${up ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}; padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 700;">
+                    ${changeText}
+                  </span>
+                </div>
+                
+                <div style="font-size: 0.8rem; color: var(--text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; background: rgba(0,0,0,0.15); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);">
+                  <div>Modal: <span style="color: white; font-weight:600;">$ ${bot.capital.toLocaleString()}</span></div>
+                  <div>P/L: <span style="color: ${color}; font-weight:700;">${up ? '+' : ''}$ ${Math.round(bot.profit).toLocaleString()}</span></div>
+                  <div>Entry: <span style="color: white;">$ ${bot.entryPrice.toLocaleString()}</span></div>
+                  <div>Harga: <span style="color: white;">$ ${currentPrice.toLocaleString()}</span></div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 0.5rem;">
+                <button onclick="stopTradingBot(${bot.id})" class="btn btn-secondary btn-sm" style="flex: 1; font-size: 0.75rem; font-weight: 800; justify-content: center; height: 32px; color: var(--accent-danger); border-color: rgba(239,68,68,0.2);">
+                  Hentikan & Klaim
+                </button>
+                <button onclick="downloadBotCard(${bot.id}, true)" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; font-weight: 800; justify-content: center; height: 32px; padding: 0 10px; border-color: rgba(255,255,255,0.1);" title="Unduh Kartu Performa">
+                  🎴 Unduh
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+    // History Bots HTML
+    const historyBotsHTML = (!piState.botHistory || piState.botHistory.length === 0)
+      ? `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 2.5rem 1.5rem; border: 1.5px dashed var(--border-color); border-radius: var(--radius-md); background: rgba(0,0,0,0.15);">
+           <div style="font-size:0.8rem;">Belum ada riwayat perdagangan bot.</div>
+         </div>`
+      : piState.botHistory.map(bot => {
+          const up = bot.profit >= 0;
+          const color = up ? 'var(--accent-primary)' : 'var(--accent-danger)';
+          const changeText = `${up ? '+' : ''}${bot.profitPct.toFixed(2)}%`;
+          const dateStr = new Date(bot.stopTime).toLocaleDateString([], { month: 'short', day: 'numeric' });
+          const timeStr = new Date(bot.stopTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          return `
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                  <div>
+                    <div style="font-weight: 800; color: white; font-size: 0.95rem; display: flex; align-items: center; gap: 0.35rem;">
+                      🤖 ${bot.asset}
+                      <span style="font-size: 0.6rem; padding: 1px 4px; border-radius: 3px; background: rgba(255,255,255,0.08); color: var(--text-muted); font-weight: 600;">${bot.assetType.toUpperCase()}</span>
+                    </div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted);">${dateStr} ${timeStr} • Selesai</div>
+                  </div>
+                  <span style="font-size: 0.75rem; background: ${up ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'}; color: ${color}; border: 1px solid ${up ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}; padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 700;">
+                    ${changeText}
+                  </span>
+                </div>
+                
+                <div style="font-size: 0.8rem; color: var(--text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; background: rgba(0,0,0,0.15); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);">
+                  <div>Modal: <span style="color: white; font-weight:600;">$ ${bot.capital.toLocaleString()}</span></div>
+                  <div>P/L: <span style="color: ${color}; font-weight:700;">${up ? '+' : ''}$ ${Math.round(bot.profit).toLocaleString()}</span></div>
+                  <div>Entry: <span style="color: white;">$ ${bot.entryPrice.toLocaleString()}</span></div>
+                  <div>Status: <span style="color: ${color}; font-weight: 600;">${up ? 'Profit' : 'Loss'}</span></div>
+                </div>
+              </div>
+              <button onclick="downloadBotCard(${bot.id}, false)" class="btn btn-secondary btn-sm" style="width: 100%; font-size: 0.75rem; font-weight: 800; justify-content: center; height: 32px; display: flex; align-items: center; gap: 0.25rem; border-color: rgba(255,255,255,0.1);">
+                🎴 Unduh Laporan
+              </button>
+            </div>
+          `;
+        }).join('');
+
+    // Build all stocks/cryptos dropdown options
+    const stocks = stockMarket.getAllStocks() || [];
+    const cryptos = cryptoMarket.getAllCryptos() || [];
+
+    const stockOptions = stocks.map(s => `<option value="stock:${s.symbol}">Saham: ${s.symbol} - ${s.name}</option>`).join('');
+    const cryptoOptions = cryptos.map(c => `<option value="crypto:${c.symbol}">Crypto: ${c.symbol} - ${c.name}</option>`).join('');
+
+    return `
+      <div style="display: flex; flex-direction: column; gap: 1.5rem; animation: fade-up 0.3s ease;">
+        <!-- Setup Area -->
+        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem;">
+          <h3 style="font-size: 1.15rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">🤖 Buat Trading Bot Baru</h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Gunakan robot otomatis untuk melakukan trading saham atau aset kripto. Robot akan mengeksekusi perdagangan menggunakan momentum sinyal pasar secara real-time.</p>
+          
+          <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; min-width: 0;">
+              <div class="form-group" style="margin-bottom: 0; min-width: 0;">
+                <label class="form-label" style="font-size: 0.75rem;">Pilih Aset Investasi</label>
+                <select id="bot-asset-select" class="form-input" style="background: var(--bg-surface); color: white; width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                  <optgroup label="Saham Terpopuler">
+                    ${stockOptions}
+                  </optgroup>
+                  <optgroup label="Aset Kripto">
+                    ${cryptoOptions}
+                  </optgroup>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 0; min-width: 0;">
+                <label class="form-label" style="font-size: 0.75rem;">Modal Alokasi Bot ($)</label>
+                <input type="number" id="bot-capital-input" class="form-input" placeholder="Modal..." value="5000" style="background: var(--bg-surface); color: white; width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+              </div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end;">
+              <button onclick="deploySelectedBot()" class="btn btn-primary btn-sm" style="font-size: 0.75rem; font-weight: 700; height: 32px; display: flex; align-items:center; gap: 0.25rem;">Deploy Bot! 🚀</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Bots Area -->
+        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem;">
+          <h3 style="font-size: 1.15rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem;">⚡ Trading Bot Aktif (${piState.bots.length})</h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; width: 100%;">
+            ${activeBotsHTML}
+          </div>
+        </div>
+
+        <!-- History Bots Area -->
+        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem;">
+          <h3 style="font-size: 1.15rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem;">📜 Riwayat Trading Bot</h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; width: 100%;">
+            ${historyBotsHTML}
+          </div>
+// ===== BIND WIN ACTIONS =====
+window.buyMiningRig = (type) => {
+  try {
+    passiveIncomeManager.buyRig(type);
+    ui.success(`Rig ${passiveIncomeManager.rigTypes[type].name} berhasil dibeli!`, 'Mining Rig');
+    viewManager.updateMarketView();
+  } catch(e) { ui.error(e.message); }
+};
+
+window.sellMiningRig = (type) => {
+  try {
+    passiveIncomeManager.sellRig(type);
+    ui.success(`Rig ${passiveIncomeManager.rigTypes[type].name} berhasil dijual!`, 'Mining Rig');
+    viewManager.updateMarketView();
+  } catch(e) { ui.error(e.message); }
+};
+
+window.stakeCryptoPrompt = async (symbol) => {
+  try {
+    const wallet = gameState.get('crypto') || {};
+    const maxAmt = wallet[symbol] ? wallet[symbol].amount : 0;
+    if (maxAmt <= 0) { ui.error('Anda tidak memiliki saldo untuk di-stake'); return; }
+
+    const inputVal = await ui.prompt({
+      title: `Stake ${symbol}`,
+      message: `Masukkan jumlah ${symbol} yang ingin di-stake (Max: ${maxAmt.toFixed(4)})`,
+      placeholder: '0.00',
+      defaultValue: maxAmt.toFixed(4)
+    });
+    if (inputVal) {
+      const amt = parseFloat(inputVal);
+      if (isNaN(amt) || amt <= 0 || amt > maxAmt) { ui.error('Jumlah input tidak valid'); return; }
+      passiveIncomeManager.stake(symbol, amt);
+      ui.success(`Berhasil staking ${amt.toFixed(4)} ${symbol}!`, 'Staking Vault');
+      viewManager.updateMarketView();
+    }
+  } catch(e) { ui.error(e.message); }
+};
+
+window.unstakeCryptoPrompt = async (symbol) => {
+  try {
+    const piState = passiveIncomeManager.getState();
+    const maxAmt = piState.staked[symbol] || 0;
+    if (maxAmt <= 0) return;
+
+    const inputVal = await ui.prompt({
+      title: `Unstake ${symbol}`,
+      message: `Masukkan jumlah ${symbol} yang ingin ditarik (Max: ${maxAmt.toFixed(4)})`,
+      placeholder: '0.00',
+      defaultValue: maxAmt.toFixed(4)
+    });
+    if (inputVal) {
+      const amt = parseFloat(inputVal);
+      if (isNaN(amt) || amt <= 0 || amt > maxAmt) { ui.error('Jumlah input tidak valid'); return; }
+      passiveIncomeManager.unstake(symbol, amt);
+      ui.success(`Berhasil unstaking ${amt.toFixed(4)} ${symbol}!`, 'Staking Vault');
+      viewManager.updateMarketView();
+    }
+  } catch(e) { ui.error(e.message); }
+};
+
+window.deploySelectedBot = () => {
+  const assetVal = document.getElementById('bot-asset-select').value;
+  const capital = parseFloat(document.getElementById('bot-capital-input').value);
+
+  if (isNaN(capital) || capital <= 0) { ui.error('Jumlah modal tidak valid'); return; }
+
+  const parts = assetVal.split(':');
+  const assetType = parts[0];
+  const symbol = parts[1];
+
+  try {
+    passiveIncomeManager.startBot('ai', symbol, assetType, capital);
+    ui.success(`AI Auto-Trading Bot berhasil dijalankan pada ${symbol}!`, 'Deploy Bot');
+    viewManager.updateMarketView();
+  } catch (e) {
+    ui.error(e.message);
+  }
+};
+
+window.stopTradingBot = (id) => {
+  try {
+    passiveIncomeManager.stopBot(id);
+    ui.success('Bot dihentikan dan seluruh modal serta profit dikreditkan ke kas!', 'Bot Stopped');
+    viewManager.updateMarketView();
+  } catch(e) {
+    ui.error(e.message);
+  }
+};
+
+window.downloadBotCard = (id, isActive) => {
+  const state = passiveIncomeManager.getState();
+  const bot = isActive 
+    ? state.bots.find(b => b.id == id)
+    : (state.botHistory || []).find(b => b.id == id);
+  
+  if (!bot) {
+    ui.error("Data bot tidak ditemukan!");
+    return;
+  }
+  
+  // Create offscreen canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 360;
+  const ctx = canvas.getContext('2d');
+  
+  // Draw base dark slate gradient
+  const grad = ctx.createLinearGradient(0, 0, 600, 360);
+  grad.addColorStop(0, '#0f172a'); // slate-900
+  grad.addColorStop(1, '#1e1b4b'); // indigo-950
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 600, 360);
+  
+  // Draw premium border glow
+  ctx.strokeStyle = 'rgba(99, 102, 241, 0.25)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(2, 2, 596, 356);
+  
+  // Profit/Loss radial background glow
+  const isProfit = bot.profit >= 0;
+  const glowColor = isProfit ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+  const glowGrad = ctx.createRadialGradient(500, 100, 10, 500, 100, 220);
+  glowGrad.addColorStop(0, glowColor);
+  glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glowGrad;
+  ctx.fillRect(0, 0, 600, 360);
+
+  // Header branding
+  ctx.font = 'bold 20px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.fillStyle = '#6366f1';
+  ctx.fillText('AURA ASSETS', 40, 50);
+  
+  ctx.font = 'bold 11px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+  ctx.fillText('AUTOMATED TRADING ENGINE', 40, 70);
+  
+  // Status Badge (Active/Closed)
+  const badgeText = isActive ? 'RUNNING' : 'CLOSED';
+  const badgeColor = isActive ? '#3b82f6' : '#94a3b8';
+  
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(460, 35, 100, 28, 6);
+  } else {
+    ctx.rect(460, 35, 100, 28);
+  }
+  ctx.fill();
+  
+  ctx.fillStyle = badgeColor;
+  ctx.font = 'bold 11px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(badgeText, 510, 53);
+  ctx.textAlign = 'left'; // Reset alignment
+  
+  // Divider line
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(40, 95);
+  ctx.lineTo(560, 95);
+  ctx.stroke();
+  
+  // Big Asset Name & Type
+  ctx.font = 'bold 36px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(bot.asset, 40, 145);
+  
+  ctx.font = '600 12px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.fillText(`${bot.assetType.toUpperCase()} • AI Momentum Auto-Trading`, 40, 168);
+  
+  // Grid Columns
+  // Col 1: Capital (Modal)
+  ctx.font = '600 11px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.fillText('MODAL ALOKASI', 40, 215);
+  ctx.font = 'bold 22px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(`$${bot.capital.toLocaleString()}`, 40, 245);
+  
+  // Col 2: Net Profit / Loss
+  ctx.font = '600 11px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.fillText('NET PROFIT/LOSS', 230, 215);
+  ctx.font = 'bold 22px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.fillStyle = isProfit ? '#10b981' : '#ef4444';
+  const sign = isProfit ? '+' : '';
+  ctx.fillText(`${sign}$${Math.round(bot.profit).toLocaleString()}`, 230, 245);
+  
+  // Col 3: ROI %
+  ctx.font = '600 11px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.fillText('ESTIMATED ROI', 420, 215);
+  ctx.font = 'bold 22px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.fillStyle = isProfit ? '#10b981' : '#ef4444';
+  ctx.fillText(`${sign}${bot.profitPct.toFixed(2)}%`, 420, 245);
+  
+  // Footer Divider
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.beginPath();
+  ctx.moveTo(40, 280);
+  ctx.lineTo(560, 280);
+  ctx.stroke();
+  
+  // Footer Details
+  ctx.font = '11px "Outfit", "Inter", "Helvetica Neue", sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  const timeStr = bot.stopTime ? new Date(bot.stopTime).toLocaleString() : 'Running...';
+  ctx.fillText(`Durasi: ${bot.runtimeTicks || 0} Ticks  |  Waktu: ${timeStr}`, 40, 315);
+  
+  ctx.textAlign = 'right';
+  ctx.fillText('aura-assets.com', 560, 315);
+  ctx.textAlign = 'left'; // Reset alignment
+  
+  // Download trigger
+  try {
+    const link = document.createElement('a');
+    link.download = `aura_bot_${bot.asset}_${bot.id.toString().slice(-6)}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    ui.success('Kartu performa bot berhasil diunduh!', 'Download Card');
+  } catch(err) {
+    ui.error('Gagal mengunduh gambar kartu: ' + err.message);
+  }
+};
 
 export const viewManager = new ViewManager();
 export default viewManager;
