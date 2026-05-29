@@ -18,6 +18,12 @@ import HealthcareSector from './sectors/HealthcareSector.js';
 import InfrastructureSector from './sectors/InfrastructureSector.js';
 import { INDUSTRY_INITIATIVES } from './IndustryInitiatives.js';
 import CorporateGovernance from './CorporateGovernance.js';
+import {
+    generateRandomAuction,
+    tickAuctions,
+    placeBid,
+    buyoutDirect
+} from './BusinessAuctions.js';
 
 class BusinessManager {
     constructor() {
@@ -1217,332 +1223,36 @@ class BusinessManager {
 
     /**
      * Corporate M&A: Generate a randomized target company for the deal marketplace
+     * Delegated to BusinessAuctions.js
      */
     generateRandomAuction() {
-        const industry = INDUSTRIES[Math.floor(Math.random() * INDUSTRIES.length)];
-        const prefix = COMPANY_PREFIXES[Math.floor(Math.random() * COMPANY_PREFIXES.length)];
-        const suffixes = COMPANY_SUFFIXES[industry.id];
-        const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
-        const name = `${prefix} ${suffix}`;
-
-        const isDirect = Math.random() < 0.5; // 50% Direct, 50% Auction
-        const multiplier = 0.80 + Math.random() * 0.60; // 0.80 to 1.40
-        let profit = Math.round(industry.baseProfit * multiplier);
-        let valuation = Math.round(industry.baseVal * multiplier);
-
-        if (isDirect) {
-            // Direct premium buyouts yield double revenue and persistent premium valuation multipliers!
-            profit = Math.round(profit * 1.8);
-            valuation = Math.round(valuation * 1.5);
-            const price = Math.round(valuation * 1.6);
-            return {
-                id: 'deal_' + Math.random().toString(36).substr(2, 9),
-                name,
-                type: 'direct',
-                industry: industry.name,
-                industryId: industry.id,
-                icon: industry.icon,
-                profit,
-                valuation,
-                price,
-                paymentSource: null
-            };
-        } else {
-            // Bidding Auction
-            const minBid = Math.round(valuation * (0.90 + Math.random() * 0.20));
-            const daysLeft = 8 + Math.floor(Math.random() * 12);
-            const aiCompetitors = ['Artha Capital', 'Mega Corp', 'Wira Group', 'Candra & Co', 'Sovereign Wealth', 'Nusantara Fund', 'Mahardika Trust', 'Pacific Equity', 'Nusa Ventures', 'Jaya Group'];
-            const aiName = aiCompetitors[Math.floor(Math.random() * aiCompetitors.length)];
-            const initialBid = Math.round(minBid * (0.85 + Math.random() * 0.15));
-            return {
-                id: 'deal_' + Math.random().toString(36).substr(2, 9),
-                name,
-                type: 'auction',
-                industry: industry.name,
-                industryId: industry.id,
-                icon: industry.icon,
-                profit,
-                valuation,
-                minBid,
-                highestBid: initialBid,
-                highestBidder: aiName,
-                highestBidderIsPlayer: false,
-                paymentSource: null,
-                daysLeft,
-                totalDays: daysLeft
-            };
-        }
+        return generateRandomAuction();
     }
 
     /**
      * Corporate M&A: Process calendar daily decrement and competitive bidding AI reactions
+     * Delegated to BusinessAuctions.js
      */
     tickAuctions() {
-        const biz = gameState.get('business');
-        if (!biz || !biz.active) return;
-
-        let auctions = biz.auctions || [];
-        
-        // Initialize deal marketplace with 4 items if empty
-        if (auctions.length === 0) {
-            auctions = [this.generateRandomAuction(), this.generateRandomAuction(), this.generateRandomAuction(), this.generateRandomAuction()];
-            gameState.update('business', b => ({ ...b, auctions }));
-            return;
-        }
-
-        let updatedAuctions = [];
-        let stateChanged = false;
-
-        for (let auc of auctions) {
-            // Direct buyouts don't tick down days or get AI bid competitions
-            if (auc.type === 'direct') {
-                updatedAuctions.push(auc);
-                continue;
-            }
-
-            auc.daysLeft--;
-
-            // AI Bidding Chance (35% chance competitor places a new higher bid)
-            if (auc.daysLeft > 0 && Math.random() < 0.35) {
-                const increment = Math.round(auc.minBid * (0.05 + Math.random() * 0.08));
-                const newBid = auc.highestBid + increment;
-                
-                const aiCompetitors = ['Artha Capital', 'Mega Corp', 'Wira Group', 'Candra & Co', 'Sovereign Wealth', 'Nusantara Fund', 'Mahardika Trust', 'Pacific Equity', 'Nusa Ventures', 'Jaya Group'];
-                const newBidder = aiCompetitors[Math.floor(Math.random() * aiCompetitors.length)];
-                
-                const wasPlayerHighest = auc.highestBidderIsPlayer;
-                
-                auc.highestBid = newBid;
-                auc.highestBidder = newBidder;
-                auc.highestBidderIsPlayer = false;
-                
-                stateChanged = true;
-
-                if (wasPlayerHighest) {
-                    const isRetail = (biz && biz.industry === 'retail');
-                    const alertTitle = isRetail ? '⚠️ Tender Supplier Dilampaui' : '⚠️ Bid M&A Dilampaui';
-                    const alertMsg = isRetail
-                        ? `Penawaran tender Anda untuk supplier ${auc.name} telah dilampaui oleh ${newBidder} ($ ${financeManager.formatCurrency(newBid)})!`
-                        : `Tawaran Anda untuk lelang ${auc.name} telah dilampaui oleh ${newBidder} ($ ${financeManager.formatCurrency(newBid)})!`;
-                    ui.info(alertMsg, alertTitle);
-                }
-            }
-
-            // Auction Ends
-            if (auc.daysLeft <= 0) {
-                if (auc.highestBidderIsPlayer) {
-                    const amount = auc.highestBid;
-                    let paymentSuccess = false;
-
-                    if (auc.paymentSource === 'treasury') {
-                        if (biz.cash >= amount) {
-                            biz.cash -= amount;
-                            paymentSuccess = true;
-                        } else {
-                            const isRetail = (biz && biz.industry === 'retail');
-                            const failTitle = isRetail ? '❌ Kontrak Supplier Gagal' : '❌ Akuisisi Gagal';
-                            const failMsg = isRetail
-                                ? `Kontrak supplier ${auc.name} BATAL! Saldo Treasury tidak mencukupi untuk pembayaran jaminan lelang ($ ${financeManager.formatCurrency(biz.cash)} / Butuh $ ${financeManager.formatCurrency(amount)}).`
-                                : `Akuisisi ${auc.name} BATAL! Saldo Treasury Perusahaan Anda tidak mencukupi untuk pembayaran akhir ($ ${financeManager.formatCurrency(biz.cash)} / Butuh $ ${financeManager.formatCurrency(amount)}).`;
-                            ui.error(failMsg, failTitle);
-                        }
-                    } else { // 'personal' wallet
-                        const playerBal = gameState.getBalance();
-                        if (playerBal >= amount) {
-                            gameState.addBalance(-amount, 'expense', `Akuisisi M&A: ${auc.name}`);
-                            paymentSuccess = true;
-                        } else {
-                            const isRetail = (biz && biz.industry === 'retail');
-                            const failTitle = isRetail ? '❌ Kontrak Supplier Gagal' : '❌ Akuisisi Gagal';
-                            const failMsg = isRetail
-                                ? `Kontrak supplier ${auc.name} BATAL! Rekening Pribadi tidak mencukupi untuk pembayaran jaminan lelang ($ ${financeManager.formatCurrency(playerBal)} / Butuh $ ${financeManager.formatCurrency(amount)}).`
-                                : `Akuisisi ${auc.name} BATAL! Rekening Pribadi Anda tidak mencukupi untuk pembayaran akhir ($ ${financeManager.formatCurrency(playerBal)} / Butuh $ ${financeManager.formatCurrency(amount)}).`;
-                            ui.error(failMsg, failTitle);
-                        }
-                    }
-
-                    if (paymentSuccess) {
-                        const newSub = {
-                            category: auc.industryId,
-                            name: auc.name,
-                            monthlyProfit: auc.profit,
-                            valuation: auc.valuation,
-                            isPremium: false,
-                            icon: auc.icon,
-                            foundedAt: gameState.get('gameTime.year') || 2010
-                        };
-
-                        gameState.update('business', b => {
-                            const updatedSubs = [...(b.subsidiaries || []), newSub];
-                            return {
-                                ...b,
-                                cash: biz.cash,
-                                subsidiaries: updatedSubs
-                            };
-                        });
-
-                        this.recalculateValuation();
-                        
-                        const isRetail = (biz && biz.industry === 'retail');
-                        const succTitle = isRetail ? '🎉 Tender Kontrak Ditutup' : '🎉 M&A Deal Closed';
-                        const succMsg = isRetail
-                            ? `🏆 KEMITRAAN SUPPLIER DIRESMIKAN! ${auc.name} resmi bekerja sama sebagai supplier terpercaya Anda. Efisiensi bulanan: +$ ${financeManager.formatCurrency(auc.profit)}/bln!`
-                            : `🏆 AKUISISI TUNTAS! ${auc.name} resmi beroperasi sebagai anak perusahaan di bawah holding Anda. Profit bulanan: +$ ${financeManager.formatCurrency(auc.profit)}/bln!`;
-                        ui.success(succMsg, succTitle);
-                    }
-                } else {
-                    const isRetail = (biz && biz.industry === 'retail');
-                    const infoTitle = isRetail ? '🏢 Tender Selesai' : '🏢 Lelang Selesai';
-                    const infoMsg = isRetail
-                        ? `Tender Kontrak ${auc.name} selesai. Pemenang: ${auc.highestBidder} dengan nilai penawaran akhir $ ${financeManager.formatCurrency(auc.highestBid)}.`
-                        : `Lelang Akuisisi ${auc.name} selesai. Pemenang: ${auc.highestBidder} dengan nilai penawaran akhir $ ${financeManager.formatCurrency(auc.highestBid)}.`;
-                    ui.info(infoMsg, infoTitle);
-                }
-                
-                stateChanged = true;
-            } else {
-                updatedAuctions.push(auc);
-            }
-        }
-
-        // Maintain at least 4 active marketplace deals at all times
-        while (updatedAuctions.length < 4) {
-            updatedAuctions.push(this.generateRandomAuction());
-            stateChanged = true;
-        }
-
-        if (stateChanged) {
-            gameState.update('business', b => ({
-                ...b,
-                auctions: updatedAuctions
-            }));
-        }
+        tickAuctions();
     }
 
     /**
      * Corporate M&A: Submit a player bid for target company
+     * Delegated to BusinessAuctions.js
      */
     placeBid(auctionId, amount, source) {
-        const biz = gameState.get('business');
-        if (!biz || !biz.active) throw new Error("Bisnis utama Anda tidak aktif!");
-
-        const auctions = [...(biz.auctions || [])];
-        const index = auctions.findIndex(a => a.id === auctionId);
-        if (index === -1) throw new Error("Lelang tidak ditemukan!");
-
-        const auc = { ...auctions[index] };
-
-        // Bid validations
-        if (amount <= auc.highestBid) {
-            throw new Error(`Nilai penawaran harus lebih tinggi dari penawaran tertinggi saat ini ($ ${financeManager.formatCurrency(auc.highestBid)})!`);
-        }
-        if (amount < auc.minBid) {
-            throw new Error(`Nilai penawaran tidak boleh kurang dari harga dasar lelang ($ ${financeManager.formatCurrency(auc.minBid)})!`);
-        }
-
-        // Cash source validation
-        if (source === 'treasury') {
-            if (biz.cash < amount) {
-                throw new Error(`Saldo Treasury Perusahaan Anda tidak mencukupi untuk melakukan penawaran ($ ${financeManager.formatCurrency(biz.cash)})!`);
-            }
-        } else {
-            const playerBal = gameState.getBalance();
-            if (playerBal < amount) {
-                throw new Error(`Rekening pribadi Anda tidak mencukupi untuk melakukan penawaran ($ ${financeManager.formatCurrency(playerBal)})!`);
-            }
-        }
-
-        // Apply Player's Leading Bid
-        auc.highestBid = amount;
-        auc.highestBidder = 'Anda';
-        auc.highestBidderIsPlayer = true;
-        auc.paymentSource = source;
-
-        auctions[index] = auc;
-
-        gameState.update('business', b => ({
-            ...b,
-            auctions: auctions
-        }));
-
-        const isRetail = (biz && biz.industry === 'retail');
-        const alertTitle = isRetail ? '✍️ Tender Diajukan' : '✍️ Bid Berhasil';
-        const alertMsg = isRetail
-            ? `Tawaran tender senilai $ ${financeManager.formatCurrency(amount)} berhasil diajukan untuk ${auc.name}!`
-            : `Tawaran senilai $ ${financeManager.formatCurrency(amount)} berhasil diajukan untuk ${auc.name}!`;
-        ui.success(alertMsg, alertTitle);
+        return placeBid(auctionId, amount, source);
     }
 
     /**
      * Corporate M&A: Buy out a direct-sale premium deal from the marketplace instantly
+     * Delegated to BusinessAuctions.js
      */
     buyoutDirect(dealId, source) {
-        const biz = gameState.get('business');
-        if (!biz || !biz.active) throw new Error("Bisnis utama Anda tidak aktif!");
-
-        const auctions = [...(biz.auctions || [])];
-        const index = auctions.findIndex(a => a.id === dealId);
-        if (index === -1) throw new Error("Penawaran perusahaan tidak ditemukan!");
-
-        const deal = auctions[index];
-        if (deal.type !== 'direct') throw new Error("Ini bukan tipe akuisisi langsung!");
-
-        const price = deal.price;
-        let paymentSuccess = false;
-
-        if (source === 'treasury') {
-            if (biz.cash >= price) {
-                biz.cash -= price;
-                paymentSuccess = true;
-            } else {
-                throw new Error(`Kas Treasury Perusahaan tidak mencukupi ($ ${financeManager.formatCurrency(biz.cash)} / Butuh $ ${financeManager.formatCurrency(price)})`);
-            }
-        } else {
-            const playerBal = gameState.getBalance();
-            if (playerBal >= price) {
-                gameState.addBalance(-price, 'expense', `Akuisisi M&A: ${deal.name}`);
-                paymentSuccess = true;
-            } else {
-                throw new Error(`Rekening Pribadi Anda tidak mencukupi ($ ${financeManager.formatCurrency(playerBal)} / Butuh $ ${financeManager.formatCurrency(price)})`);
-            }
-        }
-
-        if (paymentSuccess) {
-            const newSub = {
-                category: deal.industryId,
-                name: deal.name,
-                monthlyProfit: deal.profit,
-                valuation: deal.valuation,
-                isPremium: true, // Special tag for direct purchases!
-                icon: deal.icon,
-                foundedAt: gameState.get('gameTime.year') || 2010
-            };
-
-            const updatedSubs = [...(biz.subsidiaries || []), newSub];
-            
-            // Remove the deal and generate a new random deal to keep the marketplace fresh
-            auctions.splice(index, 1);
-            auctions.push(this.generateRandomAuction());
-
-            gameState.update('business', b => ({
-                ...b,
-                cash: biz.cash,
-                subsidiaries: updatedSubs,
-                auctions: auctions
-            }));
-
-            this.recalculateValuation();
-
-            const isRetail = (biz && biz.industry === 'retail');
-            const alertTitle = isRetail ? '🎉 Premium Supplier' : '🎉 Premium M&A';
-            const alertMsg = isRetail
-                ? `🏆 KONTRAK SUPPLIER PREMIUM DIRESMIKAN! ${deal.name} resmi menjamin pasokan logistik bulanan Anda! Efisiensi: +$ ${financeManager.formatCurrency(deal.profit)}/bln dengan efek premium jangka panjang pada valuasi holding!`
-                : `🏆 AKUISISI PREMIUM TUNTAS! ${deal.name} resmi diakuisisi langsung secara penuh! Revenue bulanan: +$ ${financeManager.formatCurrency(deal.profit)}/bln dengan dampak premium jangka panjang pada valuasi holding!`;
-            ui.success(alertMsg, alertTitle);
-            return true;
-        }
-        return false;
+        return buyoutDirect(dealId, source, () => this.recalculateValuation());
     }
+
 
     // ==========================================
     // TECH INDUSTRY MANAGEMENT METHODS (DELEGATED)
@@ -1785,27 +1495,9 @@ class BusinessManager {
     }
 }
 
-// Static Constants for Corporate Auctions
-const COMPANY_PREFIXES = ['Nusa', 'Zetta', 'Apex', 'Sinar', 'Global', 'Vertex', 'Pioneer', 'Mega', 'Sinergi', 'Aditya', 'Quantum', 'Bintang', 'Sovereign', 'Agro', 'Mandiri', 'Alpha', 'Aegis', 'Kencana', 'Integra', 'Prisma', 'Eldorado', 'Omni', 'Sakti', 'Gading', 'Delta', 'Pinnacle', 'Summit'];
-const COMPANY_SUFFIXES = {
-    'tech': ['Systems', 'Software', 'AI Technologies', 'Digital', 'Robotics', 'Labs'],
-    'logistics': ['Logistics', 'Trans', 'Express', 'Supply Chain', 'Freighters', 'Cargo'],
-    'retail': ['Mart', 'Retail Group', 'Goods', 'Outlet', 'Franchise', 'Supermart'],
-    'energy': ['Energy', 'Power', 'Renewables', 'Utilities', 'Solar', 'Biofuels'],
-    'manufacturing': ['Industries', 'Forge', 'Heavy Manufacturing', 'Assembler', 'Automotive', 'Aerospace'],
-    'finance': ['Capital', 'Ventures', 'Fintech', 'Holdings', 'Securities', 'Equities']
-};
-
-const INDUSTRIES = [
-    { id: 'tech', name: 'Teknologi & AI', icon: '💻', baseProfit: 12000, baseVal: 240000 },
-    { id: 'logistics', name: 'Rantai Pasok & Logistik', icon: '🚚', baseProfit: 8000, baseVal: 160000 },
-    { id: 'retail', name: 'Barang Konsumsi & Ritel', icon: '🛒', baseProfit: 4500, baseVal: 90000 },
-    { id: 'energy', name: 'Energi & Utilitas', icon: '⚡', baseProfit: 35000, baseVal: 700000 },
-    { id: 'manufacturing', name: 'Manufaktur & Dirgantara', icon: '🏭', baseProfit: 50000, baseVal: 1000000 },
-    { id: 'finance', name: 'Jasa Keuangan', icon: '🏦', baseProfit: 25000, baseVal: 500000 }
-];
-
+// Constants moved to BusinessAuctions.js for cleaner separation of concerns
 export { INDUSTRY_INITIATIVES } from './IndustryInitiatives.js';
+export { COMPANY_PREFIXES, COMPANY_SUFFIXES, AUCTION_INDUSTRIES } from './BusinessAuctions.js';
 
 export const businessManager = new BusinessManager();
 export default businessManager;

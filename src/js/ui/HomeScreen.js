@@ -83,7 +83,18 @@ class HomeScreen {
         if (dateEl) dateEl.textContent = `${day} ${months[month - 1]} ${year}`;
 
         const speedEl = document.getElementById('game-speed');
-        if (speedEl) speedEl.textContent = `${speed}x`;
+        if (speedEl) {
+            speedEl.textContent = speed === 0 ? 'Paused' : `${speed}x`;
+        }
+
+        // Highlight active speed button
+        const btnPause = document.getElementById('btn-time-pause');
+        const btnPlay = document.getElementById('btn-time-play');
+        const btnFF = document.getElementById('btn-time-ff');
+
+        if (btnPause) btnPause.classList.toggle('active', speed === 0);
+        if (btnPlay) btnPlay.classList.toggle('active', speed === 1);
+        if (btnFF) btnFF.classList.toggle('active', speed > 1);
     }
 
     // ==========================================
@@ -259,6 +270,11 @@ class HomeScreen {
     // ==========================================
 
     bindEvents() {
+        // Show Finance Panel button on balance card
+        document.getElementById('btn-show-finance')?.addEventListener('click', () => {
+            import('./panels/FinancePanel.js').then(m => m.default.show());
+        });
+
         // Earn buttons
         document.getElementById('btn-claim')?.addEventListener('click', () => this.handleClaim());
         document.getElementById('btn-upgrade')?.addEventListener('click', () => this.handleUpgrade());
@@ -283,37 +299,38 @@ class HomeScreen {
             });
         }
 
-        // Speed Control Cycling Button
-        const speedEl = document.getElementById('game-speed');
-        if (speedEl) {
-            const parent = speedEl.parentElement;
-            parent.style.cursor = 'pointer';
-            parent.title = 'Klik untuk mempercepat / pause jalannya waktu';
-            parent.style.transition = 'all 0.2s';
-            parent.addEventListener('mouseenter', () => {
-                parent.style.opacity = '0.8';
-                parent.style.transform = 'scale(1.05)';
+        // Speed Control Buttons (Music Player style: Pause, Play, FF with no slowing down)
+        const btnPause = document.getElementById('btn-time-pause');
+        const btnPlay = document.getElementById('btn-time-play');
+        const btnFF = document.getElementById('btn-time-ff');
+
+        if (btnPause) {
+            btnPause.addEventListener('click', () => {
+                timeManager.setSpeed(0);
+                this.updateStatusBar();
+                ui.info('⏸️ Waktu DIHENTIKAN (PAUSE). Transaksi bulanan ditangguhkan.');
             });
-            parent.addEventListener('mouseleave', () => {
-                parent.style.opacity = '1';
-                parent.style.transform = 'scale(1)';
+        }
+
+        if (btnPlay) {
+            btnPlay.addEventListener('click', () => {
+                timeManager.setSpeed(1);
+                this.updateStatusBar();
+                ui.success('⚡ Kecepatan simulasi diset ke normal (1x).');
             });
-            parent.addEventListener('click', () => {
+        }
+
+        if (btnFF) {
+            btnFF.addEventListener('click', () => {
                 let speed = gameState.get('gameTime.speed') || 1;
-                if (speed === 1) speed = 2;
-                else if (speed === 2) speed = 5;
+                // Cycle speed up: 2x -> 5x -> 10x -> then back to 2x (no slow down)
+                if (speed === 2) speed = 5;
                 else if (speed === 5) speed = 10;
-                else if (speed === 10) speed = 0; // Pause
-                else speed = 1; // Unpause back to 1x
+                else speed = 2; // Default speed up starts at 2x if currently 0 or 1, and wraps to 2x if at 10x
 
                 timeManager.setSpeed(speed);
                 this.updateStatusBar();
-
-                if (speed === 0) {
-                    ui.info('⏸️ Waktu DIHENTIKAN (PAUSE). Transaksi bulanan ditangguhkan.');
-                } else {
-                    ui.success(`⚡ Kecepatan simulasi diset ke ${speed}x!`);
-                }
+                ui.success(`⚡ Kecepatan simulasi dipercepat ke ${speed}x!`);
             });
         }
 
@@ -382,17 +399,173 @@ class HomeScreen {
 
     async handleDonate() {
         const balance = gameState.getBalance();
-        const amount = await ui.promptMoney({ title: 'Donasi Amal', icon: '🎁', maxAmount: balance, confirmText: 'Donasikan' });
-        if (amount && amount > 0) {
-            try {
-                financeManager.donate(amount, 'Donasi Amal', 'Donasi');
-                ui.success(`$ ${financeManager.formatCurrency(amount)} berhasil didonasikan! Keberuntungan Anda meningkat! ✨`);
-                this.updateBalanceCard();
-            } catch (e) {
-                ui.error(e.message);
+        const donations = gameState.get('donations') || { totalDonated: 0, luckMultiplier: 1.0, luckTicksRemaining: 0 };
+        const isLuckActive = donations.luckTicksRemaining > 0 && donations.luckMultiplier > 1;
+
+        const charityOptions = [
+            {
+                id: 'palestina',
+                name: 'Donasi Palestina',
+                org: 'BAZNAS Peduli Palestina',
+                desc: 'Bantu saudara-saudara kita di Gaza mendapatkan pangan, obat-obatan, dan tempat berlindung.',
+                icon: '🕌',
+                emoji: '🇵🇸',
+                color: '#10b981',
+                gradient: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.06))',
+                border: 'rgba(16,185,129,0.25)',
+                tag: 'Kemanusiaan',
+            },
+            {
+                id: 'masjid',
+                name: 'Rumah Ibadah',
+                org: 'Yayasan Masjid Nusantara',
+                desc: 'Dukung pembangunan dan renovasi masjid serta musholla di pelosok negeri.',
+                icon: '🕌',
+                emoji: '🕌',
+                color: '#a855f7',
+                gradient: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(139,92,246,0.06))',
+                border: 'rgba(168,85,247,0.25)',
+                tag: 'Dakwah',
+            },
+            {
+                id: 'panti',
+                name: 'Panti Asuhan',
+                org: 'Rumah Harapan Yatim Indonesia',
+                desc: 'Berikan masa depan cerah bagi anak-anak yatim piatu melalui pendidikan dan kebutuhan dasar.',
+                icon: '👦',
+                emoji: '🏠',
+                color: '#f59e0b',
+                gradient: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(217,119,6,0.06))',
+                border: 'rgba(245,158,11,0.25)',
+                tag: 'Anak Yatim',
+            },
+            {
+                id: 'bencana',
+                name: 'Korban Bencana Alam',
+                org: 'ACT — Aksi Cepat Tanggap',
+                desc: 'Salurkan bantuan darurat kepada korban gempa, banjir, dan bencana alam lainnya di Indonesia.',
+                icon: '🆘',
+                emoji: '🌊',
+                color: '#ef4444',
+                gradient: 'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(220,38,38,0.06))',
+                border: 'rgba(239,68,68,0.25)',
+                tag: 'Darurat',
+            },
+        ];
+
+        const charityHTML = charityOptions.map(c => `
+            <div class="charity-card" data-charity="${c.id}" style="
+                background: ${c.gradient};
+                border: 1px solid ${c.border};
+                border-radius: 16px;
+                padding: 1.25rem;
+                cursor: pointer;
+                transition: all 0.25s;
+                position: relative;
+                overflow: hidden;
+            " onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.3)'" 
+              onmouseleave="this.style.transform='';this.style.boxShadow=''">
+                <div style="position:absolute; top:0.75rem; right:0.75rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:2px 8px; font-size:0.62rem; font-weight:700; color:rgba(255,255,255,0.5);">${c.tag}</div>
+                <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
+                    <div style="font-size:2rem; width:48px; height:48px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${c.emoji}</div>
+                    <div>
+                        <div style="font-size:0.95rem; font-weight:800; color:#fff; margin-bottom:2px;">${c.name}</div>
+                        <div style="font-size:0.7rem; color:${c.color}; font-weight:700;">${c.org}</div>
+                    </div>
+                </div>
+                <p style="font-size:0.8rem; color:rgba(255,255,255,0.55); line-height:1.5; margin-bottom:0.875rem;">${c.desc}</p>
+                <button class="btn-donate-choose" data-charity-id="${c.id}" data-charity-name="${c.name}" data-charity-org="${c.org}" style="
+                    width:100%; padding:0.6rem; border-radius:10px;
+                    background: ${c.gradient};
+                    border: 1px solid ${c.border};
+                    color:${c.color}; font-weight:800; font-size:0.85rem;
+                    cursor:pointer; font-family:inherit; transition:all 0.2s;
+                " onmouseenter="this.style.filter='brightness(1.2)'" onmouseleave="this.style.filter=''">
+                    ❤️ Donasi ke ${c.name}
+                </button>
+            </div>
+        `).join('');
+
+        const content = `
+            <style>
+                .charity-card { }
+            </style>
+
+            <div style="max-height:72vh; overflow-y:auto; padding-right:4px;">
+
+                <!-- Luck Status Banner -->
+                ${isLuckActive ? `
+                <div style="background:linear-gradient(135deg,rgba(251,191,36,0.12),rgba(245,158,11,0.06)); border:1px solid rgba(251,191,36,0.25); border-radius:14px; padding:1rem 1.25rem; margin-bottom:1.25rem; display:flex; align-items:center; gap:0.875rem;">
+                    <span style="font-size:1.75rem;">✨</span>
+                    <div>
+                        <div style="font-size:0.85rem; font-weight:800; color:#fbbf24;">Keberuntungan Aktif! (${donations.luckMultiplier}× Luck)</div>
+                        <div style="font-size:0.75rem; color:rgba(255,255,255,0.5); margin-top:2px;">Masih berlaku ${donations.luckTicksRemaining} hari — berdonasi lagi untuk memperpanjang</div>
+                    </div>
+                </div>
+                ` : `
+                <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:1rem 1.25rem; margin-bottom:1.25rem;">
+                    <div style="font-size:0.85rem; color:rgba(255,255,255,0.6); line-height:1.5;">
+                        🌟 <strong style="color:#fff;">Bonus Keberuntungan:</strong> Setiap donasi ke badan amal manapun akan mengaktifkan buff <strong style="color:#fbbf24;">Luck 1.5×</strong> selama 30 hari game. Streak donasi bisa menumpuk hingga 180 hari!
+                    </div>
+                </div>
+                `}
+
+                <!-- Saldo Info -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:10px; padding:0.75rem 1rem;">
+                    <span style="font-size:0.82rem; color:rgba(255,255,255,0.55);">💰 Saldo Anda tersedia untuk donasi</span>
+                    <span style="font-size:1rem; font-weight:800; color:#10b981;">$ ${financeManager.formatCurrency(balance, true)}</span>
+                </div>
+
+                <!-- Charity Grid -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                    ${charityHTML}
+                </div>
+
+                <div style="margin-top:1.25rem; padding:0.875rem; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:10px; font-size:0.75rem; color:rgba(255,255,255,0.4); text-align:center; line-height:1.6;">
+                    Donasi bersifat permanen dan mengurangi saldo rekening Anda.<br>
+                    Semua badan amal memberikan bonus keberuntungan yang sama bagi Anda.
+                </div>
+            </div>
+        `;
+
+        ui.showModal({
+            title: '❤️ Pilih Badan Amal',
+            content,
+            onShow: () => {
+                document.querySelectorAll('.btn-donate-choose').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const charityId = btn.dataset.charityId;
+                        const charityName = btn.dataset.charityName;
+                        const charityOrg = btn.dataset.charityOrg;
+                        ui.closeModal();
+
+                        await new Promise(r => setTimeout(r, 150));
+
+                        const amount = await ui.promptMoney({
+                            title: `Donasi ke ${charityName}`,
+                            icon: '❤️',
+                            maxAmount: balance,
+                            confirmText: 'Donasikan Sekarang'
+                        });
+
+                        if (amount && amount > 0) {
+                            try {
+                                financeManager.donate(amount, charityOrg, 'Donasi');
+                                ui.success(
+                                    `$ ${financeManager.formatCurrency(amount)} berhasil didonasikan ke ${charityName}! ✨ Keberuntungan Anda meningkat!`,
+                                    '❤️ Donasi Berhasil'
+                                );
+                                this.updateBalanceCard();
+                            } catch (e) {
+                                ui.error(e.message);
+                            }
+                        }
+                    });
+                });
             }
-        }
+        });
     }
+
 
     // ==========================================
     // SETTINGS
@@ -716,6 +889,19 @@ class HomeScreen {
                 </div>
                 ` : ''}
                 <div class="planning-card" style="margin-bottom:1rem;">
+                    <h4 style="margin-bottom:0.5rem;">🏦 Fitur Deposito & Reksa Dana</h4>
+                    <ul style="color:var(--text-muted);font-size:0.875rem;padding-left:1.25rem;line-height:1.8;">
+                        <li><strong>Deposito</strong>: Simpan dana dengan bunga bulanan (0.2% - 3.0%) yang dapat diatur menggunakan slider proyeksi live. Aktifkan auto-deposit untuk kemudahan menabung otomatis.</li>
+                        <li><strong>Reksa Dana</strong>: Pilih dari 4 reksadana (Pasar Uang, Pendapatan Tetap, Campuran, Saham) dengan berbagai tingkat risiko dan imbal hasil bulanan untuk pertumbuhan modal.</li>
+                    </ul>
+                </div>
+                <div class="planning-card" style="margin-bottom:1rem;">
+                    <h4 style="margin-bottom:0.5rem;">🕊️ Sistem Donasi & Keberuntungan</h4>
+                    <p style="color:var(--text-muted);font-size:0.875rem;line-height:1.6;">
+                        Salurkan bantuan finansial ke berbagai badan amal pilihan (Palestina 🇵🇸, Masjid 🕌, Panti Asuhan 🏠, Bencana Alam 🌊) untuk mendapatkan berkah keberuntungan (Luck Boost 1.5x) selama 30 hari.
+                    </p>
+                </div>
+                <div class="planning-card" style="margin-bottom:1rem;">
                     <h4 style="margin-bottom:0.5rem;">💡 Tips Pro</h4>
                     <ul style="color:var(--text-muted);font-size:0.875rem;padding-left:1.25rem;line-height:1.8;">
                         <li>Diversifikasi — jangan all-in satu aset</li>
@@ -801,28 +987,24 @@ class HomeScreen {
         }
 
         const allTransactions = gameState.get('transactions') || [];
+        const oldestTx = allTransactions[allTransactions.length - 1];
+        const initialBalance = oldestTx ? (oldestTx.balance - (oldestTx.amount || 0)) : gameState.getBalance();
 
-        historyData.forEach(h => {
+        historyData.forEach((h, idx) => {
             const monthTx = allTransactions.filter(t => t.gameTime?.month === h.month && t.gameTime?.year === h.year);
 
             if (monthTx.length > 0) {
                 h.bankAtEnd = monthTx[0].balance || 0;
             } else {
-                const beforeTx = allTransactions.find(t => {
-                    const tVal = (t.gameTime?.year || 0) * 12 + (t.gameTime?.month || 0);
-                    const hVal = h.year * 12 + h.month;
-                    return tVal < hVal;
-                });
-                h.bankAtEnd = beforeTx ? (beforeTx.balance || 0) : gameState.getBalance();
-            }
-        });
-
-        historyData.forEach((h, idx) => {
-            if (h.bankAtEnd === 0) {
                 if (idx > 0) {
                     h.bankAtEnd = historyData[idx - 1].bankAtEnd;
                 } else {
-                    h.bankAtEnd = gameState.getBalance();
+                    const beforeTx = allTransactions.find(t => {
+                        const tVal = (t.gameTime?.year || 0) * 12 + (t.gameTime?.month || 0);
+                        const hVal = h.year * 12 + h.month;
+                        return tVal < hVal;
+                    });
+                    h.bankAtEnd = beforeTx ? (beforeTx.balance || 0) : initialBalance;
                 }
             }
         });

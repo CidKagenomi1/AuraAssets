@@ -9,9 +9,10 @@ import financeManager from '../finance/FinanceManager.js';
 import gameState from '../game/GameState.js';
 import ui from './UIManager.js';
 import tradingPage from './TradingPage.js';
-import { swipeTransition } from './Animations.js';
+import { swipeTransition, staggerFadeUp } from './Animations.js';
 import { businessPage } from './BusinessPage.js';
 import propertyManager from '../property/PropertyManager.js';
+import roleManager from '../game/RoleManager.js';
 
 // ===== WARNA PER SEKTOR =====
 const SECTOR_COLORS = {
@@ -89,13 +90,13 @@ class ViewManager {
     this.marketFilter = '';
     this.marketSort = { key: 'default', dir: 'asc' };
     this.currentMarketTab = 'stocks';
+    this.activeDynamicTab = 'cashflow';
   }
 
   init() {
     this.bindNavigation();
     this.bindMarketTabs();
     this.bindMarketSmartControls();
-    this.bindPortfolioTabs();
 
     // Bind dynamic back button
     const backBtn = document.getElementById('btn-dynamic-back');
@@ -111,14 +112,15 @@ class ViewManager {
       }
     });
 
+    // Initialize mobile bottom nav
+    this.updateMobileBottomNav(this.currentView);
+
     // Listen for updates
     gameState.on('stocksUpdate', () => this.updateMarketView());
     gameState.on('cryptoUpdate', () => this.updateMarketView());
-    gameState.on('stockBuy', () => this.updatePortfolioView());
-    gameState.on('stockSell', () => this.updatePortfolioView());
-    gameState.on('cryptoBuy', () => this.updatePortfolioView());
-    gameState.on('cryptoSell', () => this.updatePortfolioView());
-    gameState.on('propertyUpdate', () => this.updatePortfolioView());
+    gameState.on('roleChange', () => {
+      this.updateMobileBottomNav(this.currentView);
+    });
   }
 
   bindNavigation() {
@@ -142,6 +144,23 @@ class ViewManager {
     this.switchView('dynamic');
   }
 
+  updateActiveNavigationHighlights(view) {
+    const viewToHighlight = view || this.currentView;
+    let highlightedView = viewToHighlight;
+    if (viewToHighlight === 'dynamic') {
+      highlightedView = this.activeDynamicTab === 'portfolio' ? 'portfolio' : 'home';
+    }
+
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.view === highlightedView);
+    });
+    document.querySelectorAll('.sidebar-link').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.view === highlightedView);
+    });
+
+    this.updateMobileBottomNav(highlightedView);
+  }
+
   switchView(view) {
     if (this.currentView === view && view !== 'dynamic') return;
 
@@ -157,13 +176,8 @@ class ViewManager {
 
     const prevView = this.currentView;
 
-    // Update nav active state (sidebar + bottom nav)
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.view === view);
-    });
-    document.querySelectorAll('.sidebar-link').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.view === view);
-    });
+    // Update active navigation highlights
+    this.updateActiveNavigationHighlights(view);
 
     // Hide home sections for non-home views
     this.homeSections.forEach(sel => {
@@ -182,9 +196,20 @@ class ViewManager {
       this.currentView = view;
       swipeTransition(null, targetPanel, 'right');
       this.loadViewContent(view);
+
+      // Fluid staggered entry for cards inside target view
+      const cards = targetPanel.querySelectorAll('.card, .planning-card, .menu-card, .market-row, .asset-item, .transaction-item, .wealth-card');
+      if (cards.length > 0) {
+        staggerFadeUp(cards, 40);
+      }
     } else if (view === 'home') {
       this.currentView = 'home';
       // Home sections are already shown by the loop above
+      // Fluid staggered entry for cards/widgets on home screen
+      const homeCards = document.querySelectorAll('#view-home .card, #view-home .menu-card, #view-home .hero-balance-card, #view-home .earn-widget, #view-home #market-pulse-widget');
+      if (homeCards.length > 0) {
+        staggerFadeUp(homeCards, 40);
+      }
     } else {
       // It's a special panel view (hybrid)
       this.currentView = view;
@@ -203,7 +228,9 @@ class ViewManager {
         this.updateMarketView();
         break;
       case 'portfolio':
-        this.updatePortfolioView();
+        import('./panels/FinancePanel.js').then(module => {
+          module.default.show('portfolio');
+        });
         break;
       case 'history':
         this.updateHistoryView();
@@ -461,286 +488,7 @@ class ViewManager {
     }
   }
 
-  // ========================================
-  // PORTFOLIO VIEW - REDESIGNED
-  // ========================================
 
-  bindPortfolioTabs() {
-    document.querySelectorAll('[data-portfolio-tab]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('[data-portfolio-tab]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        const tab = btn.dataset.portfolioTab;
-        document.getElementById('portfolio-stocks').style.display = tab === 'stocks' ? 'block' : 'none';
-        document.getElementById('portfolio-crypto').style.display = tab === 'crypto' ? 'block' : 'none';
-        document.getElementById('portfolio-property').style.display = tab === 'property' ? 'block' : 'none';
-      });
-    });
-  }
-
-  updatePortfolioView() {
-    if (this.currentView !== 'portfolio') return;
-
-    const balance = gameState.getBalance();
-    const stockPortfolio = stockMarket.getPortfolio();
-    const cryptoWallet = cryptoMarket.getWallet();
-    const totalStockValue = stockMarket.getPortfolioValue();
-    const totalCryptoValue = cryptoMarket.getWalletValue();
-    const totalPropertyValue = propertyManager.getTotalPropertyValue();
-    const ownedProperties = propertyManager.getOwnedProperties();
-
-    // Get debt info
-    const loans = gameState.get('loans') || [];
-    const totalDebt = loans.reduce((sum, loan) => sum + (loan.remaining || 0), 0);
-
-    // Calculate true net worth: Assets - Liabilities
-    const totalAssets = balance + totalStockValue + totalCryptoValue + totalPropertyValue;
-    const totalNetWorth = totalAssets - totalDebt;
-
-    const planTarget = 1000000000;
-    const planProgress = Math.min(100, Math.max(0, (totalNetWorth / planTarget) * 100));
-    const progressFill = document.getElementById('plan-progress-fill');
-    const progressText = document.getElementById('plan-progress-text');
-    if (progressFill) progressFill.style.width = planProgress.toFixed(1) + '%';
-    if (progressText) progressText.textContent = planProgress.toFixed(1) + '%';
-
-    // Wealth Summary
-    const summaryEl = document.getElementById('portfolio-wealth-summary');
-    if (summaryEl) {
-      summaryEl.innerHTML = `
-        <div class="wealth-card">
-          <div class="wealth-total">
-            <div class="wealth-label">Net Worth (Kekayaan Bersih)</div>
-            <div class="wealth-value ${totalNetWorth >= 0 ? '' : 'negative'}">$ ${financeManager.formatCurrency(totalNetWorth)}</div>
-          </div>
-          
-          <div class="wealth-section">
-            <div class="wealth-section-title">💰 Aset</div>
-            <div class="wealth-breakdown">
-              <div class="wealth-item">
-                <span class="wealth-dot cash"></span>
-                <span>Cash</span>
-                <span class="wealth-amount">$ ${financeManager.formatCurrency(balance, true)}</span>
-              </div>
-              <div class="wealth-item">
-                <span class="wealth-dot stocks"></span>
-                <span>Saham</span>
-                <span class="wealth-amount">$ ${financeManager.formatCurrency(totalStockValue, true)}</span>
-              </div>
-              <div class="wealth-item">
-                <span class="wealth-dot crypto"></span>
-                <span>Crypto</span>
-                <span class="wealth-amount">$ ${financeManager.formatCurrency(totalCryptoValue, true)}</span>
-              </div>
-              <div class="wealth-item">
-                <span class="wealth-dot property" style="background: #f59e0b;"></span>
-                <span>Properti</span>
-                <span class="wealth-amount">$ ${financeManager.formatCurrency(totalPropertyValue, true)}</span>
-              </div>
-              <div class="wealth-item total">
-                <span></span>
-                <span><strong>Total Aset</strong></span>
-                <span class="wealth-amount"><strong>$ ${financeManager.formatCurrency(totalAssets, true)}</strong></span>
-              </div>
-            </div>
-          </div>
-          
-          ${totalDebt > 0 ? `
-            <div class="wealth-section debt">
-              <div class="wealth-section-title">💳 Hutang</div>
-              <div class="wealth-breakdown">
-                <div class="wealth-item">
-                  <span class="wealth-dot debt"></span>
-                  <span>Pinjaman (${loans.length} aktif)</span>
-                  <span class="wealth-amount negative">-$ ${financeManager.formatCurrency(totalDebt, true)}</span>
-                </div>
-              </div>
-            </div>
-          ` : ''}
-        </div>
-      `;
-    }
-
-    // Wealth Distribution Table (replaces pie chart)
-    this.renderWealthDistributionTable(balance, totalStockValue, totalCryptoValue, totalPropertyValue);
-
-    // Stocks portfolio
-    const stocksEl = document.getElementById('portfolio-stocks');
-    if (stocksEl) {
-      if (stockPortfolio.length) {
-        stocksEl.innerHTML = stockPortfolio.map(h => `
-          <div class="asset-item" data-symbol="${h.symbol}" data-type="stock">
-            <div class="asset-icon">📊</div>
-            <div class="asset-info">
-              <div class="asset-name">${h.symbol}</div>
-              <div class="asset-symbol">${h.shares} lot @ $ ${financeManager.formatCurrency(h.avgBuyPrice, true)}</div>
-            </div>
-            <div class="asset-price">
-              <div class="asset-current">$ ${financeManager.formatCurrency(h.currentValue, true)}</div>
-              <div class="asset-change ${h.profit >= 0 ? 'positive' : 'negative'}">
-                ${h.profit >= 0 ? '+' : ''}${(h.profitPercent || 0).toFixed(2)}%
-              </div>
-            </div>
-          </div>
-        `).join('');
-      } else {
-        stocksEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">Belum ada saham</div></div>';
-      }
-    }
-
-    // Crypto wallet
-    const cryptoEl = document.getElementById('portfolio-crypto');
-    if (cryptoEl) {
-      if (cryptoWallet.length) {
-        cryptoEl.innerHTML = cryptoWallet.map(h => `
-          <div class="asset-item" data-symbol="${h.symbol}" data-type="crypto">
-            <div class="asset-icon" style="font-size: 1.5rem;">${h.icon}</div>
-            <div class="asset-info">
-              <div class="asset-name">${h.symbol}</div>
-              <div class="asset-symbol">${cryptoMarket.formatAmount(h.amount)} ${h.symbol}</div>
-            </div>
-            <div class="asset-price">
-              <div class="asset-current">$ ${financeManager.formatCurrency(h.currentValue, true)}</div>
-              <div class="asset-change ${h.profit >= 0 ? 'positive' : 'negative'}">
-                ${h.profit >= 0 ? '+' : ''}${(h.profitPercent || 0).toFixed(2)}%
-              </div>
-            </div>
-          </div>
-        `).join('');
-      } else {
-        cryptoEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🪙</div><div class="empty-state-text">Wallet kosong</div></div>';
-      }
-    }
-
-    // Property portfolio
-    const propertyEl = document.getElementById('portfolio-property');
-    if (propertyEl) {
-      if (ownedProperties.length) {
-        propertyEl.innerHTML = ownedProperties.map(h => `
-          <div class="asset-item" data-id="${h.id}" data-type="property" style="cursor: default; display: grid; grid-template-columns: 40px 1fr auto auto; align-items: center; gap: 0.75rem;">
-            <div class="asset-icon" style="font-size: 1.5rem;">${h.icon}</div>
-            <div class="asset-info" style="min-width: 0;">
-              <div class="asset-name" style="font-weight: 800; font-size: 0.9rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${h.name}</div>
-              <div class="asset-symbol" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Nilai Beli: $ ${financeManager.formatCurrency(h.price, true)}</div>
-            </div>
-            <div class="asset-price" style="text-align: right; margin-right: 1.25rem;">
-              <div class="asset-current" style="color: var(--accent-primary); font-weight: 700; font-size: 0.9rem;">+$ ${financeManager.formatCurrency(h.monthlyRent, true)}/bln</div>
-              <div class="asset-change positive" style="font-size: 0.7rem; font-weight: 600; margin-top: 2px;">Passive Yield</div>
-            </div>
-            <button class="btn btn-sm btn-sell-portfolio-prop" data-sell="${h.id}" style="background: linear-gradient(135deg, #ef4444, #dc2626); border: none; color: #fff; font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2); height: fit-content;">
-              JUAL
-            </button>
-          </div>
-        `).join('');
-
-        // Bind sell buttons
-        propertyEl.querySelectorAll('.btn-sell-portfolio-prop').forEach(btn => {
-          btn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const propertyId = parseInt(btn.dataset.sell);
-            const { propertyPanel } = await import('./panels/PropertyPanel.js');
-            await propertyPanel.handleSell(propertyId);
-            this.updatePortfolioView();
-          });
-        });
-      } else {
-        propertyEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏘️</div><div class="empty-state-text">Belum ada aset properti</div></div>';
-      }
-    }
-
-    // Wealth Sources
-    this.renderWealthSources();
-  }
-
-  renderWealthDistributionTable(cash, stocks, crypto, property) {
-    const container = document.getElementById('wealth-distribution-table');
-    if (!container) return;
-
-    const total = cash + stocks + crypto + property;
-    if (total === 0) {
-      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div>Belum ada aset</div></div>';
-      return;
-    }
-
-    const rows = [
-      { label: 'Cash', icon: '💵', value: cash, color: '#6366f1' },
-      { label: 'Saham', icon: '📈', value: stocks, color: '#10b981' },
-      { label: 'Kripto', icon: '🪙', value: crypto, color: '#a855f7' },
-      { label: 'Properti', icon: '🏢', value: property, color: '#f59e0b' }
-    ];
-
-    container.innerHTML = rows.map(row => {
-      const pct = total > 0 ? ((row.value / total) * 100).toFixed(1) : '0.0';
-      return `
-        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
-          <span style="font-size:1.1rem;">${row.icon}</span>
-          <div style="flex:1;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-              <span style="font-size:0.85rem;font-weight:600;color:var(--text-main);">${row.label}</span>
-              <span style="font-size:0.85rem;font-weight:700;color:${row.color};">${pct}%</span>
-            </div>
-            <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;">
-              <div style="height:100%;width:${pct}%;background:${row.color};border-radius:99px;"></div>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  renderWealthSources() {
-    const sourcesEl = document.getElementById('wealth-sources');
-    if (!sourcesEl) return;
-
-    const workState = gameState.get('work');
-    const jobName = (workState && workState.careerPath)
-      ? workTaskManager.getCareerLevelData().title
-      : 'Tidak bekerja';
-    const transactions = financeManager.getRecentTransactions(100);
-
-    // Calculate income from different sources
-    const tradingProfit = transactions
-      .filter(t => t.category === 'Stock Sell' || t.category === 'Crypto Sell')
-      .reduce((sum, t) => sum + (t.amount > 0 ? t.amount : 0), 0);
-
-    const salary = transactions
-      .filter(t => t.category === 'Gaji')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const topup = transactions
-      .filter(t => t.category === 'Top Up')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    sourcesEl.innerHTML = `
-      <div class="source-item">
-        <div class="source-icon">💼</div>
-        <div class="source-info">
-          <div class="source-name">Gaji (${jobName})</div>
-          <div class="source-desc">Pendapatan bulanan</div>
-        </div>
-        <div class="source-amount positive">+$ ${financeManager.formatCurrency(salary, true)}</div>
-      </div>
-      <div class="source-item">
-        <div class="source-icon">📈</div>
-        <div class="source-info">
-          <div class="source-name">Trading Profit</div>
-          <div class="source-desc">Keuntungan jual beli</div>
-        </div>
-        <div class="source-amount ${tradingProfit >= 0 ? 'positive' : 'negative'}">
-          ${tradingProfit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(tradingProfit, true)}
-        </div>
-      </div>
-      <div class="source-item">
-        <div class="source-icon">💰</div>
-        <div class="source-info">
-          <div class="source-name">Top Up</div>
-          <div class="source-desc">Modal yang ditambahkan</div>
-        </div>
-        <div class="source-amount positive">+$ ${financeManager.formatCurrency(topup, true)}</div>
-      </div>
-    `;
-  }
 
   // ========================================
   // HISTORY VIEW
@@ -776,6 +524,163 @@ class ViewManager {
         </div>
       `;
     }
+  }
+
+  updateMobileBottomNav(activeView) {
+    const bottomNav = document.querySelector('.app-bottom-nav');
+    if (!bottomNav) return;
+
+    // Get current role
+    const role = roleManager.getRoleData();
+    if (!role) {
+      bottomNav.innerHTML = '';
+      return;
+    }
+
+    // Define all navigation items with SVG icons
+    const navItems = {
+      home: { id: 'home', label: 'Beranda', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>` },
+      market: { id: 'market', label: 'Pasar', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/></svg>` },
+      portfolio: { id: 'portfolio', label: 'Portofolio', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>` },
+      business: { id: 'business', label: 'Bisnis', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>` },
+      property: { id: 'property', label: 'Properti', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>` },
+      loan: { id: 'loan', label: 'Pinjaman', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/></svg>` },
+      savings: { id: 'savings', label: 'Deposito', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>` },
+      tax: { id: 'tax', label: 'Pajak', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 17H6v-2h12v2zm0-4H6v-2h12v2zm0-4H6V7h12v2zM3 22l1.5-1.5L6 22l1.5-1.5L9 22l1.5-1.5L12 22l1.5-1.5L15 22l1.5-1.5L18 22l1.5-1.5L21 22V2l-1.5 1.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2l-1.5 1.5L6 2l-1.5 1.5L3 2v20z"/></svg>` },
+      history: { id: 'history', label: 'Riwayat', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>` },
+      donate: { id: 'donate', label: 'Donasi', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4V8h16v11z"/></svg>` },
+      guide: { id: 'guide', label: 'Panduan', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>` }
+    };
+
+    // Bottom Row (Dominant) Candidates
+    const primaryIds = ['home', 'market', 'portfolio', 'business', 'property'];
+    let bottomItems = primaryIds
+      .filter(id => id === 'home' || !role.hiddenNav.includes(id))
+      .map(id => navItems[id]);
+
+    // Top Row (Secondary) Candidates
+    const secondaryIds = ['history', 'loan', 'savings', 'tax', 'guide', 'donate'];
+    let topItems = secondaryIds
+      .filter(id => !role.hiddenNav.includes(id))
+      .map(id => navItems[id]);
+
+    // Adjust topItems to have an odd number (max 5)
+    if (topItems.length >= 5) {
+      topItems = topItems.slice(0, 5); // 5 items (odd)
+    } else if (topItems.length === 4) {
+      topItems = topItems.slice(0, 3); // 3 items (odd)
+    } else if (topItems.length === 2) {
+      topItems = topItems.slice(0, 1); // 1 item (odd)
+    }
+
+    let html = '';
+
+    // Render Tier 1 (Top Row - Fixed / No scroll - Icons only)
+    if (topItems.length > 0) {
+      html += `
+        <div class="bottom-nav-tier tier-top" style="
+          display: grid;
+          grid-template-columns: repeat(${topItems.length}, 1fr);
+          width: 100%;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          justify-items: center;
+          align-items: center;
+          height: 38px;
+          background: rgba(0, 0, 0, 0.45);
+          box-sizing: border-box;
+        ">
+          ${topItems.map(item => {
+            const isActive = item.id === activeView;
+            return `
+              <button class="bottom-nav-tier-btn nav-btn ${isActive ? 'active' : ''}" data-view="${item.id}" style="
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: ${isActive ? 'rgba(16, 185, 129, 0.15)' : 'transparent'};
+                border: ${isActive ? '1px solid rgba(16, 185, 129, 0.3)' : 'none'};
+                color: ${isActive ? 'var(--accent-primary)' : 'var(--text-muted)'};
+                padding: 4px 10px;
+                border-radius: var(--radius-sm);
+                cursor: pointer;
+                transition: all 0.2s ease;
+                height: 26px;
+              ">
+                <span style="display: flex; align-items: center; justify-content: center;">${item.icon}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // Render Tier 2 (Bottom Row - Main / Active Prominent - Icons only)
+    html += `
+      <div class="bottom-nav-tier tier-bottom" style="
+        display: grid;
+        grid-template-columns: repeat(${bottomItems.length}, 1fr);
+        width: 100%;
+        height: 54px;
+        align-items: center;
+        justify-items: center;
+        background: rgba(24, 24, 27, 0.95);
+        box-sizing: border-box;
+      ">
+        ${bottomItems.map(item => {
+          const isActive = item.id === activeView;
+          if (isActive) {
+            return `
+              <button class="bottom-nav-tier-btn nav-btn active prominent" data-view="${item.id}" style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(135deg, var(--accent-primary) 0%, #059669 100%);
+                border: none;
+                color: #000;
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+                z-index: 20;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                transform: translateY(-4px);
+              ">
+                <span style="display: flex; align-items: center; justify-content: center; transform: scale(1.15);">${item.icon}</span>
+              </button>
+            `;
+          } else {
+            return `
+              <button class="bottom-nav-tier-btn nav-btn" data-view="${item.id}" style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background: transparent;
+                border: none;
+                color: var(--text-muted);
+                width: 100%;
+                height: 100%;
+                cursor: pointer;
+                transition: all 0.2s ease;
+              ">
+                <span style="display: flex; align-items: center; justify-content: center;">${item.icon}</span>
+              </button>
+            `;
+          }
+        }).join('')}
+      </div>
+    `;
+
+    bottomNav.innerHTML = html;
+
+    // Bind navigation events
+    bottomNav.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const view = btn.dataset.view;
+        this.switchView(view);
+      });
+    });
   }
 }
 

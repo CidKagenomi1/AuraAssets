@@ -411,7 +411,7 @@ html, body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 65px;
+  height: auto;
   background-color: rgba(24, 24, 27, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -426,7 +426,7 @@ html, body {
   }
   .app-main {
     margin-left: 0;
-    padding-bottom: 80px; /* space for bottom nav */
+    padding-bottom: 115px; /* extra space for tiered bottom nav */
   }
   .app-topbar {
     padding: 0 1rem;
@@ -436,30 +436,8 @@ html, body {
   }
   .app-bottom-nav {
     display: flex;
-    justify-content: space-around;
-    align-items: center;
-  }
-  .bottom-nav-item {
-    display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    color: var(--text-muted);
-    text-decoration: none;
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-  .bottom-nav-item.active {
-    color: var(--accent-primary);
-  }
-  .bottom-nav-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-  }
-  .bottom-nav-item.active .bottom-nav-icon {
-    color: var(--accent-primary);
+    border-top: none;
   }
 }
 
@@ -1028,4 +1006,312 @@ html, body {
 #btn-dynamic-back:hover {
   background: var(--bg-surface) !important;
   transform: scale(1.1);
+}
+
+.bottom-nav-tier-btn {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================================
+   PREMIUM PORTFOLIO OVERHAUL STYLES
+   ======================================== */
+
+.portfolio-wealth-card {
+  background: linear-gradient(135deg, rgba(30, 30, 35, 0.4) 0%, rgba(15, 15, 20, 0.6) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.portfolio-wealth-card::before {
+  content: '';
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+  filter: blur(20px);
+  pointer-events: none;
+}
+
+.wealth-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+.wealth-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.wealth-value {
+  font-size: 2.75rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-top: 0.25rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.wealth-value.negative {
+  color: var(--accent-danger);
+}
+
+.wealth-divider {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0%, transparent 100%);
+  margin: 1.5rem 0;
+}
+
+.wealth-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.wealth-asset-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: all 0.2s ease;
+}
+
+.wealth-asset-item:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.wealth-asset-item.cash { border-left: 3px solid var(--accent-secondary); }
+.wealth-asset-item.stocks { border-left: 3px solid var(--accent-primary); }
+.wealth-asset-item.crypto { border-left: 3px solid #a855f7; }
+.wealth-asset-item.property { border-left: 3px solid var(--accent-warning); }
+.wealth-asset-item.liabilities { border-left: 3px solid var(--accent-danger); }
+
+.asset-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.wealth-asset-item.cash .asset-icon-wrapper { background: var(--accent-secondary-soft); color: var(--accent-secondary); }
+.wealth-asset-item.stocks .asset-icon-wrapper { background: var(--accent-primary-soft); color: var(--accent-primary); }
+.wealth-asset-item.crypto .asset-icon-wrapper { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.wealth-asset-item.property .asset-icon-wrapper { background: var(--accent-warning-soft); color: var(--accent-warning); }
+.wealth-asset-item.liabilities .asset-icon-wrapper { background: var(--accent-danger-soft); color: var(--accent-danger); }
+
+.asset-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.asset-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.asset-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Wealth Distribution Redesign */
+.wealth-dist-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  margin-bottom: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.wealth-dist-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.wealth-dist-icon {
+  font-size: 1.25rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.wealth-dist-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.wealth-dist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.35rem;
+}
+
+.wealth-dist-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.wealth-dist-stats {
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.wealth-dist-amt {
+  opacity: 0.9;
+}
+
+.wealth-dist-pct {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.wealth-dist-bar-bg {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.wealth-dist-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Wealth Sources Styling */
+.source-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-lg);
+  transition: all 0.2s ease;
+}
+
+.source-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.source-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+
+.source-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.source-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.source-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.source-amount {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.source-amount.positive {
+  color: var(--accent-primary);
+}
+
+.source-amount.negative {
+  color: var(--accent-danger);
+}
+
+/* Plan Progress Bar Customization */
+.progress-bar-fill {
+  background: linear-gradient(90deg, var(--accent-secondary) 0%, var(--accent-primary) 100%) !important;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+/* Speed Controller Buttons (Music Player theme) */
+.btn-speed-ctrl {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-speed-ctrl:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-speed-ctrl.active {
+  color: var(--accent-primary) !important;
+  background: var(--accent-primary-soft);
+  filter: drop-shadow(0 0 4px var(--accent-primary));
 }

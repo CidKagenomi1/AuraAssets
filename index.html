@@ -177,10 +177,10 @@
           </span>
           <span>Perpajakan</span>
         </a>
-        <a class="sidebar-link nav-btn" data-view="gambling" data-feature="gambling">
+        <!-- <a class="sidebar-link nav-btn" data-view="gambling" data-feature="gambling">
           <span class="sidebar-icon">🎰</span>
           <span>Gedung Kasino</span>
-        </a>
+        </a> -->
         <a class="sidebar-link nav-btn" data-view="history">
           <span class="sidebar-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
@@ -194,12 +194,12 @@
           </span>
           <span>Donasi</span>
         </a>
-        <a class="sidebar-link nav-btn" data-view="finance" data-feature="finance">
+        <!-- <a class="sidebar-link nav-btn" data-view="finance" data-feature="finance">
           <span class="sidebar-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14h-2V7h2v10zm4 0h-2v-4h2v4zm-8 0H8v-7h2v7z"/></svg>
           </span>
           <span>Laporan Keuangan</span>
-        </a>
+        </a> -->
         <a class="sidebar-link nav-btn" data-view="guide" data-feature="guide">
           <span class="sidebar-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
@@ -227,9 +227,17 @@
             <span>📅</span>
             <span id="game-date">1 Jan 2010</span>
           </div>
-          <div class="topbar-speed">
-            <span>⏱️</span>
-            <span id="game-speed">1x</span>
+          <div class="topbar-speed-controller" style="display: flex; align-items: center; gap: 0.15rem; background: rgba(0, 0, 0, 0.25); padding: 4px 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <button id="btn-time-pause" class="btn-speed-ctrl" title="Pause (Jeda)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <button id="btn-time-play" class="btn-speed-ctrl" title="Play (Mulai 1x)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <button id="btn-time-ff" class="btn-speed-ctrl" title="Percepat (2x / 5x / 10x)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+            </button>
+            <span id="game-speed" style="font-size: 0.75rem; font-weight: 800; color: var(--accent-primary); min-width: 24px; text-align: center; margin-left: 4px;">1x</span>
           </div>
           <div style="display:none;">
             <span id="days-to-payday">30 hari lagi</span>
@@ -261,6 +269,25 @@
               overflow: hidden;
               margin-bottom: 0;
             ">
+              <button id="btn-show-finance" class="btn btn-secondary btn-sm" style="
+                position: absolute;
+                top: 1.25rem;
+                right: 1.25rem;
+                z-index: 10;
+                font-size: 0.7rem;
+                font-weight: 800;
+                padding: 6px 12px;
+                height: auto;
+                width: auto;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                color: #fff;
+                border-radius: var(--radius-sm);
+                cursor: pointer;
+                transition: all 0.2s;
+              ">
+                📊 Laporan Keuangan
+              </button>
               <div class="balance-label" style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 0.5rem;">Kekayaan Bersih / Total Saldo Kas</div>
               <div class="balance-main" style="font-size: 3rem; font-weight: 800; color: #fff; margin-bottom: 0.5rem; display: flex; align-items: baseline; gap: 0.25rem;">
                 <span>$</span>
@@ -489,7 +516,7 @@
                   </div>
                 </div>
 
-                <div class="menu-card action-btn" data-action="gambling" data-feature="gambling">
+                <!-- <div class="menu-card action-btn" data-action="gambling" data-feature="gambling">
                   <div class="menu-icon-box" style="background: rgba(244, 63, 94, 0.15); color: #f43f5e;">
                     <span>🎰</span>
                   </div>
@@ -497,7 +524,7 @@
                     <div class="menu-card-title">Gedung Kasino</div>
                     <div class="menu-card-desc">Uji keberuntungan &amp; spekulasi</div>
                   </div>
-                </div>
+                </div> -->
 
                 <div class="menu-card action-btn" data-action="donate" data-feature="donate">
                   <div class="menu-icon-box">
@@ -509,7 +536,7 @@
                   </div>
                 </div>
 
-                <div class="menu-card action-btn" data-action="finance" data-feature="finance">
+                <!-- <div class="menu-card action-btn" data-action="finance" data-feature="finance">
                   <div class="menu-icon-box">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14h-2V7h2v10zm4 0h-2v-4h2v4zm-8 0H8v-7h2v7z"/></svg>
                   </div>
@@ -517,7 +544,7 @@
                     <div class="menu-card-title">Laporan</div>
                     <div class="menu-card-desc">Analisis arus kas</div>
                   </div>
-                </div>
+                </div> -->
 
                 <div class="menu-card action-btn" data-action="tax" data-feature="tax">
                   <div class="menu-icon-box">
@@ -591,54 +618,6 @@
           <div id="market-portfolio-list" class="tab-content asset-list" data-tab-content="portfolio" style="display:none;"></div>
         </section>
 
-        <!-- ======= PORTFOLIO VIEW ======= -->
-        <section id="view-portfolio" class="view-panel panel-card" style="display:none;">
-          <div class="panel-header">
-            <h2 class="section-title"><span>💼</span> Portofolio & Perencanaan</h2>
-          </div>
-
-          <div id="portfolio-wealth-summary" style="margin-bottom:1.5rem;"></div>
-
-          <div class="dashboard-grid" style="margin-bottom:1.5rem;">
-            <div class="col-span-6 planning-card">
-              <h3 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">📊 Distribusi Aset</h3>
-              <div id="wealth-distribution-table">
-                <!-- Simple table, no canvas -->
-              </div>
-            </div>
-            <div class="col-span-6 planning-card">
-              <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.75rem;">🎯 Target Kebebasan Finansial</h3>
-              <div class="planning-target">
-                <span class="text-muted" style="font-size:0.875rem;">Target:</span>
-                <span style="font-weight:700;color:var(--accent-primary);">$ 1.000.000.000</span>
-              </div>
-              <div class="progress-bar-container">
-                <div class="progress-bar-fill" id="plan-progress-fill"></div>
-              </div>
-              <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem;">
-                <span>Progres: <span id="plan-progress-text">0%</span></span>
-                <span>🏆 Whale Tier</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="planning-card" style="margin-bottom:1.5rem;">
-            <h3 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">💰 Kepemilikan Aset</h3>
-            <div class="view-tabs">
-              <button class="tab-btn active" data-portfolio-tab="stocks">Saham</button>
-              <button class="tab-btn" data-portfolio-tab="crypto">Kripto</button>
-              <button class="tab-btn" data-portfolio-tab="property">Properti</button>
-            </div>
-            <div id="portfolio-stocks" class="asset-list"></div>
-            <div id="portfolio-crypto" class="asset-list" style="display:none;"></div>
-            <div id="portfolio-property" class="asset-list" style="display:none;"></div>
-          </div>
-
-          <div class="planning-card">
-            <h3 style="font-size:1rem;font-weight:700;margin-bottom:1rem;">💵 Sumber Arus Kas</h3>
-            <div id="wealth-sources" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;"></div>
-          </div>
-        </section>
 
         <!-- ======= HISTORY VIEW ======= -->
         <section id="view-history" class="view-panel panel-card" style="display:none;">
@@ -676,32 +655,7 @@
     </main><!-- /app-main -->
 
     <!-- ======= BOTTOM NAV (Mobile) ======= -->
-    <nav class="app-bottom-nav">
-      <a class="bottom-nav-item nav-btn active" data-view="home">
-        <span class="bottom-nav-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>
-        </span>
-        <span>Beranda</span>
-      </a>
-      <a class="bottom-nav-item nav-btn" data-view="market" data-feature="market">
-        <span class="bottom-nav-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/></svg>
-        </span>
-        <span>Pasar</span>
-      </a>
-      <a class="bottom-nav-item nav-btn" data-view="portfolio" data-feature="portfolio">
-        <span class="bottom-nav-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>
-        </span>
-        <span>Portofolio</span>
-      </a>
-      <a class="bottom-nav-item nav-btn" data-view="history">
-        <span class="bottom-nav-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
-        </span>
-        <span>Riwayat</span>
-      </a>
-    </nav>
+    <nav class="app-bottom-nav"></nav>
 
   </div><!-- /app-shell -->
 

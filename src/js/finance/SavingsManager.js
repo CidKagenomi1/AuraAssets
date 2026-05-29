@@ -9,12 +9,17 @@ import financeManager from './FinanceManager.js';
 
 class SavingsManager {
     constructor() {
-        this.interestRate = 0.005; // 0.5% per month = 6% per year
+        this.interestRate = 0.005; // 0.5% per month = 6% per year (default)
 
         // Process interest monthly
         timeManager.onMonth(() => {
+            // Use custom rate if set by player
+            const customRate = gameState.get('savings.customInterestRate');
+            if (customRate !== undefined) this.interestRate = customRate;
+
             this.processMonthlyInterest();
             this.processAutoDeposit();
+            this.processReksaDanaReturns();
         });
     }
 
@@ -152,14 +157,47 @@ class SavingsManager {
     }
 
     /**
+     * Process monthly reksa dana returns
+     */
+    processReksaDanaReturns() {
+        const rdPortfolio = gameState.get('savings.reksaDana') || {};
+        const rdFunds = [
+            { id: 'pasar_uang', nav: 1.042, returnMonthly: 0.004 },
+            { id: 'pendapatan_tetap', nav: 1.238, returnMonthly: 0.0068 },
+            { id: 'campuran', nav: 2.115, returnMonthly: 0.01125 },
+            { id: 'saham', nav: 3.871, returnMonthly: 0.01833 },
+        ];
+
+        let totalReturn = 0;
+        rdFunds.forEach(f => {
+            const holding = rdPortfolio[f.id];
+            if (!holding || holding.units <= 0) return;
+            const currentValue = holding.units * f.nav * 1000;
+            const monthReturn = Math.floor(currentValue * f.returnMonthly);
+            if (monthReturn > 0) {
+                // Grow NAV slightly
+                f.nav = f.nav * (1 + f.returnMonthly * 0.1);
+                totalReturn += monthReturn;
+            }
+        });
+
+        if (totalReturn > 0) {
+            financeManager.addIncome(totalReturn, 'Investasi', 'Return Reksa Dana Bulanan');
+            gameState.emit('rdReturnReceived', { amount: totalReturn });
+        }
+    }
+
+    /**
      * Get interest rate info
      */
     getInterestInfo() {
+        const customRate = gameState.get('savings.customInterestRate');
+        const rate = customRate !== undefined ? customRate : this.interestRate;
         return {
-            monthlyRate: this.interestRate,
-            yearlyRate: this.interestRate * 12,
-            monthlyRatePercent: this.interestRate * 100,
-            yearlyRatePercent: this.interestRate * 12 * 100
+            monthlyRate: rate,
+            yearlyRate: rate * 12,
+            monthlyRatePercent: rate * 100,
+            yearlyRatePercent: rate * 12 * 100
         };
     }
 }
