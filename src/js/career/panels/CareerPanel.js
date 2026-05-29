@@ -44,7 +44,7 @@ class CareerPanel {
                     Select the professional line you wish to pursue. Each track contains unique titles, distinct salary brackets, and progression tracks.
                 </p>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 700px; margin: 0 auto;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2rem; max-width: 700px; margin: 0 auto;">
                     <!-- Corporate Path -->
                     <div class="card hover-scale select-path-btn" data-path="corporate" style="background: rgba(59, 130, 246, 0.05); border: 2px solid var(--border-color); cursor: pointer; transition: all 0.3s; padding: 2rem; border-radius: var(--radius-lg); text-align: center;">
                         <span style="font-size: 3.5rem;">🏢</span>
@@ -98,7 +98,7 @@ class CareerPanel {
                     <div style="height: 100%; width: ${xpProg.percent}%; background: #3b82f6; transition: width 0.5s;"></div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                     <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: var(--radius-md);">
                         <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Gaji Bulanan</div>
                         <div style="font-size: 1.5rem; font-weight: 800; color: #bef264; margin-top: 5px;">

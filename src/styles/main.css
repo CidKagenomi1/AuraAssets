@@ -1315,3 +1315,222 @@ html, body {
   background: var(--accent-primary-soft);
   filter: drop-shadow(0 0 4px var(--accent-primary));
 }
+
+/* ========================================
+   RESPONSIVE MOBILE AUTO-FIT STYLES
+   ======================================== */
+
+@media (max-width: 1024px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 13.5px;
+  }
+  .view-container {
+    padding: 1rem !important;
+  }
+  .dashboard-grid {
+    gap: 1rem !important;
+  }
+  h1, .h1 { font-size: 1.75rem !important; }
+  h2, .h2 { font-size: 1.35rem !important; }
+  h3, .h3 { font-size: 1.1rem !important; }
+  .section-title { font-size: 1.1rem !important; }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 12px;
+  }
+  .view-container {
+    padding: 0.75rem !important;
+  }
+  .dashboard-grid {
+    gap: 0.75rem !important;
+  }
+  .balance-main {
+    font-size: 2.25rem !important;
+  }
+  .hero-balance-card {
+    padding: 1.25rem 1rem !important;
+  }
+  #finance-chart {
+    height: 280px !important;
+    min-height: 240px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .balance-main {
+    font-size: 1.85rem !important;
+  }
+}
+
+/* Portfolio property layout responsive adjustment */
+.portfolio-prop-item {
+  cursor: default;
+  display: grid;
+  grid-template-columns: 40px 1fr auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+@media (max-width: 580px) {
+  .portfolio-prop-item {
+    grid-template-columns: 32px 1fr auto;
+    gap: 0.5rem;
+  }
+  .portfolio-prop-item .btn-sell-portfolio-prop {
+    grid-column: span 3;
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 6px 12px;
+    height: auto;
+  }
+}
+
+/* Loan panel responsive layout */
+.loan-layout-grid {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+.loan-sidebar-sticky {
+  position: sticky;
+  top: 1.5rem;
+}
+@media (max-width: 900px) {
+  .loan-layout-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem;
+  }
+  .loan-sidebar-sticky {
+    position: static !important;
+  }
+}
+
+/* Tax panel responsive layout */
+.tax-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 2rem;
+  margin-top: 2rem;
+  align-items: start;
+}
+@media (max-width: 768px) {
+  .tax-layout-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem;
+  }
+}
+
+/* Topbar mobile adjustments */
+@media (max-width: 480px) {
+  .app-topbar {
+    height: auto !important;
+    padding: 0.5rem 0.75rem !important;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .topbar-left {
+    gap: 0.5rem !important;
+    flex-wrap: wrap;
+  }
+  .topbar-right {
+    gap: 0.35rem !important;
+  }
+  .topbar-time {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.75rem !important;
+  }
+  .topbar-speed-controller {
+    padding: 2px 6px !important;
+  }
+  .btn-speed-ctrl {
+    font-size: 0.75rem !important;
+    padding: 2px 4px !important;
+  }
+  #trading-chart-container {
+    height: 280px !important;
+  }
+}
+
+/* Business page responsive adjustments */
+.biz-page-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: var(--bg-root);
+  z-index: 10;
+}
+.biz-tab-group {
+  display: flex;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 4px;
+  border-radius: 30px;
+  border: 1px solid var(--border-color);
+}
+@media (max-width: 900px) {
+  .biz-page-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 1rem !important;
+    padding: 1rem !important;
+  }
+  .biz-tab-group {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    flex-wrap: nowrap !important;
+    border-radius: 12px !important;
+    padding: 6px !important;
+    width: 100% !important;
+  }
+  .biz-tab-group::-webkit-scrollbar {
+    height: 4px;
+  }
+  .biz-tab-group::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+  .biz-tab-group .tab-btn {
+    padding: 6px 12px !important;
+    font-size: 0.75rem !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* Trading page responsive left column */
+.trading-left-col {
+  flex: 1.2;
+  padding: 1.5rem;
+  border-right: 1px solid var(--border-color);
+  background: rgba(0,0,0,0.1);
+  min-width: 320px;
+  box-sizing: border-box;
+}
+@media (max-width: 768px) {
+  .trading-left-col {
+    padding: 1rem !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    min-width: 100% !important;
+    width: 100% !important;
+  }
+}
+@media (max-width: 480px) {
+  .trading-left-col {
+    padding: 0.75rem !important;
+  }
+}

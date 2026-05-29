@@ -44,7 +44,7 @@ class TaxPanel {
                         </div>
                     ` : ''}
 
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
                         <div class="tax-stat-box">
                             <div class="label">EST. TAX DUE</div>
                             <div class="value">$ ${financeManager.formatCurrency(summary.taxDue, true)}</div>
@@ -60,7 +60,7 @@ class TaxPanel {
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 300px; gap: 2rem; margin-top: 2rem; align-items: start;">
+                <div class="tax-layout-grid">
                     
                     <!-- Left: Detailed Breakdown -->
                     <div class="card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color);">

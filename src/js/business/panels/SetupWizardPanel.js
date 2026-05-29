@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SetupWizardPanel.js - Modular Business Initialization and Registration Wizard
  * Handles the step-by-step company registration, corporate entity type choice (UMKM vs Startup),
  * name validation, and official deed incorporation.
@@ -25,7 +25,7 @@ export const SetupWizardPanel = {
                         <p class="text-muted">Tentukan model bisnis awal Anda untuk dikembangkan.</p>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
                         <!-- UMKM Option -->
                         <div class="biz-type-card action-btn" data-type="umkm" style="
                             padding: 2.2rem; border: 1px solid var(--border-color); border-radius: 20px; 
@@ -105,7 +105,7 @@ export const SetupWizardPanel = {
                                     style="width: 100%; border: none; background: transparent; font-size: 1.8rem; font-family: Georgia, serif; font-weight: 700; color: #111; outline: none; padding: 0.25rem 0;">
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
                                 <div style="border-bottom: 2px solid #ccc; padding-bottom: 0.5rem;">
                                     <label style="font-size: 0.75rem; color: #888; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 4px;">Sektor Bisnis Utama</label>
                                     <select id="biz-industry-select" style="width: 100%; border: none; background: transparent; font-size: 1.25rem; font-family: Georgia, serif; font-weight: 700; color: #111; outline: none; cursor: pointer; padding: 0.25rem 0;">

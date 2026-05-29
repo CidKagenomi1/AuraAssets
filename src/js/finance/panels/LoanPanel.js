@@ -18,10 +18,10 @@ class LoanPanel {
         const content = `
             <div class="hybrid-page-container" style="padding: 1.5rem; max-width: 1200px; margin: 0 auto; width: 100%;">
                 
-                <div style="display: grid; grid-template-columns: 350px 1fr; gap: 2rem; align-items: start;">
+                <div class="loan-layout-grid">
                     
                     <!-- Left: Credit Status -->
-                    <div style="position: sticky; top: 1.5rem;">
+                    <div class="loan-sidebar-sticky">
                         <div class="card credit-score-card-premium">
                             <div class="credit-glow" style="background: var(--accent-${creditLevel.color === 'gold' ? 'gold' : creditLevel.color})"></div>
                             <div style="position: relative; z-index: 2;">
@@ -134,7 +134,7 @@ class LoanPanel {
                             </div>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.25rem;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem;">
                             ${products.map(p => {
                                 const isCheatActive = bankSystem.isCheatActive();
                                 const interestText = isCheatActive ? '0% INTEREST (FREE)' : `${(p.interestRate * 100).toFixed(1)}% INTEREST`;

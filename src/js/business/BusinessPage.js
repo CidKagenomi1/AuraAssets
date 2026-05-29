@@ -209,7 +209,7 @@ class BusinessPage {
         const brandColor = biz.type === 'startup' ? '#818cf8' : 'var(--accent-primary)';
         
         this.container.innerHTML = `
-            <div class="panel-header" style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; position: sticky; top:0; background: var(--bg-root); z-index: 10;">
+            <div class="biz-page-header">
                 <div style="display: flex; align-items: center; gap: 1rem;">
                     <button class="btn-back" id="biz-back" style="background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;">←</button>
                     <div>
@@ -222,7 +222,7 @@ class BusinessPage {
                         </div>
                     </div>
                 </div>
-                <div class="tab-group" style="display: flex; gap: 0.4rem; background: rgba(255,255,255,0.03); padding: 4px; border-radius: 30px; border: 1px solid var(--border-color);">
+                <div class="biz-tab-group">
                     <button class="tab-btn ${this.activeTab === 'overview' ? 'active' : ''}" data-tab="overview" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">Dashboard</button>
                     ${biz.industry === 'tech' ? `
                     <button class="tab-btn ${this.activeTab === 'tech' ? 'active' : ''}" data-tab="tech" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🖥️ Lab R&D & Server</button>

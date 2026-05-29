@@ -339,6 +339,10 @@ class FinancePanel {
                         .fp-four-col { grid-template-columns: 1fr 1fr !important; }
                         .fp-achievement-cols { grid-template-columns: 1fr !important; }
                     }
+                    @media (max-width: 580px) {
+                        .fp-three-col { grid-template-columns: 1fr !important; }
+                        .fp-four-col { grid-template-columns: 1fr !important; }
+                    }
                 </style>
 
                 <!-- Tab Header Group -->
@@ -859,7 +863,7 @@ class FinancePanel {
         if (propertyEl) {
             if (ownedProperties.length) {
                 propertyEl.innerHTML = ownedProperties.map(h => `
-                  <div class="asset-item" data-id="${h.id}" data-type="property" style="cursor: default; display: grid; grid-template-columns: 40px 1fr auto auto; align-items: center; gap: 0.75rem;">
+                  <div class="asset-item portfolio-prop-item" data-id="${h.id}" data-type="property">
                     <div class="asset-icon" style="font-size: 1.5rem;">${h.icon}</div>
                     <div class="asset-info" style="min-width: 0;">
                       <div class="asset-name" style="font-weight: 800; font-size: 0.9rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${h.name}</div>

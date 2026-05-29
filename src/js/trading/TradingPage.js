@@ -218,7 +218,7 @@ class TradingPage {
         <div style="display: flex; flex-direction: row; flex: 1; overflow-y: auto; flex-wrap: wrap;">
           
           <!-- LEFT COLUMN: MARKET INTELLIGENCE -->
-          <div style="flex: 1.2; padding: 1.5rem; border-right: 1px solid var(--border-color); background: rgba(0,0,0,0.1); min-width: 320px;">
+          <div class="trading-left-col">
             
 
 
