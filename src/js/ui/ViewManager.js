@@ -730,9 +730,6 @@ class ViewManager {
       });
     });
   }
-}
-
-  }
 
   // ===== RENDER STAKING & MINING TABS =====
   renderStakingMiningView() {
