@@ -995,6 +995,12 @@ class ViewManager {
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; width: 100%;">
             ${historyBotsHTML}
           </div>
+        </div>
+      </div>
+    `;
+  }
+}
+
 // ===== BIND WIN ACTIONS =====
 window.buyMiningRig = (type) => {
   try {
