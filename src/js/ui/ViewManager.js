@@ -194,6 +194,11 @@ class ViewManager {
 
   loadViewContent(view) {
     switch (view) {
+      case 'gambling':
+        import('./panels/GamblingPanel.js').then(module => {
+          module.default.show();
+        });
+        break;
       case 'market':
         this.updateMarketView();
         break;

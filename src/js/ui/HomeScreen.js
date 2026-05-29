@@ -332,6 +332,9 @@ class HomeScreen {
 
     handleQuickAction(action) {
         switch (action) {
+            case 'gambling':
+                import('./panels/GamblingPanel.js').then(m => m.default.show());
+                break;
             case 'work':
                 import('./WorkPage.js').then(m => m.default.open());
                 break;
