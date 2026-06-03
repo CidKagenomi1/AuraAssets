@@ -245,7 +245,7 @@ export const BusinessModule = {
             </div>
 
             <!-- Rough Condition 6-Grid Stats -->
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;">
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
                 <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 0.75rem; border-radius: var(--radius-md);">
                     <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem; font-weight:700;">Kas Treasury</div>
                     <div style="font-size: 0.95rem; font-weight: 800; color: #fff;">$ ${formatCompact(cash)}</div>

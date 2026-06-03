@@ -65,6 +65,11 @@ class BusinessTycoonGame {
             setInterval(() => {
                 gameState.checkSession();
             }, 10000);
+
+            // BUG-05 FIX: Handle session expiry with non-blocking notification
+            document.addEventListener('sessionExpired', (e) => {
+                ui.warning(e.detail?.message || 'Sesi Anda telah berakhir. Silakan login kembali.', '⏰ Sesi Berakhir');
+            }, { once: true });
             
             // If not a first-time player, finish loading immediately
             if (gameState.get('player.createdAt') && gameState.get('player.role')) {
@@ -383,8 +388,12 @@ class BusinessTycoonGame {
         }
     }
     save() {
-        gameState.save();
-        ui.success('Game tersimpan!');
+        const saved = gameState.save();
+        if (saved) {
+            ui.success('Game tersimpan!');
+        } else {
+            ui.error('Gagal menyimpan game!');
+        }
     }
 }
 

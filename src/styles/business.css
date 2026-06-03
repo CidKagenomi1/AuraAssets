@@ -517,3 +517,74 @@
         font-size: var(--font-size-md);
     }
 }
+
+/* ========================================
+   RESPONSIVE COMPACT OVERRIDES
+   ======================================== */
+@media (max-width: 600px) {
+  .wizard-card {
+    padding: var(--space-md) !important;
+  }
+  .business-types-grid {
+    gap: var(--space-sm) !important;
+  }
+  .biz-type-card {
+    padding: var(--space-sm) !important;
+  }
+  .biz-icon {
+    font-size: 2rem !important;
+    margin-bottom: var(--space-sm) !important;
+  }
+  .stats-grid {
+    gap: var(--space-sm) !important;
+    margin-bottom: var(--space-md) !important;
+  }
+  .stat-card {
+    padding: var(--space-sm) !important;
+  }
+  .stat-value {
+    font-size: 1.15rem !important;
+  }
+  .chart-container-biz {
+    padding: var(--space-sm) !important;
+    min-height: 160px !important;
+  }
+  .ops-panel {
+    padding: var(--space-sm) !important;
+  }
+  .ops-item {
+    padding: var(--space-sm) 0 !important;
+    gap: var(--space-xs) !important;
+  }
+  .ops-icon {
+    font-size: 1.5rem !important;
+  }
+
+  /* Deed Certificate Mobile Optimizations */
+  #biz-step-2 > div {
+    padding: 1.5rem 1rem !important;
+    border-width: 6px !important;
+  }
+  #biz-step-2 h2 {
+    font-size: 1.35rem !important;
+  }
+  #biz-step-2 div {
+    font-size: 0.85rem !important;
+    line-height: 1.5 !important;
+    margin-bottom: 1.5rem !important;
+  }
+  #biz-step-2 label {
+    font-size: 0.65rem !important;
+  }
+  #biz-name-input, #biz-capital-input {
+    font-size: 1.15rem !important;
+  }
+  #biz-industry-select, #biz-type-display {
+    font-size: 0.95rem !important;
+  }
+  #btn-start-business {
+    padding: 0.8rem 1.5rem !important;
+    font-size: 0.95rem !important;
+    width: 100% !important;
+  }
+}

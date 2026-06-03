@@ -19,6 +19,7 @@ import { countUp, pulseElement, staggerFadeUp, createFloatingText } from './Anim
 class HomeScreen {
     constructor() {
         this._lastBalance = 0;
+        this.activeTimeframe = '1M';
     }
 
     init() {
@@ -59,6 +60,16 @@ class HomeScreen {
         gameState.on('transaction', () => {
             this.updateRecentTransactions();
             this.updateDashboardChart();
+        });
+        gameState.on('tickBalanceUpdate', () => {
+            if (this.activeTimeframe === '1D') {
+                this.updateDashboardChart();
+            }
+        });
+        gameState.on('dailyBalanceUpdate', () => {
+            if (this.activeTimeframe !== '1D') {
+                this.updateDashboardChart();
+            }
         });
 
         // Stagger fade-up cards on load
@@ -346,6 +357,35 @@ class HomeScreen {
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 import('./ViewManager.js').then(m => m.default.switchView(btn.dataset.view));
+            });
+        });
+
+        // Mobile footer tabs switcher
+        const footerTabBtns = document.querySelectorAll('.footer-tab-btn');
+        const milestonesSection = document.getElementById('footer-milestones-section');
+        const transactionsSection = document.getElementById('footer-transactions-section');
+
+        footerTabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                footerTabBtns.forEach(b => {
+                    b.classList.remove('active');
+                    b.style.color = 'var(--text-muted)';
+                    b.style.background = 'rgba(255,255,255,0.02)';
+                    b.style.borderColor = 'var(--border-color)';
+                });
+                btn.classList.add('active');
+                btn.style.color = 'var(--accent-primary)';
+                btn.style.background = 'var(--accent-primary-soft)';
+                btn.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+
+                const target = btn.dataset.tabTarget;
+                if (target === 'milestones') {
+                    if (milestonesSection) milestonesSection.style.display = 'block';
+                    if (transactionsSection) transactionsSection.style.display = 'none';
+                } else {
+                    if (milestonesSection) milestonesSection.style.display = 'none';
+                    if (transactionsSection) transactionsSection.style.display = 'block';
+                }
             });
         });
     }
@@ -694,13 +734,17 @@ class HomeScreen {
             onShow: () => {
                 // Save progress click
                 document.getElementById('btn-save-progress')?.addEventListener('click', (e) => {
-                    gameState.save();
-                    ui.success('Progres permainan berhasil disimpan ke slot karakter: ' + (gameState.activeCharacter || 'Pemain'), '💾 Sukses Menyimpan');
-                    try {
-                        import('./Animations.js').then(anim => {
-                            anim.createFloatingText(e.target, '💾 DISIMPAN', '#10b981');
-                        });
-                    } catch (err) {}
+                    const success = gameState.save();
+                    if (success) {
+                        ui.success('Progres permainan berhasil disimpan ke slot karakter: ' + (gameState.activeCharacter || 'Pemain'), '💾 Sukses Menyimpan');
+                        try {
+                            import('./Animations.js').then(anim => {
+                                anim.createFloatingText(e.target, '💾 DISIMPAN', '#10b981');
+                            });
+                        } catch (err) {}
+                    } else {
+                        ui.error('Gagal menyimpan progres permainan. Memori penuh atau Anda belum login.', '💾 Gagal Menyimpan');
+                    }
                 });
 
                 // Change Account Username click
@@ -761,9 +805,13 @@ class HomeScreen {
                         confirmClass: 'btn-primary'
                     });
                     if (confirmed) {
-                        gameState.save();
-                        localStorage.removeItem(`businessTycoon_activeChar_${lowerUser}`);
-                        location.reload();
+                        const saved = gameState.save();
+                        if (saved) {
+                            localStorage.removeItem(`businessTycoon_activeChar_${lowerUser}`);
+                            location.reload();
+                        } else {
+                            ui.error('Gagal menyimpan progres sebelum membuat karakter baru.', 'Error');
+                        }
                     }
                 });
 
@@ -772,7 +820,11 @@ class HomeScreen {
                     btn.addEventListener('click', () => {
                         const charName = btn.dataset.charname;
                         try {
-                            gameState.save(); // Save current profile first
+                            const saved = gameState.save(); // Save current profile first
+                            if (!saved) {
+                                ui.error('Gagal menyimpan progres saat ini sebelum berpindah karakter.', 'Error');
+                                return;
+                            }
                             localStorage.setItem(`businessTycoon_activeChar_${lowerUser}`, charName);
                             ui.success(`Membuka karakter: ${charName}...`, '👤 Berhasil Masuk');
                             setTimeout(() => location.reload(), 1000);
@@ -958,6 +1010,7 @@ class HomeScreen {
 
             this.dashboardChart = echarts.init(chartDom, 'dark');
             this.updateDashboardChart();
+            this.bindTimeframeButtons();
 
             const resizeHandler = () => {
                 if (this.dashboardChart) this.dashboardChart.resize();
@@ -967,57 +1020,83 @@ class HomeScreen {
         });
     }
 
+    bindTimeframeButtons() {
+        const container = document.getElementById('balance-card');
+        if (!container) return;
+
+        container.querySelectorAll('.btn-timeframe').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const tf = btn.dataset.timeframe;
+                this.activeTimeframe = tf;
+
+                // Update active state class
+                container.querySelectorAll('.btn-timeframe').forEach(b => {
+                    b.classList.remove('active');
+                    // Reset styling to default secondary style
+                    b.style.background = 'rgba(255,255,255,0.05)';
+                    b.style.borderColor = 'rgba(255,255,255,0.1)';
+                    b.style.color = 'var(--text-secondary)';
+                });
+                btn.classList.add('active');
+                btn.style.background = 'rgba(16,185,129,0.15)';
+                btn.style.borderColor = 'rgba(16,185,129,0.3)';
+                btn.style.color = 'var(--accent-primary)';
+
+                this.updateDashboardChart();
+            };
+        });
+    }
+
     updateDashboardChart() {
         if (!this.dashboardChart) {
             this.initDashboardChart();
             return;
         }
 
-        const currentMonth = gameState.get('gameTime.month') || 1;
-        const currentYear = gameState.get('gameTime.year') || 2010;
-        const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-        const historyData = [];
-
-        for (let i = 11; i >= 0; i--) {
-            let m = currentMonth - i;
-            let y = currentYear;
-            if (m <= 0) {
-                m += 12;
-                y -= 1;
-            }
-            historyData.push({
-                month: m,
-                year: y,
-                label: `${monthNames[m - 1]} ${y}`,
-                bankAtEnd: 0
-            });
+        // Initialize daily balance history if empty
+        if (!gameState.state.dailyBalanceHistory || gameState.state.dailyBalanceHistory.length === 0) {
+            gameState.prepopulateDailyHistory();
+        }
+        if (!gameState.state.tickBalanceHistory || gameState.state.tickBalanceHistory.length === 0) {
+            gameState.prepopulateTickHistory();
         }
 
-        const allTransactions = gameState.get('transactions') || [];
-        const oldestTx = allTransactions[allTransactions.length - 1];
-        const initialBalance = oldestTx ? (oldestTx.balance - (oldestTx.amount || 0)) : gameState.getBalance();
+        const timeframe = this.activeTimeframe || '1M';
+        let labels = [];
+        let bankAtEnds = [];
+        let tooltipTitle = 'Tgl';
 
-        historyData.forEach((h, idx) => {
-            const monthTx = allTransactions.filter(t => t.gameTime?.month === h.month && t.gameTime?.year === h.year);
-
-            if (monthTx.length > 0) {
-                h.bankAtEnd = monthTx[0].balance || 0;
-            } else {
-                if (idx > 0) {
-                    h.bankAtEnd = historyData[idx - 1].bankAtEnd;
-                } else {
-                    const beforeTx = allTransactions.find(t => {
-                        const tVal = (t.gameTime?.year || 0) * 12 + (t.gameTime?.month || 0);
-                        const hVal = h.year * 12 + h.month;
-                        return tVal < hVal;
-                    });
-                    h.bankAtEnd = beforeTx ? (beforeTx.balance || 0) : initialBalance;
-                }
+        if (timeframe === '1D') {
+            const history = gameState.state.tickBalanceHistory || [];
+            labels = history.map(h => h.time);
+            bankAtEnds = history.map(h => h.balance);
+            tooltipTitle = 'Waktu';
+        } else if (timeframe === '1W') {
+            const history = (gameState.state.dailyBalanceHistory || []).slice(-7);
+            labels = history.map(h => `${h.day}/${h.month}`);
+            bankAtEnds = history.map(h => h.balance);
+            tooltipTitle = 'Tgl';
+        } else if (timeframe === '1M') {
+            const history = (gameState.state.dailyBalanceHistory || []).slice(-30);
+            labels = history.map(h => `${h.day}/${h.month}`);
+            bankAtEnds = history.map(h => h.balance);
+            tooltipTitle = 'Tgl';
+        } else if (timeframe === 'YTD') {
+            const currentYear = gameState.get('gameTime.year') || 2010;
+            let history = (gameState.state.dailyBalanceHistory || []).filter(h => h.year === currentYear);
+            if (history.length < 2) {
+                history = (gameState.state.dailyBalanceHistory || []).slice(-30);
             }
-        });
-
-        const labels = historyData.map(h => h.label);
-        const bankAtEnds = historyData.map(h => h.bankAtEnd);
+            labels = history.map(h => `${h.day}/${h.month}`);
+            bankAtEnds = history.map(h => h.balance);
+            tooltipTitle = 'Tgl';
+        } else if (timeframe === '1Y') {
+            const history = gameState.state.dailyBalanceHistory || [];
+            labels = history.map(h => `${h.day}/${h.month}`);
+            bankAtEnds = history.map(h => h.balance);
+            tooltipTitle = 'Tgl';
+        }
 
         const option = {
             backgroundColor: 'transparent',
@@ -1043,7 +1122,7 @@ class HomeScreen {
                     const displayVal = `$ ${new Intl.NumberFormat('en-US').format(Math.round(item.value))}`;
                     return `
                         <div style="font-size: 11px;">
-                            <div style="color: #a1a1aa; margin-bottom: 2px;">${item.axisValue}</div>
+                            <div style="color: #a1a1aa; margin-bottom: 2px;">${tooltipTitle} ${item.axisValue}</div>
                             <div style="color: #10b981; font-weight: 700;">${displayVal}</div>
                         </div>
                     `;

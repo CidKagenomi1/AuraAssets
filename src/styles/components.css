@@ -203,3 +203,67 @@
   cursor: pointer;
 }
 .btn-close-modal:hover { color: var(--text-main); }
+
+/* ========================================
+   RESPONSIVE COMPACT MODIFICATIONS
+   ======================================== */
+@media (max-width: 768px) {
+  .modal-header {
+    padding: 0.75rem 1rem !important;
+  }
+  .modal-title {
+    font-size: 1.05rem !important;
+  }
+  .modal-body {
+    padding: 0.75rem 1rem !important;
+  }
+  .modal-footer {
+    padding: 0.75rem 1rem !important;
+    gap: 0.5rem !important;
+  }
+  .panel-card {
+    padding: 0.75rem 1rem !important;
+    margin-bottom: 0.75rem !important;
+    border-radius: var(--radius-lg) !important;
+  }
+  .business-card {
+    padding: 1rem !important;
+    margin-top: 1rem !important;
+    border-radius: var(--radius-lg) !important;
+  }
+  .business-metrics {
+    padding: 0.5rem !important;
+    gap: 0.5rem !important;
+    margin: 0.75rem 0 !important;
+  }
+  .job-card {
+    padding: 0.75rem !important;
+    gap: 0.5rem !important;
+  }
+  .career-grid {
+    gap: 0.75rem !important;
+    margin-top: 0.75rem !important;
+  }
+  .earn-widget {
+    padding: 0.75rem !important;
+    gap: 0.5rem !important;
+  }
+  .news-item {
+    padding: 0.5rem 0.75rem !important;
+  }
+}
+
+/* Safety text wrapping and word breaking rules for all description and text paragraphs */
+p, .desc, .description, [class*="-desc"], [class*="-description"], .biz-pros, .lock-req, .ops-info p {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  max-width: 100% !important;
+}
+
+@media (max-width: 600px) {
+  /* Collapse all wide inline grid template columns to 1fr on mobile to prevent horizontal overflow */
+  [style*="minmax(2"], [style*="minmax(3"], [style*="minmax(4"] {
+    grid-template-columns: 1fr !important;
+  }
+}

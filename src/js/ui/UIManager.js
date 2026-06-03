@@ -1,4 +1,4 @@
-﻿/**
+/**
  * UIManager.js - Core UI Management
  * Handles modals, toasts, and common UI interactions
  */
@@ -185,8 +185,17 @@ class UIManager {
                 inputType = 'text',
                 defaultValue = '',
                 confirmText = 'OK',
-                cancelText = 'Batal'
+                cancelText = 'Batal',
+                isNumeric = false  // set true to show numeric helpers
             } = options;
+
+            const numericExtras = (inputType === 'number' || isNumeric) ? `
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:0.6rem; align-items:center;">
+                <span style="font-size:0.7rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Tambah:</span>
+                <button type="button" class="btn btn-sm btn-secondary zero-append" data-zeros="0" style="padding:3px 10px;font-size:0.8rem;font-weight:800;height:auto;">+0</button>
+                <button type="button" class="btn btn-sm btn-secondary zero-append" data-zeros="00" style="padding:3px 10px;font-size:0.8rem;font-weight:800;height:auto;">+00</button>
+                <button type="button" class="btn btn-sm btn-secondary zero-append" data-zeros="000" style="padding:3px 10px;font-size:0.8rem;font-weight:800;height:auto;">+000</button>
+              </div>` : '';
 
             const content = `
         <div class="modal-header">
@@ -195,14 +204,17 @@ class UIManager {
         </div>
         <div class="modal-body">
           ${message ? `<p style="color: var(--text-secondary); margin-bottom: var(--space-md);">${message}</p>` : ''}
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom:0;">
             <input 
-              type="${inputType}" 
+              type="text"
+              inputmode="${inputType === 'number' || isNumeric ? 'decimal' : 'text'}"
               class="form-input input-lg" 
               id="prompt-input"
               placeholder="${placeholder}"
               value="${defaultValue}"
+              autocomplete="off"
             >
+            ${numericExtras}
           </div>
         </div>
         <div class="modal-footer">
@@ -216,14 +228,32 @@ class UIManager {
             const modalContent = document.getElementById('modal-content');
             const input = modalContent.querySelector('#prompt-input');
 
+            // Live comma formatting for numeric inputs
+            if (inputType === 'number' || isNumeric) {
+                this._setupLiveCommaFormat(input);
+            }
+
             // Focus input
             setTimeout(() => input.focus(), 100);
 
+            // Zero-append buttons (+0, +00, +000)
+            modalContent.querySelectorAll('.zero-append').forEach(btn => {
+                btn.onclick = () => {
+                    const raw = this._getRawNumericValue(input.value);
+                    const newVal = raw + btn.dataset.zeros;
+                    input.value = this._formatWithCommas(newVal);
+                    input.focus();
+                };
+            });
+
             // Enter key submits
-            input.onkeypress = (e) => {
+            input.onkeydown = (e) => {
                 if (e.key === 'Enter') {
+                    const value = (inputType === 'number' || isNumeric)
+                        ? this._getRawNumericValue(input.value)
+                        : input.value;
                     this.closeModal();
-                    resolve(input.value);
+                    resolve(value);
                 }
             };
 
@@ -233,14 +263,17 @@ class UIManager {
             };
 
             modalContent.querySelector('.btn-confirm').onclick = () => {
+                const value = (inputType === 'number' || isNumeric)
+                    ? this._getRawNumericValue(input.value)
+                    : input.value;
                 this.closeModal();
-                resolve(input.value);
+                resolve(value);
             };
         });
     }
 
     /**
-     * Show money input modal
+     * Show money input modal — with comma formatting, MAX, copy, and zero-append buttons
      */
     promptMoney(options) {
         return new Promise((resolve) => {
@@ -264,24 +297,65 @@ class UIManager {
           <button class="modal-close">✕</button>
         </div>
         <div class="modal-body">
-          <div class="input-prefix" style="margin-bottom: var(--space-md);">
-            <span class="prefix">$</span>
-            <input 
-              type="number" 
-              class="form-input input-money" 
-              id="money-input"
-              placeholder="0"
-              min="0"
-              max="${maxAmount}"
-            >
+
+          <!-- Main Input Row -->
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.75rem;">
+            <div class="input-prefix" style="flex:1; margin-bottom:0;">
+              <span class="prefix">$</span>
+              <input 
+                type="text"
+                inputmode="decimal"
+                class="form-input input-money" 
+                id="money-input"
+                placeholder="0"
+                autocomplete="off"
+              >
+            </div>
+            <button type="button" id="money-copy-btn" title="Salin nilai" style="
+              flex-shrink:0; padding:0 12px; height:44px; border-radius:var(--radius-md);
+              border:1px solid var(--border-color); background:rgba(255,255,255,0.04);
+              color:var(--text-main); font-size:1rem; cursor:pointer; transition:all 0.2s;
+            ">📋</button>
+            ${isFinite(maxAmount) ? `
+            <button type="button" id="money-max-btn" style="
+              flex-shrink:0; padding:0 10px; height:44px; border-radius:var(--radius-md);
+              border:1px solid rgba(16,185,129,0.3); background:rgba(16,185,129,0.08);
+              color:var(--accent-primary); font-weight:800; font-size:0.78rem; cursor:pointer; transition:all 0.2s;
+            ">MAX</button>` : ''}
           </div>
+
+          <!-- Zero-Append Shortcuts -->
+          <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:0.75rem;">
+            <span style="font-size:0.68rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Tambah nol:</span>
+            <button type="button" class="zero-append" data-zeros="0" style="
+              padding:4px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-color);
+              background:rgba(255,255,255,0.05);color:var(--text-main);font-size:0.82rem;
+              font-weight:800;cursor:pointer;transition:all 0.15s;
+              font-family:monospace;letter-spacing:0.05em;
+            ">+0</button>
+            <button type="button" class="zero-append" data-zeros="00" style="
+              padding:4px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-color);
+              background:rgba(255,255,255,0.05);color:var(--text-main);font-size:0.82rem;
+              font-weight:800;cursor:pointer;transition:all 0.15s;
+              font-family:monospace;letter-spacing:0.05em;
+            ">+00</button>
+            <button type="button" class="zero-append" data-zeros="000" style="
+              padding:4px 12px;border-radius:var(--radius-sm);border:1px solid var(--border-color);
+              background:rgba(255,255,255,0.05);color:var(--text-main);font-size:0.82rem;
+              font-weight:800;cursor:pointer;transition:all 0.15s;
+              font-family:monospace;letter-spacing:0.05em;
+            ">+000</button>
+          </div>
+
+          <!-- Preset Quick-Add Buttons -->
           <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
             ${presets.map(p => `
-              <button class="btn btn-sm btn-secondary preset-btn" data-value="${p.value}">
-                ${p.label}
+              <button class="btn btn-sm btn-secondary preset-btn" data-value="${p.value}" style="flex:1;min-width:60px;font-weight:800;">
+                +${p.label}
               </button>
             `).join('')}
           </div>
+
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary btn-cancel">Batal</button>
@@ -294,18 +368,63 @@ class UIManager {
             const modalContent = document.getElementById('modal-content');
             const input = modalContent.querySelector('#money-input');
 
-            // Preset buttons - ADD to current value (not replace)
-            modalContent.querySelectorAll('.preset-btn').forEach(btn => {
+            // Live comma formatting
+            this._setupLiveCommaFormat(input);
+
+            // MAX button
+            const maxBtn = modalContent.querySelector('#money-max-btn');
+            if (maxBtn && isFinite(maxAmount)) {
+                maxBtn.onclick = () => {
+                    input.value = this._formatWithCommas(String(Math.floor(maxAmount)));
+                    input.focus();
+                };
+            }
+
+            // Copy button
+            const copyBtn = modalContent.querySelector('#money-copy-btn');
+            if (copyBtn) {
+                copyBtn.onclick = () => {
+                    const val = this._getRawNumericValue(input.value);
+                    navigator.clipboard?.writeText(val).then(() => {
+                        copyBtn.textContent = '✅';
+                        setTimeout(() => copyBtn.textContent = '📋', 1500);
+                    });
+                };
+            }
+
+            // Zero-append buttons
+            modalContent.querySelectorAll('.zero-append').forEach(btn => {
                 btn.onclick = () => {
-                    const currentValue = parseInt(input.value) || 0;
-                    const addValue = parseInt(btn.dataset.value);
-                    input.value = currentValue + addValue;
+                    const raw = this._getRawNumericValue(input.value);
+                    const newRaw = raw + btn.dataset.zeros;
+                    input.value = this._formatWithCommas(newRaw);
+                    input.focus();
+                    // Hover feedback
+                    btn.style.background = 'rgba(16,185,129,0.15)';
+                    btn.style.borderColor = 'rgba(16,185,129,0.4)';
+                    setTimeout(() => {
+                        btn.style.background = '';
+                        btn.style.borderColor = '';
+                    }, 200);
                 };
             });
 
-            input.onkeypress = (e) => {
+            // Preset buttons — ADD to current value
+            modalContent.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const currentRaw = parseInt(this._getRawNumericValue(input.value)) || 0;
+                    const addValue = parseInt(btn.dataset.value);
+                    const newVal = currentRaw + addValue;
+                    const capped = isFinite(maxAmount) ? Math.min(newVal, maxAmount) : newVal;
+                    input.value = this._formatWithCommas(String(capped));
+                    input.focus();
+                };
+            });
+
+            // Enter submits
+            input.onkeydown = (e) => {
                 if (e.key === 'Enter') {
-                    const value = parseInt(input.value) || 0;
+                    const value = parseInt(this._getRawNumericValue(input.value)) || 0;
                     this.closeModal();
                     resolve(value);
                 }
@@ -317,7 +436,7 @@ class UIManager {
             };
 
             modalContent.querySelector('.btn-confirm').onclick = () => {
-                const value = parseInt(input.value) || 0;
+                const value = parseInt(this._getRawNumericValue(input.value)) || 0;
                 this.closeModal();
                 resolve(value);
             };
@@ -422,7 +541,7 @@ class UIManager {
         return this.toast({ type: 'error', message, title });
     }
 
-    warning(message, title = 'Peringatan') {
+warning(message, title = 'Peringatan') {
         return this.toast({ type: 'warning', message, title });
     }
 
@@ -431,12 +550,65 @@ class UIManager {
     }
 
     // ========================================
-    // UTILITY METHODS
+    // NUMERIC INPUT HELPERS
     // ========================================
 
     /**
-     * Format number with animation
+     * Apply live comma formatting to a text input.
+     * Keeps cursor position stable while user types.
      */
+    _setupLiveCommaFormat(input) {
+        input.addEventListener('input', () => {
+            const pos = input.selectionStart;
+            const prevLen = input.value.length;
+
+            // Split by first decimal point
+            let parts = input.value.split('.');
+            let integerPart = parts[0].replace(/[^0-9]/g, '');
+            let decimalPart = parts.slice(1).join('').replace(/[^0-9]/g, '');
+
+            let formatted = '';
+            if (integerPart !== '') {
+                formatted = Number(integerPart).toLocaleString('en-US');
+            } else if (parts.length > 1) {
+                formatted = '0';
+            }
+            if (parts.length > 1) {
+                formatted += '.' + decimalPart;
+            }
+            input.value = formatted;
+
+            // Adjust cursor: account for added/removed commas
+            const newLen = formatted.length;
+            const newPos = Math.max(0, pos + (newLen - prevLen));
+            try { input.setSelectionRange(newPos, newPos); } catch(e){}
+        });
+    }
+
+    /**
+     * Returns the raw digit string (no commas, no currency symbols)
+     * from a formatted input value.
+     */
+    _getRawNumericValue(val) {
+        return String(val || '').replace(/,/g, '');
+    }
+
+    /**
+     * Format a numeric string with thousand commas.
+     */
+    _formatWithCommas(val) {
+        const raw = String(val).replace(/[^0-9.]/g, '');
+        if (!raw) return '';
+        const parts = raw.split('.');
+        let integerPart = parts[0];
+        let decimalPart = parts[1];
+        let formatted = integerPart ? Number(integerPart).toLocaleString('en-US') : '0';
+        if (parts.length > 1) {
+            formatted += '.' + decimalPart;
+        }
+        return formatted;
+    }
+
     animateNumber(element, endValue, duration = 500) {
         const startValue = parseInt(element.textContent.replace(/\D/g, '')) || 0;
         const startTime = performance.now();
@@ -465,50 +637,141 @@ class UIManager {
 
     /**
      * Set up a text input element to automatically format with thousands separator as the user types.
+     * Optionally adds zero append, copy, max and preset quick-addition helper buttons.
      */
-    setupNumericInput(inputElement) {
+    setupNumericInput(inputElement, options = {}) {
         if (!inputElement) return;
-        
+
+        const {
+            isDecimal = false,
+            showZeroAppend = true,
+            showMax = false,
+            maxAmount = null // number or function
+        } = options;
+
         // Ensure input type is text to support formatting separators
         if (inputElement.type === 'number') {
             inputElement.type = 'text';
-            inputElement.inputMode = 'numeric';
+            inputElement.inputMode = isDecimal ? 'decimal' : 'numeric';
+        }
+
+        // Formatter function
+        const formatValue = (val) => {
+            let clean = val;
+            if (isDecimal) {
+                clean = clean.replace(/[^0-9.]/g, '');
+                const parts = clean.split('.');
+                if (parts.length > 2) {
+                    clean = parts[0] + '.' + parts.slice(1).join('');
+                }
+            } else {
+                clean = clean.replace(/[^0-9]/g, '');
+            }
+
+            if (clean === '') return '';
+
+            const parts = clean.split('.');
+            let integerPart = parts[0];
+            let decimalPart = parts[1];
+
+            let formatted = integerPart ? parseInt(integerPart, 10).toLocaleString('en-US') : '0';
+            if (parts.length > 1) {
+                formatted += '.' + decimalPart;
+            }
+            return formatted;
+        };
+
+        // Format initial value
+        if (inputElement.value) {
+            inputElement.value = formatValue(inputElement.value);
         }
 
         // Add formatter listener
-        inputElement.addEventListener('input', () => {
+        const onInput = () => {
             let cursorPosition = inputElement.selectionStart;
             let originalLength = inputElement.value.length;
 
-            // Remove all non-digits
-            let rawValue = inputElement.value.replace(/[^0-9]/g, '');
-            if (rawValue === '') {
-                inputElement.value = '';
-                return;
-            }
-
-            let num = parseInt(rawValue, 10);
-            if (isNaN(num)) {
-                inputElement.value = '';
-                return;
-            }
-
-            // Format with commas (e.g. 1,000,000)
-            let formatted = num.toLocaleString('en-US');
+            let formatted = formatValue(inputElement.value);
             inputElement.value = formatted;
 
-            // Adjust cursor position to handle added/removed commas
             let newLength = formatted.length;
             let newCursorPosition = cursorPosition + (newLength - originalLength);
-            inputElement.setSelectionRange(newCursorPosition, newCursorPosition);
-        });
+            try {
+                inputElement.setSelectionRange(newCursorPosition, newCursorPosition);
+            } catch(e) {}
+        };
+
+        inputElement.removeEventListener('input', inputElement._numericListener);
+        inputElement._numericListener = onInput;
+        inputElement.addEventListener('input', onInput);
 
         // Attach helper method to element for reading raw value
         inputElement.getNumericValue = () => {
-            let raw = inputElement.value.replace(/[^0-9]/g, '');
-            let val = parseInt(raw, 10);
+            let raw = inputElement.value.replace(/,/g, '');
+            let val = isDecimal ? parseFloat(raw) : parseInt(raw, 10);
             return isNaN(val) ? 0 : val;
         };
+
+        // Setup helpers
+        const helperClass = `numeric-helpers-for-${inputElement.id || 'anonymous'}`;
+        const existingHelper = inputElement.parentNode.querySelector(`.${helperClass}`);
+        if (existingHelper) {
+            existingHelper.remove();
+        }
+
+        const helperContainer = document.createElement('div');
+        helperContainer.className = helperClass;
+        helperContainer.style.cssText = 'display: flex; gap: 6px; flex-wrap: wrap; margin-top: 0.5rem; align-items: center; width: 100%;';
+
+        let innerHTML = '';
+
+        if (showZeroAppend) {
+            innerHTML += `
+                <button type="button" class="zero-append-btn" data-zeros="0" style="padding: 4px 10px; font-size: 0.72rem; font-weight: 800; height: 26px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; border-radius: var(--radius-sm); transition: all 0.2s;">+0</button>
+                <button type="button" class="zero-append-btn" data-zeros="00" style="padding: 4px 10px; font-size: 0.72rem; font-weight: 800; height: 26px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; border-radius: var(--radius-sm); transition: all 0.2s;">+00</button>
+                <button type="button" class="zero-append-btn" data-zeros="000" style="padding: 4px 10px; font-size: 0.72rem; font-weight: 800; height: 26px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-main); cursor: pointer; border-radius: var(--radius-sm); transition: all 0.2s;">+000</button>
+            `;
+        }
+
+        if (showMax && maxAmount !== null) {
+            innerHTML += `
+                <button type="button" class="max-input-btn" style="padding: 4px 10px; font-size: 0.72rem; font-weight: 800; height: 26px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); color: var(--accent-primary); cursor: pointer; border-radius: var(--radius-sm); transition: all 0.2s;">MAX</button>
+            `;
+        }
+
+        helperContainer.innerHTML = innerHTML;
+
+        // Insert after input element
+        if (inputElement.nextSibling) {
+            inputElement.parentNode.insertBefore(helperContainer, inputElement.nextSibling);
+        } else {
+            inputElement.parentNode.appendChild(helperContainer);
+        }
+
+        // Bind events
+        helperContainer.querySelectorAll('.zero-append-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                let currentVal = inputElement.value.replace(/,/g, '');
+                let newVal = currentVal + btn.dataset.zeros;
+                inputElement.value = formatValue(newVal);
+                inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+                inputElement.focus();
+            };
+        });
+
+        const maxBtn = helperContainer.querySelector('.max-input-btn');
+        if (maxBtn) {
+            maxBtn.onclick = (e) => {
+                e.preventDefault();
+                let max = typeof maxAmount === 'function' ? maxAmount() : maxAmount;
+                if (max !== null && isFinite(max)) {
+                    inputElement.value = formatValue(String(max));
+                    inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputElement.focus();
+                }
+            };
+        }
     }
 
     /**

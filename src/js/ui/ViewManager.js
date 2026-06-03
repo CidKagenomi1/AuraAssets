@@ -79,14 +79,14 @@ window.openCryptoDetail = (symbol) => {
 class ViewManager {
   constructor() {
     this.currentView = 'home';
+    // BUG-08 FIX: Standardize to CSS selectors throughout (# for IDs, . for classes)
     this.homeSections = [
-      'view-home',
-      'balance-card',
-      'market-pulse-widget',
-      'earn-panel',
-      'company-dashboard',
+      '#balance-card',
+      '#market-pulse-widget',
+      '#earn-panel',
+      '#company-dashboard',
       '.quick-actions',
-      'footer-dashboard-grid'
+      '#footer-dashboard-grid'
     ];
     this.marketFilter = '';
     this.marketSort = { key: 'default', dir: 'asc' };
@@ -121,11 +121,18 @@ class ViewManager {
     gameState.on('cryptoUpdate', () => this.updateMarketView());
     document.addEventListener('passiveIncomeTick', () => {
       if (this.currentView === 'market') {
+        // Passive income changed — allow staking/bot panels to re-render with fresh data
+        if (this.currentMarketTab === 'staking-mining') this._renderStakingMining = true;
+        if (this.currentMarketTab === 'bot-trading') this._renderBotTrading = true;
         this.updateMarketView();
       }
     });
     gameState.on('roleChange', () => {
       this.updateMobileBottomNav(this.currentView);
+    });
+    // BUG-10 FIX: Refresh earn widget immediately after claim (don't wait for next earnTick)
+    gameState.on('earnClaim', () => {
+      import('../career/RoleModules.js').then(m => m.default.BusinessModule.updateEarnUI({ pendingEarn: 0 }));
     });
   }
 
@@ -189,8 +196,9 @@ class ViewManager {
     this.updateActiveNavigationHighlights(view);
 
     // Hide home sections for non-home views
+    // BUG-08 FIX: All entries in homeSections are now valid CSS selectors
     this.homeSections.forEach(sel => {
-      const el = document.querySelector(sel) || document.getElementById(sel);
+      const el = document.querySelector(sel);
       if (el) el.style.display = view === 'home' ? '' : 'none';
     });
 
@@ -317,9 +325,32 @@ class ViewManager {
         });
 
         this.currentMarketTab = tabId;
+
+        // Set render flag for heavy panels so they render ONCE on tab open
+        // — not on every stock/crypto price update event
+        if (tabId === 'staking-mining') {
+          this._renderStakingMining = true;
+        } else if (tabId === 'bot-trading') {
+          this._renderBotTrading = true;
+        }
+
         this.updateMarketView();
       });
     });
+  }
+
+  // Stub bind methods — buttons use window.* global onclick handlers, no extra binding needed
+  _bindStakingMiningButtons() {}
+  _bindBotTradingButtons() {
+    const botCapitalInput = document.getElementById('bot-capital-input');
+    if (botCapitalInput) {
+      ui.setupNumericInput(botCapitalInput, {
+        isDecimal: false,
+        showZeroAppend: true,
+        showMax: true,
+        maxAmount: () => gameState.getBalance()
+      });
+    }
   }
 
   bindMarketSmartControls() {
@@ -350,7 +381,7 @@ class ViewManager {
     });
   }
 
-  updateMarketView() {
+  updateMarketView(force = false) {
     // Update badge values dynamically
     const allStocks = stockMarket.getAllStocks() || [];
     const allCryptos = cryptoMarket.getAllCryptos() || [];
@@ -446,16 +477,29 @@ class ViewManager {
       cryptoList.innerHTML = cryptos.map(c => buildCryptoRow(c)).join('');
     }
 
-    // Update Staking & Mining
+    // Update Staking & Mining — ONLY re-render on passiveIncomeTick or explicit call,
+    // NOT on every stocksUpdate/cryptoUpdate to prevent continuous DOM replacement
     const stakingMiningPanel = document.getElementById('market-staking-mining');
-    if (stakingMiningPanel && this.currentMarketTab === 'staking-mining') {
-      stakingMiningPanel.innerHTML = this.renderStakingMiningView();
+    if (stakingMiningPanel && this.currentMarketTab === 'staking-mining' && this._renderStakingMining) {
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && stakingMiningPanel.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
+      if (force || !isTyping) {
+        stakingMiningPanel.innerHTML = this.renderStakingMiningView();
+        this._bindStakingMiningButtons();
+        this._renderStakingMining = false;
+      }
     }
 
-    // Update Bot Trading
+    // Update Bot Trading — same: only on demand
     const botTradingPanel = document.getElementById('market-bot-trading');
-    if (botTradingPanel && this.currentMarketTab === 'bot-trading') {
-      botTradingPanel.innerHTML = this.renderBotTradingView();
+    if (botTradingPanel && this.currentMarketTab === 'bot-trading' && this._renderBotTrading) {
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && botTradingPanel.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
+      if (force || !isTyping) {
+        botTradingPanel.innerHTML = this.renderBotTradingView();
+        this._bindBotTradingButtons();
+        this._renderBotTrading = false;
+      }
     }
 
     // Update portfolio list
@@ -590,91 +634,42 @@ class ViewManager {
       home: { id: 'home', label: 'Beranda', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>` },
       market: { id: 'market', label: 'Pasar', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/></svg>` },
       portfolio: { id: 'portfolio', label: 'Portofolio', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>` },
-      business: { id: 'business', label: 'Bisnis', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>` },
-      property: { id: 'property', label: 'Properti', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>` },
-      loan: { id: 'loan', label: 'Pinjaman', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/></svg>` },
-      savings: { id: 'savings', label: 'Deposito', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>` },
-      tax: { id: 'tax', label: 'Pajak', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 17H6v-2h12v2zm0-4H6v-2h12v2zm0-4H6V7h12v2zM3 22l1.5-1.5L6 22l1.5-1.5L9 22l1.5-1.5L12 22l1.5-1.5L15 22l1.5-1.5L18 22l1.5-1.5L21 22V2l-1.5 1.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2l-1.5 1.5L6 2l-1.5 1.5L3 2v20z"/></svg>` },
-      history: { id: 'history', label: 'Riwayat', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>` },
-      donate: { id: 'donate', label: 'Donasi', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4V8h16v11z"/></svg>` },
-      guide: { id: 'guide', label: 'Panduan', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>` }
+      business: { id: 'business', label: 'Bisnis', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>` }
     };
 
     // Bottom Row (Dominant) Candidates
-    const primaryIds = ['home', 'market', 'portfolio', 'business', 'property'];
+    const primaryIds = ['home', 'market', 'portfolio', 'business'];
     let bottomItems = primaryIds
       .filter(id => id === 'home' || !role.hiddenNav.includes(id))
       .map(id => navItems[id]);
 
-    // Top Row (Secondary) Candidates
-    const secondaryIds = ['history', 'loan', 'savings', 'tax', 'guide', 'donate'];
-    let topItems = secondaryIds
-      .filter(id => !role.hiddenNav.includes(id))
-      .map(id => navItems[id]);
+    // Check if activeView is not in primaryIds (so it's a secondary view like loan/savings/etc.)
+    const isSecondaryActive = !primaryIds.includes(activeView);
 
-    // Adjust topItems to have an odd number (max 5)
-    if (topItems.length >= 5) {
-      topItems = topItems.slice(0, 5); // 5 items (odd)
-    } else if (topItems.length === 4) {
-      topItems = topItems.slice(0, 3); // 3 items (odd)
-    } else if (topItems.length === 2) {
-      topItems = topItems.slice(0, 1); // 1 item (odd)
-    }
+    // Append "Lainnya" (Menu) button at the end
+    bottomItems.push({
+      id: 'menu',
+      label: 'Lainnya',
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zm6-12c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0 6c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.68-1.5-1.5-1.5zm6-18c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0 6c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5z"/></svg>`
+    });
 
     let html = '';
 
-    // Render Tier 1 (Top Row - Fixed / No scroll - Icons only)
-    if (topItems.length > 0) {
-      html += `
-        <div class="bottom-nav-tier tier-top" style="
-          display: grid;
-          grid-template-columns: repeat(${topItems.length}, 1fr);
-          width: 100%;
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-          justify-items: center;
-          align-items: center;
-          height: 38px;
-          background: rgba(0, 0, 0, 0.45);
-          box-sizing: border-box;
-        ">
-          ${topItems.map(item => {
-            const isActive = item.id === activeView;
-            return `
-              <button class="bottom-nav-tier-btn nav-btn ${isActive ? 'active' : ''}" data-view="${item.id}" style="
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: ${isActive ? 'rgba(16, 185, 129, 0.15)' : 'transparent'};
-                border: ${isActive ? '1px solid rgba(16, 185, 129, 0.3)' : 'none'};
-                color: ${isActive ? 'var(--accent-primary)' : 'var(--text-muted)'};
-                padding: 4px 10px;
-                border-radius: var(--radius-sm);
-                cursor: pointer;
-                transition: all 0.2s ease;
-                height: 26px;
-              ">
-                <span style="display: flex; align-items: center; justify-content: center;">${item.icon}</span>
-              </button>
-            `;
-          }).join('')}
-        </div>
-      `;
-    }
-
-    // Render Tier 2 (Bottom Row - Main / Active Prominent - Icons only)
+    // Render Bottom Row - Main / Active Prominent - Icons only
     html += `
       <div class="bottom-nav-tier tier-bottom" style="
         display: grid;
         grid-template-columns: repeat(${bottomItems.length}, 1fr);
         width: 100%;
-        height: 54px;
+        height: 52px;
         align-items: center;
         justify-items: center;
         background: rgba(24, 24, 27, 0.95);
         box-sizing: border-box;
       ">
         ${bottomItems.map(item => {
-          const isActive = item.id === activeView;
+          const isMenu = item.id === 'menu';
+          const isActive = isMenu ? isSecondaryActive : (item.id === activeView);
           if (isActive) {
             return `
               <button class="bottom-nav-tier-btn nav-btn active prominent" data-view="${item.id}" style="
@@ -685,8 +680,8 @@ class ViewManager {
                 background: linear-gradient(135deg, var(--accent-primary) 0%, #059669 100%);
                 border: none;
                 color: #000;
-                width: 44px;
-                height: 44px;
+                width: 42px;
+                height: 42px;
                 border-radius: 50%;
                 box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
                 z-index: 20;
@@ -694,7 +689,7 @@ class ViewManager {
                 transition: all 0.2s ease;
                 transform: translateY(-4px);
               ">
-                <span style="display: flex; align-items: center; justify-content: center; transform: scale(1.15);">${item.icon}</span>
+                <span style="display: flex; align-items: center; justify-content: center; transform: scale(1.1);">${item.icon}</span>
               </button>
             `;
           } else {
@@ -726,8 +721,82 @@ class ViewManager {
     bottomNav.querySelectorAll('.nav-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const view = btn.dataset.view;
-        this.switchView(view);
+        if (view === 'menu') {
+          this.showMobileMenu();
+        } else {
+          this.switchView(view);
+        }
       });
+    });
+  }
+
+  showMobileMenu() {
+    const role = roleManager.getRoleData();
+    if (!role) return;
+
+    const navItems = {
+      property: { id: 'property', label: 'Properti', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>` },
+      loan: { id: 'loan', label: 'Pinjaman', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/></svg>` },
+      savings: { id: 'savings', label: 'Deposito', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>` },
+      tax: { id: 'tax', label: 'Pajak', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18 17H6v-2h12v2zm0-4H6v-2h12v2zm0-4H6V7h12v2zM3 22l1.5-1.5L6 22l1.5-1.5L9 22l1.5-1.5L12 22l1.5-1.5L15 22l1.5-1.5L18 22l1.5-1.5L21 22V2l-1.5 1.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2l-1.5 1.5L6 2l-1.5 1.5L3 2v20z"/></svg>` },
+      history: { id: 'history', label: 'Riwayat', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>` },
+      donate: { id: 'donate', label: 'Donasi', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4V8h16v11z"/></svg>` },
+      guide: { id: 'guide', label: 'Panduan', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>` },
+      marketplace: { id: 'marketplace', label: 'Marketplace', icon: `🛒` },
+      settings: { id: 'settings', label: 'Pengaturan', icon: `⚙️` },
+      notifications: { id: 'notifications', label: 'Notifikasi', icon: `🔔` }
+    };
+
+    const secondaryIds = ['property', 'loan', 'savings', 'tax', 'history', 'marketplace', 'donate', 'guide', 'settings', 'notifications'];
+    const activeItems = secondaryIds
+      .filter(id => !role.hiddenNav.includes(id))
+      .map(id => navItems[id]);
+
+    const content = `
+      <div style="padding: 0.25rem 0;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.75rem; text-align: center; letter-spacing: 0.05em;">Semua Menu Fitur</div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; justify-items: center;">
+          ${activeItems.map(item => `
+            <div class="menu-item-mobile-grid" data-menu-id="${item.id}" style="
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 0.2rem;
+              cursor: pointer;
+              width: 100%;
+              padding: 0.4rem 0.2rem;
+              border-radius: var(--radius-sm);
+              background: rgba(255,255,255,0.01);
+              border: 1px solid rgba(255,255,255,0.03);
+              text-align: center;
+              transition: all 0.2s ease;
+            ">
+              <div style="font-size: 1.25rem; display: flex; align-items: center; justify-content: center; height: 32px; width: 32px; border-radius: 50%; background: rgba(255,255,255,0.03); color: var(--accent-primary);">${item.icon}</div>
+              <div style="font-size: 0.72rem; font-weight: 600; color: var(--text-main); line-height: 1.1;">${item.label}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    ui.showModal({
+      title: '⚡ Menu Layanan',
+      content,
+      onShow: () => {
+        document.querySelectorAll('.menu-item-mobile-grid').forEach(el => {
+          el.addEventListener('click', () => {
+            const id = el.dataset.menuId;
+            ui.closeModal();
+            if (id === 'settings') {
+              import('./HomeScreen.js').then(m => m.default.showSettings());
+            } else if (id === 'notifications') {
+              import('./HomeScreen.js').then(m => m.default.showNotifications());
+            } else {
+              this.switchView(id);
+            }
+          });
+        });
+      }
     });
   }
 
@@ -1003,7 +1072,8 @@ window.buyMiningRig = (type) => {
   try {
     passiveIncomeManager.buyRig(type);
     ui.success(`Rig ${passiveIncomeManager.rigTypes[type].name} berhasil dibeli!`, 'Mining Rig');
-    viewManager.updateMarketView();
+    viewManager._renderStakingMining = true;
+    viewManager.updateMarketView(true);
   } catch(e) { ui.error(e.message); }
 };
 
@@ -1011,58 +1081,79 @@ window.sellMiningRig = (type) => {
   try {
     passiveIncomeManager.sellRig(type);
     ui.success(`Rig ${passiveIncomeManager.rigTypes[type].name} berhasil dijual!`, 'Mining Rig');
-    viewManager.updateMarketView();
+    viewManager._renderStakingMining = true;
+    viewManager.updateMarketView(true);
   } catch(e) { ui.error(e.message); }
 };
 
 window.stakeCryptoPrompt = async (symbol) => {
+  console.log(`[Staking] stakeCryptoPrompt called for: ${symbol}`);
   try {
     const wallet = gameState.get('crypto') || {};
     const maxAmt = wallet[symbol] ? wallet[symbol].amount : 0;
+    console.log(`[Staking] wallet amount: ${maxAmt}`);
     if (maxAmt <= 0) { ui.error('Anda tidak memiliki saldo untuk di-stake'); return; }
 
     const inputVal = await ui.prompt({
       title: `Stake ${symbol}`,
       message: `Masukkan jumlah ${symbol} yang ingin di-stake (Max: ${maxAmt.toFixed(4)})`,
       placeholder: '0.00',
-      defaultValue: maxAmt.toFixed(4)
+      defaultValue: maxAmt.toFixed(4),
+      isNumeric: true
     });
+    console.log(`[Staking] inputVal resolved: ${inputVal}`);
     if (inputVal) {
       const amt = parseFloat(inputVal);
+      console.log(`[Staking] parsed amount: ${amt}`);
       if (isNaN(amt) || amt <= 0 || amt > maxAmt) { ui.error('Jumlah input tidak valid'); return; }
       passiveIncomeManager.stake(symbol, amt);
       ui.success(`Berhasil staking ${amt.toFixed(4)} ${symbol}!`, 'Staking Vault');
-      viewManager.updateMarketView();
+      viewManager._renderStakingMining = true;
+      viewManager.updateMarketView(true);
     }
-  } catch(e) { ui.error(e.message); }
+  } catch(e) {
+    console.error('[Staking] Error: ', e);
+    ui.error(e.message);
+  }
 };
 
 window.unstakeCryptoPrompt = async (symbol) => {
+  console.log(`[Staking] unstakeCryptoPrompt called for: ${symbol}`);
   try {
     const piState = passiveIncomeManager.getState();
     const maxAmt = piState.staked[symbol] || 0;
+    console.log(`[Staking] staked amount: ${maxAmt}`);
     if (maxAmt <= 0) return;
 
     const inputVal = await ui.prompt({
       title: `Unstake ${symbol}`,
       message: `Masukkan jumlah ${symbol} yang ingin ditarik (Max: ${maxAmt.toFixed(4)})`,
       placeholder: '0.00',
-      defaultValue: maxAmt.toFixed(4)
+      defaultValue: maxAmt.toFixed(4),
+      isNumeric: true
     });
+    console.log(`[Staking] inputVal resolved: ${inputVal}`);
     if (inputVal) {
       const amt = parseFloat(inputVal);
+      console.log(`[Staking] parsed amount: ${amt}`);
       if (isNaN(amt) || amt <= 0 || amt > maxAmt) { ui.error('Jumlah input tidak valid'); return; }
       passiveIncomeManager.unstake(symbol, amt);
       ui.success(`Berhasil unstaking ${amt.toFixed(4)} ${symbol}!`, 'Staking Vault');
-      viewManager.updateMarketView();
+      viewManager._renderStakingMining = true;
+      viewManager.updateMarketView(true);
     }
-  } catch(e) { ui.error(e.message); }
+  } catch(e) {
+    console.error('[Staking] Error: ', e);
+    ui.error(e.message);
+  }
 };
 
 window.deploySelectedBot = () => {
-  const assetVal = document.getElementById('bot-asset-select').value;
-  const capital = parseFloat(document.getElementById('bot-capital-input').value);
+  const assetVal = document.getElementById('bot-asset-select')?.value;
+  const capitalInput = document.getElementById('bot-capital-input');
+  const capital = capitalInput ? (capitalInput.getNumericValue ? capitalInput.getNumericValue() : parseFloat(capitalInput.value)) : NaN;
 
+  if (!assetVal) { ui.error('Pilih aset terlebih dahulu'); return; }
   if (isNaN(capital) || capital <= 0) { ui.error('Jumlah modal tidak valid'); return; }
 
   const parts = assetVal.split(':');
@@ -1072,7 +1163,8 @@ window.deploySelectedBot = () => {
   try {
     passiveIncomeManager.startBot('ai', symbol, assetType, capital);
     ui.success(`AI Auto-Trading Bot berhasil dijalankan pada ${symbol}!`, 'Deploy Bot');
-    viewManager.updateMarketView();
+    viewManager._renderBotTrading = true;
+    viewManager.updateMarketView(true);
   } catch (e) {
     ui.error(e.message);
   }
@@ -1082,7 +1174,8 @@ window.stopTradingBot = (id) => {
   try {
     passiveIncomeManager.stopBot(id);
     ui.success('Bot dihentikan dan seluruh modal serta profit dikreditkan ke kas!', 'Bot Stopped');
-    viewManager.updateMarketView();
+    viewManager._renderBotTrading = true;
+    viewManager.updateMarketView(true);
   } catch(e) {
     ui.error(e.message);
   }

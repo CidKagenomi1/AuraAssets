@@ -1002,14 +1002,52 @@ class TradingPage {
     const marketAmtInput = document.getElementById('market-amount');
     const limitAmtInput = document.getElementById('limit-amount');
     if (marketAmtInput) {
-      ui.setupNumericInput(marketAmtInput);
+      ui.setupNumericInput(marketAmtInput, {
+        isDecimal: false,
+        showZeroAppend: true,
+        showMax: true,
+        maxAmount: () => this.calculateMaxBuyOrSell(false)
+      });
       marketAmtInput.addEventListener('input', () => this.updateOrderTotal());
     }
     if (limitAmtInput) {
-      ui.setupNumericInput(limitAmtInput);
+      ui.setupNumericInput(limitAmtInput, {
+        isDecimal: false,
+        showZeroAppend: true,
+        showMax: true,
+        maxAmount: () => this.calculateMaxBuyOrSell(true)
+      });
       limitAmtInput.addEventListener('input', () => this.updateOrderTotal());
     }
-    document.getElementById('limit-price')?.addEventListener('input', () => this.updateOrderTotal());
+
+    const limitPriceInput = document.getElementById('limit-price');
+    if (limitPriceInput) {
+      ui.setupNumericInput(limitPriceInput, {
+        isDecimal: this.assetType === 'crypto',
+        showZeroAppend: true,
+        showMax: false
+      });
+      limitPriceInput.addEventListener('input', () => this.updateOrderTotal());
+    }
+
+    const tpPriceInput = document.getElementById('tp-price');
+    if (tpPriceInput) {
+      ui.setupNumericInput(tpPriceInput, {
+        isDecimal: this.assetType === 'crypto',
+        showZeroAppend: true,
+        showMax: false
+      });
+    }
+
+    const slPriceInput = document.getElementById('sl-price');
+    if (slPriceInput) {
+      ui.setupNumericInput(slPriceInput, {
+        isDecimal: this.assetType === 'crypto',
+        showZeroAppend: true,
+        showMax: false
+      });
+    }
+
     document.getElementById('tpsl-enabled')?.addEventListener('change', (e) => {
       document.getElementById('tpsl-inputs').style.display = e.target.checked ? 'block' : 'none';
     });
@@ -1295,6 +1333,30 @@ class TradingPage {
     if (this.assetType === 'stock') return holding.shares - (holding.reservedShares || 0);
     const asset = cryptoMarket.getCrypto(this.currentAsset);
     return Math.floor(holding.amount * asset.price);
+  }
+
+  calculateMaxBuyOrSell(isLimit) {
+    const isBuy = document.querySelector('.order-tab-btn.active')?.dataset.side === 'buy';
+    const asset = this.assetType === 'stock' ? stockMarket.getStock(this.currentAsset) : cryptoMarket.getCrypto(this.currentAsset);
+    if (!asset) return 0;
+
+    const limitPrice = parseFloat(document.getElementById('limit-price')?.value.replace(/,/g, '')) || asset.price;
+    const targetPrice = isLimit ? limitPrice : asset.price;
+
+    if (isBuy) {
+      const balance = gameState.getBalance();
+      return this.assetType === 'stock' ? Math.floor(balance / targetPrice) : balance;
+    } else {
+      const portfolio = this.assetType === 'stock' ? gameState.get('stocks') || {} : gameState.get('crypto') || {};
+      const holding = portfolio[this.currentAsset];
+      if (!holding) return 0;
+      if (this.assetType === 'stock') {
+        return holding.shares - (holding.reservedShares || 0);
+      } else {
+        const totalCryptoHoldings = holding.amount - (holding.reservedAmount || 0);
+        return Math.floor(totalCryptoHoldings * targetPrice);
+      }
+    }
   }
 
   updateOrderTotal() {

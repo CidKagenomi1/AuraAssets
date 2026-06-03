@@ -362,6 +362,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .market-price {
@@ -843,4 +844,45 @@
     padding: 2rem 1rem;
     color: #52525b;
     font-size: 0.82rem;
+}
+
+/* Media query for mobile responsiveness of trading views and controls */
+@media (max-width: 900px) {
+  .tab-group {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 5px !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    gap: 6px !important;
+  }
+  
+  /* Scrollbar styling for horizontal tab-group */
+  .tab-group::-webkit-scrollbar {
+    height: 4px !important;
+  }
+  .tab-group::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-radius: 4px !important;
+  }
+  
+  .tab-btn {
+    flex-shrink: 0 !important;
+    padding: 7px 14px !important;
+    font-size: 11px !important;
+    gap: 6px !important;
+  }
+  
+  .tab-btn .tab-icon {
+    font-size: 14px !important;
+  }
+
+  .tab-btn .tab-badge {
+    font-size: 9px !important;
+    padding: 1px 5px !important;
+  }
 }

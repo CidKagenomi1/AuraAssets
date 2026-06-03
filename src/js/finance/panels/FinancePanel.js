@@ -51,9 +51,24 @@ class FinancePanel {
         const totalStockValue = stockMarket.getPortfolioValue() || 0;
         const totalCryptoValue = cryptoMarket.getWalletValue() || 0;
         const totalPropertyValue = propertyManager.getTotalPropertyValue() || 0;
+        const savingsBalance = gameState.get('savings.balance') || 0;
+        const rdPortfolio = gameState.get('savings.reksaDana') || {};
+        const rdFunds = [
+            { id: 'pasar_uang', nav: 1.042 },
+            { id: 'pendapatan_tetap', nav: 1.238 },
+            { id: 'campuran', nav: 2.115 },
+            { id: 'saham', nav: 3.871 },
+        ];
+        let totalRdValue = 0;
+        rdFunds.forEach(f => {
+            const holding = rdPortfolio[f.id];
+            if (holding && holding.units > 0) {
+                totalRdValue += holding.units * f.nav * 1000;
+            }
+        });
         const loans = gameState.get('loans') || [];
         const totalDebt = loans.reduce((sum, loan) => sum + (loan.remaining || 0), 0);
-        const totalAssets = balance + totalStockValue + totalCryptoValue + totalPropertyValue;
+        const totalAssets = balance + totalStockValue + totalCryptoValue + totalPropertyValue + savingsBalance + totalRdValue;
         const totalNetWorth = totalAssets - totalDebt;
         
         const achievementsList = [
@@ -705,12 +720,28 @@ class FinancePanel {
         const totalPropertyValue = propertyManager.getTotalPropertyValue() || 0;
         const ownedProperties = propertyManager.getOwnedProperties() || [];
 
+        const savingsBalance = gameState.get('savings.balance') || 0;
+        const rdPortfolio = gameState.get('savings.reksaDana') || {};
+        const rdFunds = [
+            { id: 'pasar_uang', nav: 1.042 },
+            { id: 'pendapatan_tetap', nav: 1.238 },
+            { id: 'campuran', nav: 2.115 },
+            { id: 'saham', nav: 3.871 },
+        ];
+        let totalRdValue = 0;
+        rdFunds.forEach(f => {
+            const holding = rdPortfolio[f.id];
+            if (holding && holding.units > 0) {
+                totalRdValue += holding.units * f.nav * 1000;
+            }
+        });
+
         // Get debt info
         const loans = gameState.get('loans') || [];
         const totalDebt = loans.reduce((sum, loan) => sum + (loan.remaining || 0), 0);
 
         // Calculate true net worth: Assets - Liabilities
-        const totalAssets = balance + totalStockValue + totalCryptoValue + totalPropertyValue;
+        const totalAssets = balance + totalStockValue + totalCryptoValue + totalPropertyValue + savingsBalance + totalRdValue;
         const totalNetWorth = totalAssets - totalDebt;
 
         const planTarget = 1000000000;
@@ -758,11 +789,27 @@ class FinancePanel {
                     <div class="wealth-asset-item cash">
                       <div class="asset-icon-wrapper">💵</div>
                       <div class="asset-details">
-                        <span class="asset-label">Cash & Simpanan</span>
+                        <span class="asset-label">Cash / Saldo Rekening</span>
                         <span class="asset-value">$ ${financeManager.formatCurrency(balance, true)}</span>
                       </div>
                     </div>
                     
+                    <div class="wealth-asset-item savings" style="border-left: 3px solid #0ea5e9;">
+                      <div class="asset-icon-wrapper" style="color: #0ea5e9;">🏦</div>
+                      <div class="asset-details">
+                        <span class="asset-label">Deposito Berjangka</span>
+                        <span class="asset-value">$ ${financeManager.formatCurrency(savingsBalance, true)}</span>
+                      </div>
+                    </div>
+
+                    <div class="wealth-asset-item reksadana" style="border-left: 3px solid #34d399;">
+                      <div class="asset-icon-wrapper" style="color: #34d399;">📊</div>
+                      <div class="asset-details">
+                        <span class="asset-label">Reksa Dana</span>
+                        <span class="asset-value">$ ${financeManager.formatCurrency(totalRdValue, true)}</span>
+                      </div>
+                    </div>
+
                     <div class="wealth-asset-item stocks">
                       <div class="asset-icon-wrapper">📈</div>
                       <div class="asset-details">
@@ -802,7 +849,7 @@ class FinancePanel {
         }
 
         // Render Distribution
-        this.renderWealthDistributionTable(balance, totalStockValue, totalCryptoValue, totalPropertyValue);
+        this.renderWealthDistributionTable(balance, savingsBalance, totalRdValue, totalStockValue, totalCryptoValue, totalPropertyValue);
 
         // Stocks portfolio list
         const stocksEl = document.getElementById('portfolio-stocks');
@@ -898,11 +945,11 @@ class FinancePanel {
         this.renderWealthSources();
     }
 
-    renderWealthDistributionTable(cash, stocks, crypto, property) {
+    renderWealthDistributionTable(cash, savings, reksadana, stocks, crypto, property) {
         const container = document.getElementById('wealth-distribution-table');
         if (!container) return;
 
-        const total = cash + stocks + crypto + property;
+        const total = cash + savings + reksadana + stocks + crypto + property;
         if (total === 0) {
             container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div>Belum ada aset</div></div>';
             return;
@@ -910,6 +957,8 @@ class FinancePanel {
 
         const rows = [
             { label: 'Cash', icon: '💵', value: cash, color: '#6366f1' },
+            { label: 'Deposito', icon: '🏦', value: savings, color: '#0ea5e9' },
+            { label: 'Reksa Dana', icon: '📊', value: reksadana, color: '#34d399' },
             { label: 'Saham', icon: '📈', value: stocks, color: '#10b981' },
             { label: 'Kripto', icon: '🪙', value: crypto, color: '#a855f7' },
             { label: 'Properti', icon: '🏢', value: property, color: '#f59e0b' }

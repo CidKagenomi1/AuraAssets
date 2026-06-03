@@ -426,7 +426,7 @@ html, body {
   }
   .app-main {
     margin-left: 0;
-    padding-bottom: 115px; /* extra space for tiered bottom nav */
+    padding-bottom: 65px; /* extra space for single-tier bottom nav */
   }
   .app-topbar {
     padding: 0 1rem;
@@ -805,15 +805,55 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+  min-width: 0;
+  gap: 0.75rem;
 }
 .transaction-left {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+}
+.transaction-icon {
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.transaction-info {
+  flex: 1;
+  min-width: 0;
+}
+.transaction-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.transaction-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.transaction-amount {
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+/* Safety layout configurations for key containers */
+.card, .panel-card, .job-card, .biz-type-card, .menu-card, .asset-item, .stat-card, .metric-box, .property-card-premium, .wp-task-card {
+  min-width: 0;
 }
 
 /* Modals & Overlays */
@@ -1328,39 +1368,113 @@ html, body {
 
 @media (max-width: 768px) {
   html {
-    font-size: 13.5px;
+    font-size: 13px;
   }
   .view-container {
-    padding: 1rem !important;
+    padding: 0.6rem !important;
   }
   .dashboard-grid {
-    gap: 1rem !important;
+    gap: 0.6rem !important;
   }
-  h1, .h1 { font-size: 1.75rem !important; }
-  h2, .h2 { font-size: 1.35rem !important; }
-  h3, .h3 { font-size: 1.1rem !important; }
-  .section-title { font-size: 1.1rem !important; }
+  h1, .h1 { font-size: 1.5rem !important; }
+  h2, .h2 { font-size: 1.2rem !important; }
+  h3, .h3 { font-size: 1rem !important; }
+  .section-title { font-size: 1rem !important; }
+
+  /* Make Fear & Greed + Gov Subsidy side-by-side on mobile */
+  .home-widgets-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Make quick actions grid 4 columns */
+  .quick-menu-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 0.4rem !important;
+  }
+  .menu-card {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    padding: 0.35rem 0.15rem !important;
+    gap: 0.2rem !important;
+    border-radius: var(--radius-sm) !important;
+    box-shadow: none !important;
+  }
+  .menu-icon-box {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 1rem !important;
+    margin: 0 !important;
+    border: none !important;
+    flex-shrink: 0 !important;
+  }
+  .menu-card-title {
+    font-size: 0.7rem !important;
+    font-weight: 600 !important;
+    line-height: 1.1 !important;
+    word-break: break-word !important;
+    margin-top: 0.15rem !important;
+  }
+  .menu-card::before {
+    display: none !important; /* Hide vertical thick line on mobile actions */
+  }
+
+  /* Mobile footer tabs display toggle */
+  .mobile-footer-tabs {
+    display: flex !important;
+  }
 }
 
 @media (max-width: 480px) {
   html {
-    font-size: 12px;
+    font-size: 11px;
   }
   .view-container {
-    padding: 0.75rem !important;
+    padding: 0.4rem !important;
   }
   .dashboard-grid {
-    gap: 0.75rem !important;
+    gap: 0.4rem !important;
   }
   .balance-main {
-    font-size: 2.25rem !important;
+    font-size: 1.6rem !important;
   }
   .hero-balance-card {
-    padding: 1.25rem 1rem !important;
+    padding: 0.5rem 0.75rem !important;
   }
+  #btn-show-finance {
+    top: 0.5rem !important;
+    right: 0.5rem !important;
+    padding: 4px 8px !important;
+    font-size: 0.65rem !important;
+  }
+  #balance-sparkline {
+    height: 45px !important;
+    margin-top: 0.25rem !important;
+    margin-bottom: -0.5rem !important;
+  }
+  #fear-greed-value {
+    font-size: 1.5rem !important;
+  }
+  #fear-greed-status {
+    font-size: 0.75rem !important;
+  }
+  #earn-pending-value {
+    font-size: 1.5rem !important;
+  }
+  #earn-rate-value {
+    font-size: 0.7rem !important;
+  }
+  .earn-widget #btn-claim,
+  .earn-widget #btn-upgrade {
+    padding: 4px 6px !important;
+    font-size: 0.7rem !important;
+    margin-top: 0 !important;
+  }
+
   #finance-chart {
-    height: 280px !important;
-    min-height: 240px !important;
+    height: 220px !important;
+    min-height: 180px !important;
   }
 }
 

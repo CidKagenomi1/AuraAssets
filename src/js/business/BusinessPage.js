@@ -626,7 +626,7 @@ class BusinessPage {
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
                     <!-- Treasury Actions -->
                     <div class="card" style="padding: 1.5rem;">
                         <h3 style="margin-top:0; font-size: 1.15rem; font-weight: 900; margin-bottom: 1.2rem; display:flex; align-items:center; gap:0.5rem;">
@@ -636,7 +636,7 @@ class BusinessPage {
                             Sebagai direktur utama/founder, Anda dapat mentransfer saldo pribadi Anda ke dalam kas treasury perusahaan untuk mendanai riset R&D atau kampanye iklan. Anda juga dapat menarik sisa kas surplus perusahaan ke rekening bank pribadi (khusus kepemilikan privat).
                         </p>
                         
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--border-color);">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--border-color);">
                             <div>
                                 <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; display:block; margin-bottom: 6px;">Alokasi Nominal Dana ($)</label>
                                 <input type="number" id="treasury-amount-input" placeholder="Masukkan jumlah dana..." 
@@ -732,10 +732,13 @@ class BusinessPage {
         bindChartHoverEvents(this.container, financeManager);
 
 
-        // Overview Events
         const input = document.getElementById('treasury-amount-input');
         if (input) {
-            ui.setupNumericInput(input);
+            ui.setupNumericInput(input, {
+                isDecimal: false,
+                showZeroAppend: true,
+                showMax: false
+            });
         }
 
         const btnInject = document.getElementById('btn-inject-cash');

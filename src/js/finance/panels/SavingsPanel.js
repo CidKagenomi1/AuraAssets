@@ -612,8 +612,14 @@ class SavingsPanel {
         }
 
         if (inputAmount) {
+            ui.setupNumericInput(inputAmount, {
+                isDecimal: false,
+                showZeroAppend: true,
+                showMax: true,
+                maxAmount: () => gameState.getBalance()
+            });
             inputAmount.addEventListener('input', () => {
-                const val = parseInt(inputAmount.value) || 0;
+                const val = inputAmount.getNumericValue ? inputAmount.getNumericValue() : (parseInt(inputAmount.value.replace(/,/g, '')) || 0);
                 gameState.set('savings.autoDepositAmount', val);
             });
         }
@@ -622,7 +628,10 @@ class SavingsPanel {
             btn.addEventListener('click', () => {
                 const amt = parseInt(btn.dataset.amount) || 1000;
                 gameState.set('savings.autoDepositAmount', amt);
-                if (inputAmount) inputAmount.value = amt;
+                if (inputAmount) {
+                    inputAmount.value = String(amt);
+                    inputAmount.dispatchEvent(new Event('input', { bubbles: true }));
+                }
                 ui.success(`Jumlah auto deposit diatur ke $ ${financeManager.formatCurrency(amt)}`);
             });
         });

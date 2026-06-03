@@ -107,19 +107,8 @@ class EarnManager {
         const pendingEarn = gameState.get('earn.pendingEarn') || 0;
         if (pendingEarn <= 0) return { success: false, message: 'Tidak ada subsidi untuk diklaim' };
 
-        // Add to player balance
-        gameState.update('player', p => ({
-            ...p,
-            balance: p.balance + pendingEarn
-        }));
-
-        // Record transaction
-        financeManager.recordTransaction({
-            type: 'income',
-            category: 'Earn',
-            amount: pendingEarn,
-            description: 'Subsidi Govermen'
-        });
+        // BUG-02 FIX: Use addBalance() so transaction is properly recorded in history
+        gameState.addBalance(pendingEarn, 'Earn', 'Subsidi Govermen');
 
         // Update earn state
         gameState.update('earn', e => ({
@@ -148,19 +137,8 @@ class EarnManager {
             };
         }
 
-        // Deduct cost
-        gameState.update('player', p => ({
-            ...p,
-            balance: p.balance - upgradeCost
-        }));
-
-        // Record transaction
-        financeManager.recordTransaction({
-            type: 'expense',
-            category: 'Upgrade',
-            amount: -upgradeCost,
-            description: `Peningkatan Subsidi Level ${currentLevel} → ${currentLevel + 1}`
-        });
+        // BUG-03 FIX: Use addBalance() so the deduction is recorded in transaction history
+        gameState.addBalance(-upgradeCost, 'Upgrade', `Peningkatan Subsidi Level ${currentLevel} → ${currentLevel + 1}`);
 
         // Upgrade level
         const newLevel = currentLevel + 1;

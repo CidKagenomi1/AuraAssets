@@ -26,6 +26,11 @@ class GameState {
         this.activeCharacter = this.currentUser ? localStorage.getItem(`businessTycoon_activeChar_${this.currentUser.toLowerCase()}`) || null : null;
         this.state = this.getDefaultState();
         this.load();
+
+        // Listen for dayPass to record daily balance snapshot
+        this.on('dayPass', (timeData) => {
+            this.recordDailyBalance(timeData);
+        });
     }
 
     getDefaultState() {
@@ -45,6 +50,8 @@ class GameState {
 
             // Financial Records
             transactions: [],
+            dailyBalanceHistory: [],
+            tickBalanceHistory: [],
             income: [],
             expenses: [],
 
@@ -238,8 +245,20 @@ class GameState {
 
     // Persistence
     save() {
+        if (this.saveTimeout) {
+            clearTimeout(this.saveTimeout);
+            this.saveTimeout = null;
+        }
+        // BUG-04 FIX: Throttle saves — skip if saved within last 30 seconds
+        const now = Date.now();
+        if (this._lastSaveTime && (now - this._lastSaveTime) < 30000) {
+            return false;
+        }
         try {
-            if (!this.currentUser) return;
+            if (!this.currentUser) {
+                console.warn('⚠️ Cannot save: No user is logged in.');
+                return false;
+            }
             const charKey = this.activeCharacter ? this.activeCharacter.toLowerCase() : 'pemain';
             localStorage.setItem(`businessTycoon_save_${this.currentUser.toLowerCase()}_char_${charKey}`, JSON.stringify(this.state));
             
@@ -252,9 +271,12 @@ class GameState {
                 }
                 localStorage.setItem(`businessTycoon_activeChar_${this.currentUser.toLowerCase()}`, this.activeCharacter);
             }
-            console.log(`💾 Game saved for user: ${this.currentUser}, Character: ${this.activeCharacter}`);
+            this._lastSaveTime = now;
+            console.debug(`💾 Game saved for user: ${this.currentUser}, Character: ${this.activeCharacter}`);
+            return true;
         } catch (e) {
             console.error('Failed to save game:', e);
+            return false;
         }
     }
 
@@ -306,6 +328,15 @@ class GameState {
             } else {
                 this.state = this.getDefaultState();
                 this.state.player.name = this.activeCharacter;
+            }
+
+            // Ensure dailyBalanceHistory is initialized & prepopulated
+            if (!this.state.dailyBalanceHistory || this.state.dailyBalanceHistory.length === 0) {
+                this.prepopulateDailyHistory();
+            }
+            // Ensure tickBalanceHistory is initialized & prepopulated
+            if (!this.state.tickBalanceHistory || this.state.tickBalanceHistory.length === 0) {
+                this.prepopulateTickHistory();
             }
         } catch (e) {
             console.error('Failed to load game:', e);
@@ -417,19 +448,34 @@ class GameState {
     }
 
     scheduleSave() {
-        if (this.saveTimeout) clearTimeout(this.saveTimeout);
-        this.saveTimeout = setTimeout(() => this.save(), 1000);
+        // BUG-04 FIX: Only schedule if no pending save AND enough time has passed
+        if (this.saveTimeout) return;
+        const now = Date.now();
+        const timeSinceLastSave = this._lastSaveTime ? (now - this._lastSaveTime) : Infinity;
+        // Delay: 30s minimum between saves, but always write if >60s has passed
+        const delay = timeSinceLastSave < 30000 ? (30000 - timeSinceLastSave) : 1000;
+        this.saveTimeout = setTimeout(() => this.save(), delay);
     }
 
     reset() {
+        // BUG-07 FIX: Also remove character from charList and clear activeChar key
         const charName = this.activeCharacter;
         this.state = this.getDefaultState();
         if (this.currentUser) {
+            const lowerUser = this.currentUser.toLowerCase();
             if (charName) {
                 const charKey = charName.toLowerCase();
-                localStorage.removeItem(`businessTycoon_save_${this.currentUser.toLowerCase()}_char_${charKey}`);
+                // Remove save data
+                localStorage.removeItem(`businessTycoon_save_${lowerUser}_char_${charKey}`);
+                // Remove from character list
+                const chars = this.getCharacters().filter(c => c.toLowerCase() !== charKey);
+                this.saveCharacters(chars);
+                // Clear active character key
+                localStorage.removeItem(`businessTycoon_activeChar_${lowerUser}`);
+                this.activeCharacter = null;
             }
-            localStorage.removeItem(`businessTycoon_save_${this.currentUser.toLowerCase()}`);
+            // Also remove legacy save key if it exists
+            localStorage.removeItem(`businessTycoon_save_${lowerUser}`);
         }
         this.emit('reset');
         console.log('🔄 Game reset for character:', charName);
@@ -512,11 +558,16 @@ class GameState {
     }
 
     checkSession() {
+        // BUG-05 FIX: Use non-blocking custom event instead of alert()
         if (!this.currentUser) return;
         const loginTime = localStorage.getItem('businessTycoon_loginTime');
         if (loginTime && Date.now() - parseInt(loginTime) > 24 * 60 * 60 * 1000) {
-            alert('Sesi Anda telah berakhir (24 jam). Silakan login kembali.');
-            this.logout();
+            // Dispatch event for UI to handle gracefully instead of blocking alert
+            document.dispatchEvent(new CustomEvent('sessionExpired', {
+                detail: { message: 'Sesi Anda telah berakhir (24 jam). Silakan login kembali.' }
+            }));
+            // Give UI a moment to show the notification before logging out
+            setTimeout(() => this.logout(), 3000);
         }
     }
 
@@ -549,18 +600,166 @@ class GameState {
     }
 
     getNetWorth() {
+        // BUG-01 FIX: Include stock portfolio, crypto wallet, savings, and property values
         let netWorth = this.state.player.balance;
 
-        // Add stock values
-        // Add crypto values
-        // Subtract loans
-        for (const loan of this.state.loans) {
+        // Add savings/deposito value
+        netWorth += (this.state.savings?.balance || 0);
+
+        // Add Reksa Dana value
+        const rdPortfolio = this.state.savings?.reksaDana || {};
+        const rdFunds = [
+            { id: 'pasar_uang', nav: 1.042 },
+            { id: 'pendapatan_tetap', nav: 1.238 },
+            { id: 'campuran', nav: 2.115 },
+            { id: 'saham', nav: 3.871 },
+        ];
+        rdFunds.forEach(f => {
+            const holding = rdPortfolio[f.id];
+            if (holding && holding.units > 0) {
+                netWorth += holding.units * f.nav * 1000;
+            }
+        });
+
+        // Add stock portfolio value (uses avgBuyPrice as fallback if market not loaded)
+        const stocks = this.state.stocks || {};
+        for (const symbol in stocks) {
+            const holding = stocks[symbol];
+            if (holding && holding.shares > 0) {
+                // Try to get live price from window.game.stocks if available
+                let currentPrice = holding.avgBuyPrice;
+                try {
+                    const liveStock = window.game?.stocks?.getStock(symbol);
+                    if (liveStock?.price) currentPrice = liveStock.price;
+                } catch(e) {}
+                netWorth += currentPrice * holding.shares;
+            }
+        }
+
+        // Add crypto wallet value
+        const crypto = this.state.crypto || {};
+        for (const symbol in crypto) {
+            const holding = crypto[symbol];
+            if (holding && holding.amount > 0) {
+                let currentPrice = holding.avgBuyPrice;
+                try {
+                    const liveCrypto = window.game?.crypto?.getCrypto(symbol);
+                    if (liveCrypto?.price) currentPrice = liveCrypto.price;
+                } catch(e) {}
+                netWorth += currentPrice * holding.amount;
+            }
+        }
+
+        // Add property portfolio value
+        const properties = this.state.properties || [];
+        for (const prop of properties) {
+            netWorth += (prop.price || 0);
+        }
+
+        // Subtract active loan balances
+        for (const loan of (this.state.loans || [])) {
             if (!loan.paid) {
-                netWorth -= loan.remaining;
+                netWorth -= (loan.remaining || 0);
             }
         }
 
         return netWorth;
+    }
+
+    prepopulateDailyHistory() {
+        this.state.dailyBalanceHistory = [];
+        const currentBalance = this.getBalance();
+        const currentDay = this.get('gameTime.day') || 1;
+        const currentMonth = this.get('gameTime.month') || 1;
+        const currentYear = this.get('gameTime.year') || 2010;
+        
+        let balance = currentBalance;
+        const temp = [];
+        for (let i = 364; i >= 0; i--) {
+            let d = currentDay - i;
+            let m = currentMonth;
+            let y = currentYear;
+            while (d <= 0) {
+                d += 30;
+                m -= 1;
+                if (m <= 0) {
+                    m += 12;
+                    y -= 1;
+                }
+            }
+            // Upward drift random walk backwards
+            const drift = (Math.random() - 0.45) * 0.003;
+            balance = Math.max(100, balance * (1 - drift));
+            temp.push({
+                day: d,
+                month: m,
+                year: y,
+                balance: Math.round(balance),
+                label: `${d}/${m}`
+            });
+        }
+        this.state.dailyBalanceHistory = temp;
+    }
+
+    prepopulateTickHistory() {
+        this.state.tickBalanceHistory = [];
+        const currentBalance = this.getBalance();
+        let balance = currentBalance;
+        const now = new Date();
+        const temp = [];
+        for (let i = 23; i >= 0; i--) {
+            const t = new Date(now.getTime() - i * 1000);
+            const timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const drift = (Math.random() - 0.45) * 0.001;
+            balance = Math.max(100, balance * (1 - drift));
+            temp.push({
+                time: timeStr,
+                balance: Math.round(balance)
+            });
+        }
+        this.state.tickBalanceHistory = temp;
+    }
+
+    recordDailyBalance(timeData) {
+        if (!this.state.dailyBalanceHistory) {
+            this.state.dailyBalanceHistory = [];
+        }
+        
+        const day = timeData?.day || this.get('gameTime.day') || 1;
+        const month = timeData?.month || this.get('gameTime.month') || 1;
+        const year = timeData?.year || this.get('gameTime.year') || 2010;
+        
+        this.state.dailyBalanceHistory.push({
+            day,
+            month,
+            year,
+            balance: this.getBalance(),
+            label: `${day}/${month}`
+        });
+        
+        if (this.state.dailyBalanceHistory.length > 365) {
+            this.state.dailyBalanceHistory.shift();
+        }
+        
+        this.emit('dailyBalanceUpdate', this.state.dailyBalanceHistory);
+    }
+
+    recordTickBalance() {
+        if (!this.state.tickBalanceHistory) {
+            this.state.tickBalanceHistory = [];
+        }
+        
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        this.state.tickBalanceHistory.push({
+            time: timeStr,
+            balance: this.getBalance()
+        });
+        
+        if (this.state.tickBalanceHistory.length > 24) {
+            this.state.tickBalanceHistory.shift();
+        }
+        
+        this.emit('tickBalanceUpdate', this.state.tickBalanceHistory);
     }
 }
 

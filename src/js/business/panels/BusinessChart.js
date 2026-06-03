@@ -79,7 +79,7 @@ export function renderSVGChart(biz, chartType, financeManager, businessManager) 
 
     const width   = 800;
     const height  = 220;
-    const padding = { top: 20, right: 80, bottom: 35, left: 80 };
+    const padding = { top: 15, right: 50, bottom: 30, left: 50 };
     const chartW  = width  - padding.left - padding.right;
     const chartH  = height - padding.top  - padding.bottom;
 

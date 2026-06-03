@@ -304,7 +304,16 @@
               </div>
               
               <!-- Sparkline Chart -->
-              <div id="balance-sparkline" style="width: 100%; height: 95px; margin-top: auto; margin-bottom: -1rem; margin-left: -1rem; margin-right: -1rem; width: calc(100% + 2rem);"></div>
+              <div id="balance-sparkline" style="width: 100%; height: 95px; margin-top: auto; margin-bottom: 0.5rem; margin-left: -1rem; margin-right: -1rem; width: calc(100% + 2rem);"></div>
+              
+              <!-- Timeframe Selectors -->
+              <div class="chart-timeframe-selectors" style="display: flex; gap: 6px; justify-content: center; margin-bottom: -0.25rem; z-index: 10; position: relative;">
+                <button class="btn-timeframe" data-timeframe="1D" style="padding: 3px 8px; font-size: 0.65rem; font-weight: 800; border-radius: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary); cursor: pointer; transition: all 0.2s; font-family: inherit;">1D</button>
+                <button class="btn-timeframe" data-timeframe="1W" style="padding: 3px 8px; font-size: 0.65rem; font-weight: 800; border-radius: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary); cursor: pointer; transition: all 0.2s; font-family: inherit;">1W</button>
+                <button class="btn-timeframe active" data-timeframe="1M" style="padding: 3px 8px; font-size: 0.65rem; font-weight: 800; border-radius: 4px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: var(--accent-primary); cursor: pointer; transition: all 0.2s; font-family: inherit;">1M</button>
+                <button class="btn-timeframe" data-timeframe="YTD" style="padding: 3px 8px; font-size: 0.65rem; font-weight: 800; border-radius: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary); cursor: pointer; transition: all 0.2s; font-family: inherit;">YTD</button>
+                <button class="btn-timeframe" data-timeframe="1Y" style="padding: 3px 8px; font-size: 0.65rem; font-weight: 800; border-radius: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary); cursor: pointer; transition: all 0.2s; font-family: inherit;">1Y</button>
+              </div>
             </section>
 
             <!-- Widgets Row (Fear & Greed Index + Government Subsidy) -->
@@ -400,21 +409,31 @@
             </section>
 
             <!-- Dashboard Grid: Milestones & Transactions -->
-            <div id="footer-dashboard-grid" class="dashboard-grid" style="margin-top:2rem; margin-bottom:1.5rem;">
-              <section class="col-span-8 panel-card" style="margin-bottom:0;">
+            <div id="footer-dashboard-grid" class="dashboard-grid" style="margin-top:1.5rem; margin-bottom:1.5rem;">
+              <!-- Tab Navigation for mobile -->
+              <div class="mobile-footer-tabs" style="display: none; width: 100%; gap: 0.5rem; margin-bottom: 0.5rem; grid-column: span 12;">
+                <button class="footer-tab-btn active" data-tab-target="milestones" style="
+                  flex: 1; padding: 8px; font-size: 0.8rem; font-weight: 700; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+                ">🏆 Milestone</button>
+                <button class="footer-tab-btn" data-tab-target="transactions" style="
+                  flex: 1; padding: 8px; font-size: 0.8rem; font-weight: 700; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+                ">📋 Transaksi</button>
+              </div>
+
+              <section id="footer-milestones-section" class="col-span-8 panel-card" style="margin-bottom:0;">
                 <div class="panel-header">
                   <h2 class="section-title"><span>🏆</span> Milestone Keuangan</h2>
                 </div>
-                <div id="milestones-list" style="display:flex;flex-direction:column;gap:0.75rem;">
+                <div id="milestones-list" style="display:flex;flex-direction:column;gap:0.5rem;">
                   <!-- Injected by HomeScreen -->
                 </div>
               </section>
 
-              <section class="col-span-4 panel-card" style="margin-bottom:0;">
+              <section id="footer-transactions-section" class="col-span-4 panel-card" style="margin-bottom:0;">
                 <div class="panel-header">
                   <h2 class="section-title"><span>📋</span> Transaksi Terakhir</h2>
                 </div>
-                <div id="recent-transactions-mini" style="display:flex;flex-direction:column;gap:0.5rem;">
+                <div id="recent-transactions-mini" style="display:flex;flex-direction:column;gap:0.4rem;">
                   <!-- Injected by HomeScreen -->
                 </div>
               </section>

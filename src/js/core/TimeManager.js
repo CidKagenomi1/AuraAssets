@@ -29,7 +29,7 @@ class TimeManager {
         }
 
         this.tickInterval = setInterval(() => this.tick(), 1000);
-        console.log('⏰ Time started (1 day = 5 mins)');
+        console.log(`⏰ Time started (1 day = ${this.baseMsPerDay / 1000} seconds real-time)`);
     }
 
     stop() {
@@ -57,6 +57,9 @@ class TimeManager {
         const now = Date.now();
         const lastTick = gameState.get('gameTime.lastTick') || now;
         const elapsed = now - lastTick;
+
+        // Record tick-by-tick balance for 1D chart
+        gameState.recordTickBalance();
 
         // Calculate target duration based on speed
         const targetDuration = this.baseMsPerDay / speed;
@@ -156,6 +159,21 @@ class TimeManager {
     }
 
     getFormattedDate() {
+        // BUG-06 FIX: Use day/month/year from gameState directly as primary source.
+        // Fall back to totalDays calculation only if direct values are unavailable (old saves).
+        const day = gameState.get('gameTime.day');
+        const month = gameState.get('gameTime.month');
+        const year = gameState.get('gameTime.year');
+
+        if (day && month && year) {
+            const monthNames = [
+                'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+                'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+            ];
+            return `${day} ${monthNames[month - 1]} ${year}`;
+        }
+
+        // Legacy fallback: compute from totalDays
         return this.formatDay(gameState.get('gameTime.totalDays') || 0);
     }
 

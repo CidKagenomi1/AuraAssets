@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FinanceManager.js - Financial Management
  * Handles income, expenses, transactions, and balance
  */
@@ -122,14 +122,18 @@ class FinanceManager {
             description
         });
 
-        // Track in income array
+        // Track in income array (capped to last 200 items to avoid localStorage bloat)
         const incomes = gameState.get('income') || [];
         incomes.push({
             ...transaction,
             month: gameState.get('gameTime.month'),
             year: gameState.get('gameTime.year')
         });
-        gameState.set('income', incomes);
+        if (incomes.length > 200) {
+            gameState.set('income', incomes.slice(-200));
+        } else {
+            gameState.set('income', incomes);
+        }
 
         return transaction;
     }
@@ -155,14 +159,18 @@ class FinanceManager {
             description
         });
 
-        // Track in expenses array
+        // Track in expenses array (capped to last 200 items to avoid localStorage bloat)
         const expenses = gameState.get('expenses') || [];
         expenses.push({
             ...transaction,
             month: gameState.get('gameTime.month'),
             year: gameState.get('gameTime.year')
         });
-        gameState.set('expenses', expenses);
+        if (expenses.length > 200) {
+            gameState.set('expenses', expenses.slice(-200));
+        } else {
+            gameState.set('expenses', expenses);
+        }
 
         return transaction;
     }
