@@ -1008,31 +1008,55 @@ class ViewManager {
           `;
         }).join('');
 
-    // Build all stocks/cryptos dropdown options
-    const stocks = stockMarket.getAllStocks() || [];
-    const cryptos = cryptoMarket.getAllCryptos() || [];
+    // Active Search filter if any
+    const botSearchKeyword = window._botAssetSearchQuery || '';
+    const activeAssetTypeTab = window._botAssetTypeTab || 'all'; // 'all' | 'stock' | 'crypto'
 
-    const stockOptions = stocks.map(s => `<option value="stock:${s.symbol}">Saham: ${s.symbol} - ${s.name}</option>`).join('');
-    const cryptoOptions = cryptos.map(c => `<option value="crypto:${c.symbol}">Crypto: ${c.symbol} - ${c.name}</option>`).join('');
+    let filteredStocks = [...stocks];
+    let filteredCryptos = [...cryptos];
+
+    if (botSearchKeyword) {
+      filteredStocks = filteredStocks.filter(s => s.symbol.toLowerCase().includes(botSearchKeyword.toLowerCase()) || s.name.toLowerCase().includes(botSearchKeyword.toLowerCase()));
+      filteredCryptos = filteredCryptos.filter(c => c.symbol.toLowerCase().includes(botSearchKeyword.toLowerCase()) || c.name.toLowerCase().includes(botSearchKeyword.toLowerCase()));
+    }
+
+    const stockOptions = filteredStocks.map(s => `<option value="stock:${s.symbol}" data-asset-type="stock">📈 Saham: ${s.symbol} - ${s.name}</option>`).join('');
+    const cryptoOptions = filteredCryptos.map(c => `<option value="crypto:${c.symbol}" data-asset-type="crypto">🪙 Kripto: ${c.symbol} - ${c.name}</option>`).join('');
+
+    let selectOptionsHTML = '';
+    if (activeAssetTypeTab === 'all' || activeAssetTypeTab === 'stock') {
+      selectOptionsHTML += `<optgroup label="Saham Terpopuler (Bursa Efek)">${stockOptions || '<option disabled>Tidak ada saham ditemukan</option>'}</optgroup>`;
+    }
+    if (activeAssetTypeTab === 'all' || activeAssetTypeTab === 'crypto') {
+      selectOptionsHTML += `<optgroup label="Aset Kripto (Pasar Kripto)">${cryptoOptions || '<option disabled>Tidak ada kripto ditemukan</option>'}</optgroup>`;
+    }
 
     return `
       <div style="display: flex; flex-direction: column; gap: 1.5rem; animation: fade-up 0.3s ease;">
         <!-- Setup Area -->
         <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem;">
           <h3 style="font-size: 1.15rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">🤖 Buat Trading Bot Baru</h3>
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Gunakan robot otomatis untuk melakukan trading saham atau aset kripto. Robot akan mengeksekusi perdagangan menggunakan momentum sinyal pasar secara real-time.</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Gunakan robot otomatis untuk melakukan trading saham atau aset kripto. Robot Saham beroperasi dengan momentum pasar reguler, sedangkan Robot Kripto menggunakan volatilitas harian 24/7 dengan leverage & return terpisah.</p>
           
           <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem;">
+            <!-- Search & Filter Controls for Assets -->
+            <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center; flex-wrap: wrap;">
+              <div style="flex: 1; min-width: 200px; position: relative;">
+                <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; opacity: 0.5;">🔍</span>
+                <input type="text" id="bot-asset-search" placeholder="Cari aset..." value="${botSearchKeyword}" style="width: 100%; padding: 0.5rem 0.5rem 0.5rem 2rem; background: var(--bg-surface); color: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.8rem;" oninput="window.filterBotAssetSearch(this.value)">
+              </div>
+              <div style="display: flex; gap: 0.35rem; background: rgba(0,0,0,0.25); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button class="btn btn-sm" onclick="window.setBotAssetTypeTab('all')" style="font-size: 0.72rem; padding: 4px 8px; border: none; height: auto; font-weight: 700; background: ${activeAssetTypeTab === 'all' ? 'var(--accent-primary-soft)' : 'transparent'}; color: ${activeAssetTypeTab === 'all' ? 'var(--accent-primary)' : 'var(--text-muted)'};">Semua</button>
+                <button class="btn btn-sm" onclick="window.setBotAssetTypeTab('stock')" style="font-size: 0.72rem; padding: 4px 8px; border: none; height: auto; font-weight: 700; background: ${activeAssetTypeTab === 'stock' ? 'rgba(55,138,221,0.15)' : 'transparent'}; color: ${activeAssetTypeTab === 'stock' ? '#378add' : 'var(--text-muted)'};">📈 Saham</button>
+                <button class="btn btn-sm" onclick="window.setBotAssetTypeTab('crypto')" style="font-size: 0.72rem; padding: 4px 8px; border: none; height: auto; font-weight: 700; background: ${activeAssetTypeTab === 'crypto' ? 'rgba(245,158,11,0.15)' : 'transparent'}; color: ${activeAssetTypeTab === 'crypto' ? '#f59e0b' : 'var(--text-muted)'};">🪙 Kripto</button>
+              </div>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; min-width: 0;">
               <div class="form-group" style="margin-bottom: 0; min-width: 0;">
                 <label class="form-label" style="font-size: 0.75rem;">Pilih Aset Investasi</label>
                 <select id="bot-asset-select" class="form-input" style="background: var(--bg-surface); color: white; width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
-                  <optgroup label="Saham Terpopuler">
-                    ${stockOptions}
-                  </optgroup>
-                  <optgroup label="Aset Kripto">
-                    ${cryptoOptions}
-                  </optgroup>
+                  ${selectOptionsHTML}
                 </select>
               </div>
               <div class="form-group" style="margin-bottom: 0; min-width: 0;">
@@ -1317,6 +1341,27 @@ window.downloadBotCard = (id, isActive) => {
   } catch(err) {
     ui.error('Gagal mengunduh gambar kartu: ' + err.message);
   }
+};
+
+// Global helpers for search and asset filtering inside trading bot setup
+window.filterBotAssetSearch = (query) => {
+  window._botAssetSearchQuery = query;
+  viewManager._renderBotTrading = true;
+  viewManager.updateMarketView(true);
+  
+  // Restore focus to input and place cursor at the end
+  const searchInput = document.getElementById('bot-asset-search');
+  if (searchInput) {
+    searchInput.focus();
+    const len = searchInput.value.length;
+    searchInput.setSelectionRange(len, len);
+  }
+};
+
+window.setBotAssetTypeTab = (tab) => {
+  window._botAssetTypeTab = tab;
+  viewManager._renderBotTrading = true;
+  viewManager.updateMarketView(true);
 };
 
 export const viewManager = new ViewManager();

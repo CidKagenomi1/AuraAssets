@@ -68,7 +68,8 @@ class EarnManager {
         const cappedSeconds = Math.min(elapsedSeconds, 86400);
 
         if (cappedSeconds > 0) {
-            const earnRate = this.getEarnRate();
+            const disabled = gameState.get('settings.subsidyDisabled') || false;
+            const earnRate = disabled ? 0 : this.getEarnRate();
             const offlineEarnings = earnRate * cappedSeconds;
 
             gameState.update('earn', e => ({
@@ -77,7 +78,9 @@ class EarnManager {
                 lastEarnTick: now
             }));
 
-            console.log(`💤 Offline earnings: ${financeManager.formatCurrency(offlineEarnings)} (${cappedSeconds}s)`);
+            if (offlineEarnings > 0) {
+                console.log(`💤 Offline earnings: ${financeManager.formatCurrency(offlineEarnings)} (${cappedSeconds}s)`);
+            }
         }
     }
 
@@ -85,7 +88,8 @@ class EarnManager {
      * Tick - add earnings every second
      */
     tick() {
-        const earnRate = this.getEarnRate();
+        const disabled = gameState.get('settings.subsidyDisabled') || false;
+        const earnRate = disabled ? 0 : this.getEarnRate();
         const now = Date.now();
 
         gameState.update('earn', e => ({

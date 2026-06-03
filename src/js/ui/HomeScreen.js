@@ -719,6 +719,25 @@ class HomeScreen {
                 </button>
             </div>
 
+            <!-- ⚙️ General Settings -->
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 0.75rem;">
+                    ⚙️ Pengaturan Umum
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: #fff; font-size: 0.88rem; display: block; margin-bottom: 2px;">Disable Subsidi Pemerintah</strong>
+                        <span style="font-size: 0.72rem; color: var(--text-dim);">Hentikan pengumpulan dana pasif per detik</span>
+                    </div>
+                    <label class="switch" style="position:relative; display:inline-block; width:44px; height:22px;">
+                        <input type="checkbox" id="chk-disable-subsidy" ${gameState.get('settings.subsidyDisabled') ? 'checked' : ''} style="opacity:0; width:0; height:0;">
+                        <span class="slider" style="position:absolute; cursor:pointer; inset:0; background-color:${gameState.get('settings.subsidyDisabled') ? '#0ea5e9' : '#374151'}; border-radius:20px; transition:0.3s; display:flex; align-items:center;">
+                            <span class="knob" style="height:16px; width:16px; background-color:white; border-radius:50%; transition:0.3s; transform:translateX(${gameState.get('settings.subsidyDisabled') ? '24px' : '4px'}); display:block;"></span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
             <div style="margin-bottom:1.25rem;">
                 <div style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.04em;">Ubah Peran</div>
                 ${roleOptionsHTML}
@@ -852,6 +871,25 @@ class HomeScreen {
                         }
                     });
                 });
+
+                // Subsidy toggle switch event
+                const chkSubsidy = document.getElementById('chk-disable-subsidy');
+                if (chkSubsidy) {
+                    chkSubsidy.addEventListener('change', (e) => {
+                        const checked = e.target.checked;
+                        gameState.set('settings.subsidyDisabled', checked);
+                        const slider = chkSubsidy.nextElementSibling;
+                        const knob = slider.querySelector('.knob');
+                        slider.style.backgroundColor = checked ? '#0ea5e9' : '#374151';
+                        knob.style.transform = `translateX(${checked ? '24px' : '4px'})`;
+                        if (checked) {
+                            ui.success('Subsidi Pemerintah Dinonaktifkan');
+                        } else {
+                            ui.success('Subsidi Pemerintah Diaktifkan');
+                        }
+                        this.updateBalanceCard();
+                    });
+                }
 
                 document.getElementById('btn-logout-game')?.addEventListener('click', () => {
                     gameState.logout();

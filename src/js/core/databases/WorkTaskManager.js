@@ -649,8 +649,8 @@ class WorkTaskManager {
 
     _triggerRoleEvolution(newRole, levelData) {
         Promise.all([
-            import('./RoleManager.js'),
-            import('../ui/UIManager.js')
+            import('../RoleManager.js'),
+            import('../../ui/UIManager.js')
         ]).then(([{ default: roleManager }, { default: ui }]) => {
             const currentRole = roleManager.getRole();
             if (currentRole === newRole) return;

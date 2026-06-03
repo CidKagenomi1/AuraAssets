@@ -376,7 +376,9 @@ class SavingsPanel {
                             <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.5rem;">Jumlah setoran otomatis per bulan:</div>
                             <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.75rem;">
                                 <span style="font-weight:700; color:#0ea5e9; font-size:1.1rem;">$</span>
-                                <input type="number" id="input-auto-deposit-amount" class="form-input" style="flex:1; padding:8px 12px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#fff; font-weight:700;" value="${autoDepositAmount || 1000}" min="100">
+                                <div style="flex:1; min-width: 0; display: flex; flex-direction: column;">
+                                    <input type="text" id="input-auto-deposit-amount" class="form-input" style="width: 100%; padding:8px 12px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#fff; font-weight:700;" value="${autoDepositAmount || 1000}" min="100">
+                                </div>
                             </div>
                             <div style="display:flex; flex-wrap:wrap; gap:0.4rem;">
                                 <button class="btn btn-secondary btn-sm btn-auto-amt" data-amount="1000" style="font-size:0.75rem; padding:4px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.7); cursor:pointer;">$1K</button>

@@ -178,6 +178,8 @@ class PassiveIncomeManager {
             balance: p.balance - capital
         }));
 
+        // Differentiate stock and crypto systems: Crypto bots have default 3x virtual leverage, stock bots have 1x.
+        const leverage = assetType === 'crypto' ? 3 : 1;
         const bot = {
             id: Date.now() + Math.random(),
             type: strategy,
@@ -188,7 +190,10 @@ class PassiveIncomeManager {
             profitPct: 0,
             status: 'RUNNING',
             runtimeTicks: 0,
-            entryPrice: assetData.price
+            entryPrice: assetData.price,
+            leverage: leverage,
+            // Separate system params: Crypto bots run 24/7 (always active), Stock bots run only during market sessions
+            systemName: assetType === 'crypto' ? 'High-Frequency Crypto Engine (3x Leverage)' : 'Standard Equity Momentum Optimizer (1x Leverage)'
         };
 
         const state = this.getState();
@@ -320,10 +325,20 @@ class PassiveIncomeManager {
             else if (signalLabel.includes('COOL')) bias = -0.018; // bad trend
 
             // Simplistic yield based on asset growth and signal prediction
-            const randomWalk = (Math.random() - 0.45 + bias) * (asset.volatility * 1.5);
-            const profitRate = changePct * 0.5 + randomWalk; // trades direction + signals
-            bot.profit += bot.capital * profitRate;
+            const leverage = bot.leverage || (bot.assetType === 'crypto' ? 3 : 1);
+            let profitRate = 0;
 
+            if (bot.assetType === 'crypto') {
+                // Crypto: high volatility, leverage multiplier, runs continuously
+                const randomWalk = (Math.random() - 0.46 + bias) * (asset.volatility * 2.2);
+                profitRate = (changePct * 0.7 + randomWalk) * leverage;
+            } else {
+                // Stocks: lower volatility, lower random drift, normal execution
+                const randomWalk = (Math.random() - 0.44 + bias) * (asset.volatility * 1.0);
+                profitRate = (changePct * 0.4 + randomWalk) * leverage;
+            }
+
+            bot.profit += bot.capital * profitRate;
             bot.profitPct = (bot.profit / bot.capital) * 100;
             stateChanged = true;
         });
