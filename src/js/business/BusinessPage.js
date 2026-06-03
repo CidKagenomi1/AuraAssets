@@ -803,31 +803,6 @@ class BusinessPage {
             bindOpsTabEvents(this.container, biz, businessManager, financeManager, ui, () => this.render());
         }
 
-        if (btnRD) {
-            btnRD.addEventListener('click', () => {
-                try {
-                    businessManager.upgradeRD();
-                    this.render();
-                } catch (e) {
-                    ui.error(e.message);
-                }
-            });
-        }
-
-        const btnMarketing = document.getElementById('btn-apply-marketing');
-        if (btnMarketing) {
-            btnMarketing.addEventListener('click', () => {
-                const selected = this.container.querySelector('input[name="marketing-radio"]:checked')?.value || 'none';
-                try {
-                    businessManager.launchCampaign(selected);
-                    this.render();
-                } catch (e) {
-                    ui.error(e.message);
-                }
-            });
-        }
-
-
 
 
         // Delegate Subsidiary Panel Events
