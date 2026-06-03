@@ -45,6 +45,46 @@ class BusinessPage {
         this.chartType = 'valuation';
         this.onMonthPass = null;
         this.onStateChange = null;
+        // Guard: prevent tick-driven re-renders from wiping DOM during user interaction
+        this._userInteracting = false;
+        this._interactionTimer = null;
+        this._pendingRender = false;
+    }
+
+    /**
+     * Mark that the user is currently interacting with the page.
+     * While this flag is true, tick-driven full re-renders are suppressed.
+     * Resets automatically 600ms after the last interaction.
+     */
+    _markInteracting() {
+        this._userInteracting = true;
+        if (this._interactionTimer) clearTimeout(this._interactionTimer);
+        this._interactionTimer = setTimeout(() => {
+            this._userInteracting = false;
+            // If a render was deferred while user was interacting, run it now
+            if (this._pendingRender && this.isOpen) {
+                this._pendingRender = false;
+                this.render();
+            }
+        }, 600);
+    }
+
+    /**
+     * Attach interaction guards to all interactive elements in the container.
+     * Call this after every render() to keep guards active.
+     */
+    _attachInteractionGuards() {
+        if (!this.container) return;
+        const handler = () => this._markInteracting();
+        // Listen on focus (inputs, selects, textareas) and touchstart/mousedown on buttons
+        this.container.querySelectorAll('input, select, textarea').forEach(el => {
+            el.addEventListener('focus', handler, { passive: true });
+            el.addEventListener('input', handler, { passive: true });
+        });
+        this.container.querySelectorAll('button').forEach(el => {
+            el.addEventListener('mousedown', handler, { passive: true });
+            el.addEventListener('touchstart', handler, { passive: true });
+        });
     }
 
     open() {
@@ -78,6 +118,14 @@ class BusinessPage {
 
         // Real-time Event Listeners for Date and State updates (Pulses valuation and updates)
         this.onMonthPass = () => {
+            if (!this.isOpen) return;
+            if (this._userInteracting) {
+                // Defer the full render until after user finishes interaction
+                this._pendingRender = true;
+                // Still do a lightweight in-place valuation update if possible
+                this._updateValuationInPlace();
+                return;
+            }
             this.render();
             setTimeout(() => {
                 const valCard = document.getElementById('biz-valuation-card');
@@ -89,29 +137,16 @@ class BusinessPage {
 
         this.onStateChange = () => {
             if (!this.isOpen) return;
-            const valCard = document.getElementById('biz-valuation-card');
-            if (valCard) {
-                const biz = gameState.get('business');
-                if (biz && biz.active) {
-                    const isPublic = biz.ipo && biz.ipo.active;
-                    let currentValuation = biz.valuation || 0;
-                    if (isPublic) {
-                        const stockData = stockMarket.getStock(biz.ipo.ticker);
-                        if (stockData) {
-                            currentValuation = stockData.price * biz.ipo.totalShares;
-                        }
-                    }
-                    const valueEl = valCard.querySelector('.val-text-value');
-                    if (valueEl) {
-                        valueEl.textContent = `$ ${formatCompact(currentValuation)}`;
-                    }
-                }
-            }
+            this._updateValuationInPlace();
         };
 
         this.onDayPass = () => {
             if (!this.isOpen) return;
             if (this.activeTab === 'subsidiaries') {
+                if (this._userInteracting) {
+                    this._pendingRender = true;
+                    return;
+                }
                 this.render();
             }
         };
@@ -185,6 +220,30 @@ class BusinessPage {
         if (homeView) homeView.style.display = visible ? '' : 'none';
     }
 
+    /**
+     * In-place valuation update — does NOT touch the DOM structure,
+     * only updates the text of the valuation card to avoid destroying user interaction.
+     */
+    _updateValuationInPlace() {
+        if (!this.container) return;
+        const biz = gameState.get('business');
+        if (!biz || !biz.active) return;
+        const valCard = document.getElementById('biz-valuation-card');
+        if (!valCard) return;
+        const isPublic = biz.ipo && biz.ipo.active;
+        let currentValuation = biz.valuation || 0;
+        if (isPublic) {
+            const stockData = stockMarket.getStock(biz.ipo.ticker);
+            if (stockData) {
+                currentValuation = stockData.price * biz.ipo.totalShares;
+            }
+        }
+        const valueEl = valCard.querySelector('.val-text-value');
+        if (valueEl) {
+            valueEl.textContent = `$ ${formatCompact(currentValuation)}`;
+        }
+    }
+
     render() {
         if (!this.container) return;
 
@@ -198,6 +257,8 @@ class BusinessPage {
         } else {
             this.renderDashboard(biz);
         }
+        // Re-attach interaction guards after every render
+        this._attachInteractionGuards();
     }
 
     // ==========================================
