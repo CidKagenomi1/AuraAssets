@@ -28,10 +28,28 @@ export class WheelEngine {
         this.onBalanceRefresh = onBalanceRefresh;
         this.isSpinning = false;
         this.currentRotation = 0;
-        this.freeSpinsRemaining = 0;
-        this.bonusSpinsRemaining = 0;
         this.autoSpinCount = 0;
         this.isAutoSpinning = false;
+        this.skipRequested = false;
+    }
+
+    get freeSpinsRemaining() {
+        return gameState.get('casino.freeSpins') || 0;
+    }
+    set freeSpinsRemaining(val) {
+        gameState.set('casino.freeSpins', Math.max(0, val));
+    }
+    get bonusSpinsRemaining() {
+        return gameState.get('casino.bonusSpins') || 0;
+    }
+    set bonusSpinsRemaining(val) {
+        gameState.set('casino.bonusSpins', Math.max(0, val));
+    }
+    get lotteryTokens() {
+        return gameState.get('casino.lotteryTokens') || 0;
+    }
+    set lotteryTokens(val) {
+        gameState.set('casino.lotteryTokens', Math.max(0, val));
     }
 
     getHTML() {
@@ -92,7 +110,11 @@ export class WheelEngine {
         let spinBtnGrad = 'linear-gradient(135deg,#a855f7 0%,#ec4899 100%)';
         let spinBtnShadow = 'rgba(168,85,247,0.35)';
 
-        if (this.bonusSpinsRemaining > 0) {
+        if (this.isSpinning) {
+            spinBtnText = '⏭️ SPIN BREAK (LEWATI)';
+            spinBtnGrad = 'linear-gradient(135deg,#e11d48 0%,#9f1239 100%)';
+            spinBtnShadow = 'rgba(225,29,72,0.4)';
+        } else if (this.bonusSpinsRemaining > 0) {
             spinBtnText = `🔥 PUTAR BONUS 3X (${this.bonusSpinsRemaining})`;
             spinBtnGrad = 'linear-gradient(135deg,#ec4899 0%,#f43f5e 100%)';
             spinBtnShadow = 'rgba(236,72,153,0.5)';
@@ -141,6 +163,18 @@ export class WheelEngine {
                 <div style="flex:1.5; display:flex; gap:0.4rem; height: 36px; margin-top: auto; min-width: 150px;">
                     <button id="btn-wheel-auto-start" class="bet-chip" style="flex:1; border-radius:8px; background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.3); color: #a855f7; font-size:0.8rem; font-weight: 800;">🤖 AUTO SPIN</button>
                     <button id="btn-wheel-auto-stop" class="bet-chip" style="flex:1; border-radius:8px; background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #ef4444; font-size:0.8rem; font-weight: 800; display:none;">⏹️ STOP (0)</button>
+                </div>
+            </div>
+
+            <!-- Convert Excess Spins to Lottery Tokens -->
+            <div class="wheel-convert-panel" style="background:rgba(0,0,0,0.25); border:1.5px dashed rgba(251,191,36,0.3); border-radius:12px; padding:0.6rem 0.75rem; margin-bottom:0.75rem; display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;">
+                <div style="text-align:left;">
+                    <span style="font-size:0.72rem; color:rgba(255,255,255,0.7); font-weight:800; display:block; text-transform:uppercase; letter-spacing:0.04em;">🎫 TUKAR SPIN KE TOKEN LOTRE</span>
+                    <span style="font-size:0.62rem; color:rgba(255,255,255,0.4); display:block; margin-top:2px;">10 Putaran Gratis = 1 Token | 5 Putaran Bonus = 1 Token</span>
+                </div>
+                <div style="display:flex; gap:0.35rem;">
+                    <button id="btn-convert-free" class="bet-chip" style="font-size:0.68rem; padding:4px 8px; font-weight:800; color:#60a5fa; border-color:rgba(59,130,246,0.3); background:rgba(59,130,246,0.08);" ${this.freeSpinsRemaining < 10 ? 'disabled' : ''}>🎁 TUKAR FREE</button>
+                    <button id="btn-convert-bonus" class="bet-chip" style="font-size:0.68rem; padding:4px 8px; font-weight:800; color:#f472b6; border-color:rgba(236,72,153,0.3); background:rgba(236,72,153,0.08);" ${this.bonusSpinsRemaining < 5 ? 'disabled' : ''}>🔥 TUKAR BONUS</button>
                 </div>
             </div>
 
@@ -334,9 +368,56 @@ export class WheelEngine {
         });
 
         document.getElementById('btn-wheel-spin')?.addEventListener('click', () => {
-            this.stopAutoSpin();
-            this.spin();
+            if (this.isSpinning) {
+                this.skipRequested = true;
+                const spinBtn = document.getElementById('btn-wheel-spin');
+                if (spinBtn) {
+                    spinBtn.disabled = true;
+                    spinBtn.innerHTML = '🔮 MENYELESAIKAN...';
+                }
+            } else {
+                this.stopAutoSpin();
+                this.spin();
+            }
         });
+
+        // Convert Free Spins
+        const convertFreeBtn = document.getElementById('btn-convert-free');
+        if (convertFreeBtn) {
+            convertFreeBtn.addEventListener('click', () => {
+                if (this.isSpinning) return;
+                if (this.freeSpinsRemaining >= 10) {
+                    this.freeSpinsRemaining -= 10;
+                    this.lotteryTokens += 1;
+                    ui.success('Berhasil menukarkan 10 Putaran Gratis menjadi 1 Token Lotre! 🎫', 'Tukar Token');
+                    // Refresh view
+                    const gamePanel = document.getElementById('casino-game-panel');
+                    if (gamePanel) {
+                        gamePanel.innerHTML = this.getHTML();
+                        this.bindEvents(gamePanel, this.onBalanceRefresh);
+                    }
+                }
+            });
+        }
+
+        // Convert Bonus Spins
+        const convertBonusBtn = document.getElementById('btn-convert-bonus');
+        if (convertBonusBtn) {
+            convertBonusBtn.addEventListener('click', () => {
+                if (this.isSpinning) return;
+                if (this.bonusSpinsRemaining >= 5) {
+                    this.bonusSpinsRemaining -= 5;
+                    this.lotteryTokens += 1;
+                    ui.success('Berhasil menukarkan 5 Putaran Bonus menjadi 1 Token Lotre! 🎫', 'Tukar Token');
+                    // Refresh view
+                    const gamePanel = document.getElementById('casino-game-panel');
+                    if (gamePanel) {
+                        gamePanel.innerHTML = this.getHTML();
+                        this.bindEvents(gamePanel, this.onBalanceRefresh);
+                    }
+                }
+            });
+        }
 
         // Auto Spin Buttons
         document.getElementById('btn-wheel-auto-start')?.addEventListener('click', () => {
@@ -398,10 +479,13 @@ export class WheelEngine {
         }
 
         this.isSpinning = true;
+        this.skipRequested = false;
         const spinBtn = document.getElementById('btn-wheel-spin');
         if (spinBtn) {
-            spinBtn.disabled = true;
-            spinBtn.innerHTML = '🎡 MEMUTAR RODA...';
+            spinBtn.disabled = false;
+            spinBtn.innerHTML = '⏭️ SPIN BREAK (LEWATI)';
+            spinBtn.style.background = 'linear-gradient(135deg,#e11d48 0%,#9f1239 100%)';
+            spinBtn.style.boxShadow = '0 4px 12px rgba(225,29,72,0.4)';
         }
 
         const winDisplay = document.getElementById('wheel-win-display');
@@ -425,7 +509,8 @@ export class WheelEngine {
 
         // Determine winning sector clockwise weights
         const weights = SECTORS.map((s) => {
-            if (s.type === 'bonusspin' || s.multiplier >= 25.0) return 1.0 * luck;
+            if (s.type === 'bonusspin') return 0.05 * luck; // 50 bonus spins (3x) is super rare!
+            if (s.multiplier >= 25.0) return 0.1 * luck;    // 50x multiplier is rare!
             return 1.0;
         });
 
@@ -452,8 +537,21 @@ export class WheelEngine {
             wheelSvg.style.transform = `rotate(${this.currentRotation}deg)`;
         }
 
-        // Wait 4 seconds for slow deceleration animation
-        await new Promise(res => setTimeout(res, 4050));
+        // Wait 4 seconds or until spin break is requested
+        let elapsed = 0;
+        const checkInterval = 50;
+        while (elapsed < 4000) {
+            if (this.skipRequested) {
+                if (wheelSvg) {
+                    wheelSvg.style.transition = 'transform 0.2s cubic-bezier(0.1, 0.8, 0.1, 1)';
+                    wheelSvg.style.transform = `rotate(${this.currentRotation}deg)`;
+                }
+                await new Promise(res => setTimeout(res, 200));
+                break;
+            }
+            await new Promise(res => setTimeout(res, checkInterval));
+            elapsed += checkInterval;
+        }
 
         // Evaluate payout rewards
         const payoutMultiplier = isBonus ? 3 : 1; // 3x multiplier applied during bonus spins

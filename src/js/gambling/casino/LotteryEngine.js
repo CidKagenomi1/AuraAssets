@@ -16,6 +16,13 @@ export class LotteryEngine {
         this.ticketCost = 10000; // $10,000
     }
 
+    get lotteryTokens() {
+        return gameState.get('casino.lotteryTokens') || 0;
+    }
+    set lotteryTokens(val) {
+        gameState.set('casino.lotteryTokens', Math.max(0, val));
+    }
+
     getJackpot() {
         let jp = gameState.get('casino.lotteryJackpot');
         if (jp === undefined || jp === null) {
@@ -86,6 +93,12 @@ export class LotteryEngine {
                 <div style="font-size: 0.68rem; color: rgba(255,255,255,0.4); margin-top: 0.15rem;">Biaya: $10K (15% masuk Jackpot)</div>
             </div>
 
+            <!-- Token Balance Indicator -->
+            <div style="background: rgba(168,85,247,0.12); border: 1.5px solid rgba(168,85,247,0.3); border-radius: 12px; padding: 0.5rem 1rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.75rem; color: #c084fc; font-weight: 800;">🎫 TIKET TOKEN LOTRE:</span>
+                <span style="font-size: 0.95rem; font-weight: 900; color: #fff;" id="lottery-token-val">${this.lotteryTokens} TIKET</span>
+            </div>
+
             <!-- Number Picker Board -->
             <div class="lottery-number-picker-board">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
@@ -120,10 +133,15 @@ export class LotteryEngine {
                 </div>
             </div>
 
-            <!-- Buy & Draw Action -->
-            <button id="btn-lottery-buy-draw" class="spin-btn-action-lottery">
-                🎫 BELI &amp; UNDI SEKARANG
-            </button>
+            <!-- Draw Action Buttons -->
+            <div style="display: flex; gap: 0.5rem; width: 100%;">
+                <button id="btn-lottery-buy-draw" class="spin-btn-action-lottery" style="flex: 2;">
+                    🎫 BELI &amp; UNDI SEKARANG
+                </button>
+                <button id="btn-lottery-token-draw" class="spin-btn-action-lottery" style="flex: 1.2; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); box-shadow: 0 4px 12px rgba(168,85,247,0.3); padding:0; display:flex; align-items:center; justify-content:center;" ${this.lotteryTokens <= 0 ? 'disabled' : ''}>
+                    🎟️ UNDI DENGAN TOKEN
+                </button>
+            </div>
 
             <!-- Draw Payout table & History -->
             <div class="lottery-footer-grid">
@@ -375,7 +393,8 @@ export class LotteryEngine {
         });
 
         // Buy & Draw Action
-        document.getElementById('btn-lottery-buy-draw')?.addEventListener('click', () => this.buyAndDraw());
+        document.getElementById('btn-lottery-buy-draw')?.addEventListener('click', () => this.buyAndDraw(false));
+        document.getElementById('btn-lottery-token-draw')?.addEventListener('click', () => this.buyAndDraw(true));
     }
 
     refreshSelections(container) {
@@ -393,7 +412,7 @@ export class LotteryEngine {
         if (statusEl) statusEl.textContent = `Terpilih: ${this.selectedNumbers.length} / 4`;
     }
 
-    async buyAndDraw() {
+    async buyAndDraw(useToken = false) {
         if (this.isDrawing) return;
         if (this.selectedNumbers.length !== 4) {
             ui.error('Pilih tepat 4 nomor keberuntungan terlebih dahulu!');
@@ -404,29 +423,47 @@ export class LotteryEngine {
         const qty = parseInt(qtyInput ? qtyInput.value : '1', 10) || 1;
         const totalCost = qty * this.ticketCost;
 
-        const balance = gameState.getBalance();
-        if (totalCost > balance) {
-            ui.error('Saldo kas Anda tidak mencukupi untuk membeli tiket lotre!');
-            return;
+        if (useToken) {
+            if (this.lotteryTokens < qty) {
+                ui.error(`Token tidak mencukupi! Anda butuh ${qty} Token.`);
+                return;
+            }
+        } else {
+            const balance = gameState.getBalance();
+            if (totalCost > balance) {
+                ui.error('Saldo kas Anda tidak mencukupi untuk membeli tiket lotre!');
+                return;
+            }
         }
 
         this.isDrawing = true;
         const drawBtn = document.getElementById('btn-lottery-buy-draw');
+        const tokenDrawBtn = document.getElementById('btn-lottery-token-draw');
         if (drawBtn) {
             drawBtn.disabled = true;
-            drawBtn.innerHTML = '🔮 MENGUNDI BOLA ANGKA...';
+            drawBtn.innerHTML = '🔮 MENGUNDI...';
+        }
+        if (tokenDrawBtn) {
+            tokenDrawBtn.disabled = true;
+            tokenDrawBtn.innerHTML = '🔮 MENGUNDI...';
         }
 
-        // Deduct ticket costs
-        financeManager.addExpense(totalCost, 'Lainnya', `Membeli ${qty} Tiket Lotre`);
-        
-        // Boost progressive jackpot pool by 15% of ticket sales
-        const addedJp = Math.round(totalCost * 0.15);
-        let jackpot = this.getJackpot() + addedJp;
-        this.setJackpot(jackpot);
+        if (useToken) {
+            this.lotteryTokens -= qty;
+            const tokenValEl = document.getElementById('lottery-token-val');
+            if (tokenValEl) tokenValEl.textContent = `${this.lotteryTokens} TIKET`;
+        } else {
+            // Deduct ticket costs
+            financeManager.addExpense(totalCost, 'Lainnya', `Membeli ${qty} Tiket Lotre`);
+            
+            // Boost progressive jackpot pool by 15% of ticket sales
+            const addedJp = Math.round(totalCost * 0.15);
+            let jackpot = this.getJackpot() + addedJp;
+            this.setJackpot(jackpot);
 
-        const jpDisplay = document.getElementById('lottery-jackpot-pool-val');
-        if (jpDisplay) jpDisplay.textContent = jackpot.toLocaleString('en-US');
+            const jpDisplay = document.getElementById('lottery-jackpot-pool-val');
+            if (jpDisplay) jpDisplay.textContent = jackpot.toLocaleString('en-US');
+        }
 
         this.onBalanceRefresh?.();
 
@@ -489,7 +526,7 @@ export class LotteryEngine {
         }
 
         if (multiplier > 0) {
-            payout = totalCost * multiplier;
+            payout = (useToken ? qty * this.ticketCost : totalCost) * multiplier;
         }
 
         // Award payouts
@@ -544,10 +581,19 @@ export class LotteryEngine {
         const jpDisplayRefreshed = document.getElementById('lottery-jackpot-pool-val');
         if (jpDisplayRefreshed) jpDisplayRefreshed.textContent = this.getJackpot().toLocaleString('en-US');
 
+        // Reset button states
         this.isDrawing = false;
         if (drawBtn) {
             drawBtn.disabled = false;
             drawBtn.innerHTML = '🎫 BELI &amp; UNDI SEKARANG';
         }
+        if (tokenDrawBtn) {
+            tokenDrawBtn.disabled = this.lotteryTokens <= 0;
+            tokenDrawBtn.innerHTML = '🎟️ UNDI DENGAN TOKEN';
+        }
+        
+        // Update token text
+        const tokenValEl = document.getElementById('lottery-token-val');
+        if (tokenValEl) tokenValEl.textContent = `${this.lotteryTokens} TIKET`;
     }
 }
