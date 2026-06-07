@@ -22,12 +22,30 @@ class GamblingPanel {
         const balance = gameState.getBalance();
 
         const content = `
-            <div class="casino-root" style="padding:1.5rem; max-width:1100px; margin:0 auto; width:100%;">
+            <div class="casino-root" style="padding:1rem; max-width:1100px; margin:0 auto; width:100%;">
+                
+                <!-- ── Premium Neon Royal Casino Sign ── -->
+                <div style="text-align: center; margin-bottom: 1.25rem; position: relative;">
+                    <div style="font-family: 'Outfit', sans-serif; font-size: 2.2rem; font-weight: 950; text-transform: uppercase; letter-spacing: 0.12em; color: #fff; text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b, 0 0 40px #d97706; display: inline-flex; align-items: center; gap: 0.75rem;">
+                        <span>♠️</span>
+                        <span style="background: linear-gradient(90deg, #fbbf24, #f59e0b, #d97706); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">ROYAL CASINO</span>
+                        <span>♦️</span>
+                    </div>
+                    <!-- Small decorative accents -->
+                    <div style="display: flex; justify-content: center; gap: 1.5rem; font-size: 0.75rem; color: rgba(251, 191, 36, 0.75); margin-top: 0.25rem; font-weight: 800; letter-spacing: 0.08em;">
+                        <span>🎰 SLOT</span>
+                        <span>•</span>
+                        <span>🎡 RODA KEBERUNTUNGAN</span>
+                        <span>•</span>
+                        <span>🎫 LOTERE</span>
+                    </div>
+                </div>
 
                 <!-- ── Header Stats ── -->
                 <div class="casino-hdr" style="
-                    background: linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(10,10,12,0.85) 100%);
-                    border: 1px solid rgba(251,191,36,0.18);
+                    background: linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(10,10,12,0.95) 100%);
+                    border: 2px solid rgba(251,191,36,0.35);
+                    box-shadow: 0 0 15px rgba(251,191,36,0.1);
                     border-radius: 20px;
                     padding: 1.25rem 1.75rem;
                     display: flex;
@@ -52,34 +70,39 @@ class GamblingPanel {
                         </div>
                     </div>
                 </div>
-
+ 
                 <!-- ── Tab Switcher ── -->
-                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap;">
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: rgba(0,0,0,0.4); padding: 5px; border-radius: 14px; border: 1.5px solid rgba(251,191,36,0.25); flex-wrap: wrap;">
                     <button class="casino-tab-btn" data-tab-id="slot" style="
-                        flex: 1; min-width: 120px; padding: 0.65rem; border-radius: 8px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+                        flex: 1; min-width: 120px; padding: 0.65rem; border-radius: 10px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
                         background: ${this.activeTab === 'slot' ? 'var(--accent-primary-soft)' : 'transparent'};
                         color: ${this.activeTab === 'slot' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.6)'};
                     ">🎰 Goldy Crush Slot</button>
                     <button class="casino-tab-btn" data-tab-id="lottery" style="
-                        flex: 1; min-width: 120px; padding: 0.65rem; border-radius: 8px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+                        flex: 1; min-width: 120px; padding: 0.65rem; border-radius: 10px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
                         background: ${this.activeTab === 'lottery' ? 'var(--accent-primary-soft)' : 'transparent'};
                         color: ${this.activeTab === 'lottery' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.6)'};
                     ">🎫 Mega Lottery</button>
                     <button class="casino-tab-btn" data-tab-id="wheel" style="
-                        flex: 1; min-width: 120px; padding: 0.65rem; border-radius: 8px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+                        flex: 1; min-width: 120px; padding: 0.65rem; border-radius: 10px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
                         background: ${this.activeTab === 'wheel' ? 'var(--accent-primary-soft)' : 'transparent'};
                         color: ${this.activeTab === 'wheel' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.6)'};
                     ">🎡 Spinning Wheel</button>
                 </div>
-
+ 
                 <!-- ── Main Game Board ── -->
-                <div class="casino-board" style="background:rgba(255,255,255,0.01); border:1px solid var(--border-color); border-radius:20px; padding:2rem; min-height:480px;">
+                <div class="casino-board" style="position: relative; background: radial-gradient(circle at center, #1b1613 0%, #070504 100%); border: 3px solid #fbbf24; box-shadow: 0 0 25px rgba(251,191,36,0.35); border-radius: 20px; padding: 1.5rem; min-height: 480px; overflow: hidden;">
+                    <!-- Floating suit ornaments in corners -->
+                    <div style="position: absolute; top: 12px; left: 12px; font-size: 1.5rem; opacity: 0.12; color: #fff; pointer-events: none; user-select: none;">♠️</div>
+                    <div style="position: absolute; top: 12px; right: 12px; font-size: 1.5rem; opacity: 0.12; color: #ef4444; pointer-events: none; user-select: none;">♥️</div>
+                    <div style="position: absolute; bottom: 12px; left: 12px; font-size: 1.5rem; opacity: 0.12; color: #ef4444; pointer-events: none; user-select: none;">♦️</div>
+                    <div style="position: absolute; bottom: 12px; right: 12px; font-size: 1.5rem; opacity: 0.12; color: #fff; pointer-events: none; user-select: none;">♣️</div>
+                    
                     <!-- Active View Panel -->
                     <div id="casino-game-panel">
                         ${this.activeTab === 'slot' ? this.slot.getHTML() : (this.activeTab === 'lottery' ? this.lottery.getHTML() : this.wheel.getHTML())}
                     </div>
                 </div>
-
             </div>
 
             <style>
