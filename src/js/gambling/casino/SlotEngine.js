@@ -1,7 +1,7 @@
 /**
- * SlotEngine.js - Premium Gold Digger Slot Machine Engine
- * Handles mining-themed spin mechanics, Candy Crush-style particle effects,
- * screen shake, combo overlays, and automated numeric count spin controls.
+ * SlotEngine.js - Premium Gold Digger 6x3 Multi-Line Slot Engine
+ * Handles 6 columns x 3 rows grid mechanics, 5 payline checking,
+ * cascading visual animations, canvas particle effects, and auto spin.
  */
 
 import financeManager from '../../finance/FinanceManager.js';
@@ -11,10 +11,18 @@ import ui from '../../ui/UIManager.js';
 const SYMBOLS = [
     { emoji: '💎', name: 'Berlian Mulia',  baseWeight: 4,  multiplier3x: 50, multiplier2x: 3 },
     { emoji: '💰', name: 'Kantung Emas',   baseWeight: 8,  multiplier3x: 25, multiplier2x: 2 },
-    { emoji: '🪙', name: 'Koin Emas',      baseWeight: 12, multiplier3x: 15, multiplier2x: 1.5 },
+    { emoji: '🪙', name: 'Koin Emas',      baseWeight: 12, multiplier3x: 15, multiplier2x: 0 },
     { emoji: '⛏️', name: 'Beliung Tambang',baseWeight: 18, multiplier3x: 10, multiplier2x: 0 },
-    { emoji: '🧨', name: 'Dinamit',        baseWeight: 28, multiplier3x: 6,  multiplier2x: 0 },
-    { emoji: '🪨', name: 'Batu Bara',      baseWeight: 30, multiplier3x: 3,  multiplier2x: 0 },
+    { emoji: '🧨', name: 'Dinamit',        baseWeight: 25, multiplier3x: 6,  multiplier2x: 0 },
+    { emoji: '🪨', name: 'Batu Bara',      baseWeight: 32, multiplier3x: 3,  multiplier2x: 0 },
+];
+
+const PAYLINES = [
+    { name: 'Line 1 (Top Horizontal)', coordinates: [0, 0, 0, 0, 0, 0], color: '#3b82f6' },
+    { name: 'Line 2 (Middle Horizontal)', coordinates: [1, 1, 1, 1, 1, 1], color: '#ec4899' },
+    { name: 'Line 3 (Bottom Horizontal)', coordinates: [2, 2, 2, 2, 2, 2], color: '#10b981' },
+    { name: 'Line 4 (V-Shape)', coordinates: [0, 1, 2, 2, 1, 0], color: '#fbbf24' },
+    { name: 'Line 5 (Inverted V-Shape)', coordinates: [2, 1, 0, 0, 1, 2], color: '#a855f7' }
 ];
 
 class GoldParticle {
@@ -58,15 +66,29 @@ export class SlotEngine {
         this.particleLoopActive = false;
         this.autoSpinCount = 0;
         this.isAutoSpinning = false;
+        // Matrix 6x3
+        this.grid = Array.from({length: 6}, () => ['🪨', '🪨', '🪨']);
     }
 
     getHTML() {
+        // Render 6 columns, each having 3 rows
+        let colsHTML = '';
+        for (let col = 0; col < 6; col++) {
+            colsHTML += `
+                <div class="slot-reel-wrap" style="overflow:hidden; height:240px; border-radius:12px; background:#1c130e; border:2px solid #3c2419; position:relative; display: flex; flex-direction: column; justify-content: space-around; padding: 5px 0;">
+                    <div id="slot-reel-${col}-0" class="slot-symbol-block" style="font-size:3rem; height: 72px; display:flex; align-items:center; justify-content:center; transition:transform 0.1s; transform: scale(1);">🪨</div>
+                    <div id="slot-reel-${col}-1" class="slot-symbol-block" style="font-size:3rem; height: 72px; display:flex; align-items:center; justify-content:center; transition:transform 0.1s; transform: scale(1);">🪨</div>
+                    <div id="slot-reel-${col}-2" class="slot-symbol-block" style="font-size:3rem; height: 72px; display:flex; align-items:center; justify-content:center; transition:transform 0.1s; transform: scale(1);">🪨</div>
+                </div>
+            `;
+        }
+
         return `
-        <div style="max-width: 620px; margin: 0 auto; text-align: center;">
+        <div style="max-width: 720px; margin: 0 auto; text-align: center;">
             <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.5rem; font-size: 1.6rem; letter-spacing: -0.03em;">
-                ⛏️ <span style="background: linear-gradient(90deg,#fbbf24,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">GOLD DIGGER</span> SLOT
+                ⛏️ <span style="background: linear-gradient(90deg,#fbbf24,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">GOLD DIGGER</span> SLOT <span style="font-size: 0.9rem; background: #fbbf24; color: #000; padding: 2px 6px; border-radius: 4px; font-weight:900;">6 x 3</span>
             </h3>
-            <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:1.5rem; text-transform:uppercase; letter-spacing:0.1em;">Hancurkan Batuan Tambang &amp; Dapatkan Ledakan Emas Murni!</p>
+            <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:1.5rem; text-transform:uppercase; letter-spacing:0.1em;">6 Kolom, 3 Baris &amp; 5 Garis Payout (Kemenangan Ganda!)</p>
 
             <!-- Slot Machine Cabinet -->
             <div class="slot-cabinet" style="position:relative; background: linear-gradient(180deg, #2d1e18 0%, #170f0b 100%); border: 3px solid #fbbf24; border-radius: 28px; padding: 1.75rem; margin-bottom: 1.5rem; box-shadow: 0 0 40px rgba(251,191,36,0.25), inset 0 0 30px rgba(0,0,0,0.7); overflow: hidden;">
@@ -76,30 +98,20 @@ export class SlotEngine {
 
                 <!-- Top lights row (Industrial Gold Theme) -->
                 <div style="display:flex; justify-content:center; gap:0.5rem; margin-bottom:1rem;">
-                    ${Array.from({length:7}, (_,i) => `<div class="slot-light" style="width:10px;height:10px;border-radius:50%;background:${i%2===0?'#fbbf24':'#f97316'};box-shadow:0 0 8px ${i%2===0?'#fbbf24':'#f97316'};animation:lightBlink ${0.5+i*0.1}s ease-in-out infinite alternate;"></div>`).join('')}
+                    ${Array.from({length:9}, (_,i) => `<div class="slot-light" style="width:10px;height:10px;border-radius:50%;background:${i%2===0?'#fbbf24':'#f97316'};box-shadow:0 0 8px ${i%2===0?'#fbbf24':'#f97316'};animation:lightBlink ${0.5+i*0.1}s ease-in-out infinite alternate;"></div>`).join('')}
                 </div>
 
                 <!-- Reels Window -->
-                <div class="slot-window" style="background:#0a0705; border:3px solid #513629; border-radius:20px; padding:1rem; margin-bottom:1rem; position:relative; overflow:hidden;">
-                    <!-- Payline indicator (Red laser/spark laser) -->
-                    <div style="position:absolute; top:50%; left:0; right:0; height:3px; background:rgba(249,115,22,0.6); transform:translateY(-50%); z-index:2; pointer-events:none; box-shadow: 0 0 8px #f97316;"></div>
+                <div class="slot-window" style="background:#0a0705; border:3px solid #513629; border-radius:20px; padding:0.75rem; margin-bottom:1rem; position:relative; overflow:hidden;">
                     
-                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; position:relative; z-index:1;">
-                        <div class="slot-reel-wrap" style="overflow:hidden; height:110px; border-radius:12px; background:#1c130e; border:2px solid #3c2419; position:relative;">
-                            <div id="slot-reel-1" class="slot-reel-inner" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; font-size:3.5rem; transition:transform 0.1s;">🪨</div>
-                        </div>
-                        <div class="slot-reel-wrap" style="overflow:hidden; height:110px; border-radius:12px; background:#1c130e; border:2px solid #3c2419; position:relative;">
-                            <div id="slot-reel-2" class="slot-reel-inner" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; font-size:3.5rem; transition:transform 0.1s;">🪨</div>
-                        </div>
-                        <div class="slot-reel-wrap" style="overflow:hidden; height:110px; border-radius:12px; background:#1c130e; border:2px solid #3c2419; position:relative;">
-                            <div id="slot-reel-3" class="slot-reel-inner" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; font-size:3.5rem; transition:transform 0.1s;">🪨</div>
-                        </div>
+                    <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:0.5rem; position:relative; z-index:1;">
+                        ${colsHTML}
                     </div>
                 </div>
 
                 <!-- Win Display -->
-                <div id="slot-win-display" style="height:36px; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(251,191,36,0.1);">
-                    <span style="color:rgba(255,255,255,0.25); font-size:0.8rem; font-style:italic; text-transform:uppercase; letter-spacing:0.1em;">Masukkan Taruhan &amp; Mulai Ekspedisi Emas...</span>
+                <div id="slot-win-display" style="min-height:36px; display:flex; flex-direction:column; align-items:center; justify-content:center; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(251,191,36,0.1); padding: 0.25rem 0.5rem;">
+                    <span style="color:rgba(255,255,255,0.25); font-size:0.8rem; font-style:italic; text-transform:uppercase; letter-spacing:0.1em;">Tekan Gali Tambang Untuk Memulai...</span>
                 </div>
             </div>
 
@@ -136,21 +148,15 @@ export class SlotEngine {
                 ⛏️ GALI TAMBANG
             </button>
 
-            <!-- Paytable -->
-            <div style="margin-top:1.5rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:1.25rem;">
-                <div style="font-size:0.7rem; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.1em; font-weight:700; margin-bottom:0.75rem;">— TABEL OPERASI TAMBANG —</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; text-align:left; font-size:0.75rem;">
+            <!-- Paytable Info -->
+            <div style="margin-top:1.5rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:1.25rem; text-align:left;">
+                <div style="font-size:0.7rem; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.1em; font-weight:700; margin-bottom:0.75rem; text-align:center;">— TABEL KELIPATAN MULTIPLIER (6x3) —</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; font-size:0.75rem;">
                     ${SYMBOLS.map(s => `
-                    <div style="display:flex; align-items:center; gap:0.4rem; background:rgba(255,255,255,0.02); padding:0.4rem 0.6rem; border-radius:8px;">
-                        <span>${s.emoji}${s.emoji}${s.emoji}</span>
-                        <span style="color:rgba(255,255,255,0.5);">=</span>
-                        <span style="color:#fbbf24; font-weight:800;">${s.multiplier3x}×</span>
+                    <div style="background:rgba(255,255,255,0.02); padding:0.4rem 0.6rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>${s.emoji} ${s.name}</span>
+                        <span style="color:#fbbf24; font-weight:700;">3x: ${s.multiplier3x}× | 4x: ${s.multiplier3x * 2.5}× | 5x: ${s.multiplier3x * 6}× | 6x: ${s.multiplier3x * 15}×</span>
                     </div>`).join('')}
-                    <div style="display:flex; align-items:center; gap:0.4rem; background:rgba(255,255,255,0.02); padding:0.4rem 0.6rem; border-radius:8px; grid-column:span 2;">
-                        <span>2 Kembar (💎/💰)</span>
-                        <span style="color:rgba(255,255,255,0.5);">=</span>
-                        <span style="color:#34d399; font-weight:800;">2× / 3×</span>
-                    </div>
                 </div>
             </div>
         </div>
@@ -209,6 +215,17 @@ export class SlotEngine {
                 40% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
                 80% { opacity: 1; transform: translate(-50%, -70%) scale(1); }
                 100% { opacity: 0; transform: translate(-50%, -90%) scale(0.7); }
+            }
+
+            .winning-symbol {
+                background: rgba(251,191,36,0.2) !important;
+                border: 2px solid #fbbf24 !important;
+                border-radius: 8px;
+                animation: pulseSymbol 0.5s ease-in-out infinite alternate;
+            }
+            @keyframes pulseSymbol {
+                0% { transform: scale(1); }
+                100% { transform: scale(1.1); }
             }
         </style>
         `;
@@ -329,7 +346,6 @@ export class SlotEngine {
                 ctx.fillStyle = p.color;
 
                 if (p.type === 'diamond') {
-                    // Draw sparkling diamond
                     ctx.beginPath();
                     ctx.moveTo(0, -p.size);
                     ctx.lineTo(p.size, 0);
@@ -338,12 +354,10 @@ export class SlotEngine {
                     ctx.closePath();
                     ctx.fill();
                 } else if (p.type === 'gold') {
-                    // Gold nugget polygon
                     ctx.beginPath();
                     ctx.arc(0, 0, p.size, 0, Math.PI * 2);
                     ctx.fill();
                 } else if (p.type === 'spark') {
-                    // Star shape
                     ctx.beginPath();
                     for (let j = 0; j < 5; j++) {
                         ctx.lineTo(Math.cos((18 + j * 72) * Math.PI / 180) * p.size, Math.sin((18 + j * 72) * Math.PI / 180) * p.size);
@@ -352,7 +366,6 @@ export class SlotEngine {
                     ctx.closePath();
                     ctx.fill();
                 } else {
-                    // dust / debris
                     ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
                 }
                 ctx.restore();
@@ -405,31 +418,41 @@ export class SlotEngine {
         setTimeout(() => div.remove(), 1000);
     }
 
-    async _animateReel(reelId, finalEmoji, delay) {
+    async _animateReel(colIdx, finalEmojis, delay) {
         return new Promise(resolve => {
-            const el = document.getElementById(reelId);
-            if (!el) { resolve(); return; }
-
             let ticks = 0;
-            const maxTicks = 8 + delay * 4;
+            const maxTicks = 10 + delay * 3;
             const interval = setInterval(() => {
-                el.textContent = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)].emoji;
-                el.style.filter = 'blur(2px)';
+                for (let r = 0; r < 3; r++) {
+                    const el = document.getElementById(`slot-reel-${colIdx}-${r}`);
+                    if (el) {
+                        el.textContent = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)].emoji;
+                        el.style.filter = 'blur(2px)';
+                    }
+                }
                 ticks++;
                 if (ticks >= maxTicks) {
                     clearInterval(interval);
-                    el.textContent = finalEmoji;
-                    el.style.filter = 'none';
-                    el.style.transform = 'scale(1.15)';
-                    setTimeout(() => { el.style.transform = 'scale(1)'; }, 200);
+                    for (let r = 0; r < 3; r++) {
+                        const el = document.getElementById(`slot-reel-${colIdx}-${r}`);
+                        if (el) {
+                            el.textContent = finalEmojis[r];
+                            el.style.filter = 'none';
+                            el.style.transform = 'scale(1.1)';
+                            setTimeout(() => { el.style.transform = 'scale(1)'; }, 150);
+                        }
+                    }
                     resolve();
                 }
-            }, 80);
+            }, 70);
         });
     }
 
     async spin() {
         if (this.isSpinning) return;
+
+        // Clear any previous winning highlights
+        document.querySelectorAll('.slot-symbol-block').forEach(el => el.classList.remove('winning-symbol'));
 
         const input = document.getElementById('slot-bet-input');
         const betAmount = input?.getNumericValue ? input.getNumericValue() : (parseInt(input?.value.replace(/,/g, '') || '0', 10));
@@ -450,32 +473,38 @@ export class SlotEngine {
         const spinBtn = document.getElementById('btn-slot-spin');
         if (spinBtn) {
             spinBtn.disabled = true;
-            spinBtn.innerHTML = '<span style="animation:spin 0.5s linear infinite;display:inline-block;">⛏️</span> MENGGALI TAMBANG...';
+            spinBtn.innerHTML = '<span style="animation:spin 0.5s linear infinite;display:inline-block;">⛏️</span> MENGGALI TAMBANG (6x3)...';
         }
 
         const winDisplay = document.getElementById('slot-win-display');
-        if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.8rem; font-style:italic;">Mesin Penggali Sedang Bekerja...</span>`;
+        if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.8rem; font-style:italic;">Mesin Gali Sedang Bekerja...</span>`;
 
         // Deduct bet
-        financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Slot');
+        financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Slot 6x3');
         this.onBalanceRefresh?.();
 
         const donations = gameState.get('donations') || { luckMultiplier: 1.0 };
         const luck = donations.luckMultiplier || 1.0;
 
-        const sym1 = this.weightedRandom(luck);
-        const sym2 = this.weightedRandom(luck);
-        const sym3 = this.weightedRandom(luck);
+        // Generate final matrix 6x3
+        const resultMatrix = [];
+        for (let col = 0; col < 6; col++) {
+            const colSymbols = [];
+            for (let row = 0; row < 3; row++) {
+                colSymbols.push(this.weightedRandom(luck).emoji);
+            }
+            resultMatrix.push(colSymbols);
+        }
+        this.grid = resultMatrix;
 
         // Animate reels sequentially
-        await this._animateReel('slot-reel-1', sym1.emoji, 0);
-        await new Promise(r => setTimeout(r, 150));
-        await this._animateReel('slot-reel-2', sym2.emoji, 1);
-        await new Promise(r => setTimeout(r, 150));
-        await this._animateReel('slot-reel-3', sym3.emoji, 2);
+        for (let col = 0; col < 6; col++) {
+            await this._animateReel(col, resultMatrix[col], col);
+            await new Promise(r => setTimeout(r, 100));
+        }
 
         // Evaluate result
-        this._evaluate(sym1, sym2, sym3, betAmount);
+        this._evaluate(betAmount);
 
         this.isSpinning = false;
         if (spinBtn) {
@@ -490,68 +519,122 @@ export class SlotEngine {
                 const stopBtn = document.getElementById('btn-slot-auto-stop');
                 if (stopBtn) stopBtn.textContent = `⏹️ STOP (${this.autoSpinCount})`;
                 
-                // Wait for player to see the result before starting the next spin
                 setTimeout(() => {
                     if (this.isAutoSpinning) this.spin();
-                }, 1500);
+                }, 1800);
             } else {
                 this.stopAutoSpin();
             }
         }
     }
 
-    _evaluate(s1, s2, s3, bet) {
+    _evaluate(bet) {
         const winDisplay = document.getElementById('slot-win-display');
-        let winMultiplier = 0;
-        let winLabel = '';
-        let isJackpot = false;
-        let hasDynamite = s1.emoji === '🧨' || s2.emoji === '🧨' || s3.emoji === '🧨';
+        const lineBet = bet / 5; // bet split among 5 paylines
+        let totalPayout = 0;
+        const winsList = [];
+        let hasDynamite = false;
+        const symbolsToHighlight = []; // list of DOM element IDs to highlight
 
-        if (s1.emoji === s2.emoji && s2.emoji === s3.emoji) {
-            winMultiplier = s1.multiplier3x;
-            winLabel = `${s1.emoji}${s1.emoji}${s1.emoji} — ${s1.name.toUpperCase()}! ${winMultiplier}×`;
-            isJackpot = winMultiplier >= 20;
-        } else if (s1.emoji === s2.emoji || s2.emoji === s3.emoji || s1.emoji === s3.emoji) {
-            const matchSym = (s1.emoji === s2.emoji) ? s1 : (s2.emoji === s3.emoji ? s2 : s1);
-            winMultiplier = matchSym.multiplier2x;
-            if (winMultiplier > 0) {
-                winLabel = `Dua ${matchSym.emoji} — ${matchSym.name} Kembar! ${winMultiplier}×`;
+        // Check each payline
+        PAYLINES.forEach((line, lineIdx) => {
+            const lineSymbols = [];
+            for (let col = 0; col < 6; col++) {
+                const row = line.coordinates[col];
+                lineSymbols.push(this.grid[col][row]);
+            }
+
+            // Check adjacent matches from left-to-right
+            const firstEmoji = lineSymbols[0];
+            let matches = 1;
+            for (let col = 1; col < 6; col++) {
+                if (lineSymbols[col] === firstEmoji) {
+                    matches++;
+                } else {
+                    break;
+                }
+            }
+
+            // Find matching symbol stats
+            const spec = SYMBOLS.find(s => s.emoji === firstEmoji);
+            if (!spec) return;
+
+            let lineMultiplier = 0;
+            // Check win conditions
+            if (matches >= 3) {
+                if (matches === 3) lineMultiplier = spec.multiplier3x;
+                else if (matches === 4) lineMultiplier = Math.round(spec.multiplier3x * 2.5);
+                else if (matches === 5) lineMultiplier = Math.round(spec.multiplier3x * 6);
+                else if (matches === 6) lineMultiplier = Math.round(spec.multiplier3x * 15);
+            } else if (matches === 2 && spec.multiplier2x > 0) {
+                lineMultiplier = spec.multiplier2x;
+            }
+
+            if (lineMultiplier > 0) {
+                const lineWin = Math.round(lineBet * lineMultiplier);
+                totalPayout += lineWin;
+                winsList.push(`${line.name}: ${matches}x ${firstEmoji} (+$${lineWin.toLocaleString()})`);
+
+                // Mark coordinates for visual highlight
+                for (let col = 0; col < matches; col++) {
+                    const row = line.coordinates[col];
+                    symbolsToHighlight.push(`slot-reel-${col}-${row}`);
+                }
+            }
+        });
+
+        // Check if dynamite is anywhere on the screen
+        for (let col = 0; col < 6; col++) {
+            for (let row = 0; row < 3; row++) {
+                if (this.grid[col][row] === '🧨') {
+                    hasDynamite = true;
+                }
             }
         }
 
-        // Apply screen shake & explosive particle triggers
+        // Visual highlights
+        symbolsToHighlight.forEach(id => {
+            document.getElementById(id)?.classList.add('winning-symbol');
+        });
+
+        // Trigger Screen Shake / Dynamite explosions
         if (hasDynamite) {
             this.shakeCabinet();
             this.spawnParticles(15, 'spark');
             this.spawnParticles(20, 'dust');
         }
 
-        if (winMultiplier > 0) {
-            const winAmount = Math.round(bet * winMultiplier);
-            financeManager.addIncome(winAmount, 'Investasi', `Kemenangan Slot (${winLabel})`);
+        // Payout award and text report
+        if (totalPayout > 0) {
+            financeManager.addIncome(totalPayout, 'Investasi', `Kemenangan Slot 6x3: ${winsList.length} Payline`);
             this.onBalanceRefresh?.();
 
-            // Spawn floating text and matching particles
+            const isJackpot = totalPayout >= bet * 5;
+
+            // Spawn floating text and particles
             if (isJackpot) {
                 this.shakeCabinet();
                 this.spawnPraiseText('GOLD RUSH! 🤩');
                 this.spawnParticles(40, 'gold');
-                this.spawnParticles(30, 'diamond');
-                if (winDisplay) winDisplay.innerHTML = `<span style="font-weight:900; font-size:1.1rem; color:#fbbf24; animation:jackpotFlash 0.5s infinite; padding:0.4rem 1rem; border-radius:8px;">🏆 MEGA GOLD RUSH! +$${financeManager.formatCurrency(winAmount)}</span>`;
-                ui.success(`MEGA STRIKE! +$ ${financeManager.formatCurrency(winAmount)} — ${winLabel}`, '🎰 Tambang Emas!');
+                this.spawnParticles(35, 'diamond');
+                ui.success(`MEGA WIN 6x3! Total menang +$ ${totalPayout.toLocaleString()}`, '🎰 Mega Goldy Crush!');
             } else {
-                if (s1.emoji === '🧨' && s2.emoji === '🧨' && s3.emoji === '🧨') {
-                    this.spawnPraiseText('BOOM! 💥');
-                } else {
-                    this.spawnPraiseText('STRIKE GOLD! 🪙');
-                }
-                this.spawnParticles(25, 'gold');
-                if (winDisplay) winDisplay.innerHTML = `<span style="font-weight:800; font-size:0.95rem; color:#34d399; animation:winPulse 1s ease-in-out infinite;">✅ HASIL TAMBANG +$${financeManager.formatCurrency(winAmount)} (${winLabel})</span>`;
-                ui.success(`STRIKE! +$ ${financeManager.formatCurrency(winAmount)} — ${winLabel}`, '🎰 Slot Win');
+                this.spawnPraiseText('STRIKE! 🪙');
+                this.spawnParticles(20, 'gold');
+            }
+
+            // Print lines won inside slot display
+            if (winDisplay) {
+                winDisplay.innerHTML = `
+                    <div style="font-weight:800; font-size:0.9rem; color:#34d399; animation:winPulse 1.2s ease-in-out infinite;">✅ MENANG +$${financeManager.formatCurrency(totalPayout)}</div>
+                    <div style="font-size:0.68rem; color:rgba(255,255,255,0.5); max-height:40px; overflow-y:auto; width:100%; margin-top:2px;">
+                        ${winsList.join(' | ')}
+                    </div>
+                `;
             }
         } else {
-            if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.8rem; font-style:italic;">Hanya batu bara biasa. Gali lagi!</span>`;
-            ui.toast({ type: 'warning', title: 'Tambang Kosong', message: 'Hanya batuan kosong. Coba gali lagi!' });
+            if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.8rem; font-style:italic;">Tidak ada kombinasi baris. Gali terus!</span>`;
+            ui.toast({ type: 'warning', title: 'Tambang Kosong', message: 'Tidak ada baris yang cocok!' });
         }
     }
 }

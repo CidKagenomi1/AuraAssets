@@ -1,19 +1,21 @@
 /**
  * GamblingPanel.js - Casino Game Terminal
- * Features the "Goldy Crush" Slot Machine and "Mega Lottery" games.
+ * Features Goldy Crush Slot (6x3), Mega Lottery, and Spinning Wheel games.
  */
 
 import financeManager from '../finance/FinanceManager.js';
 import gameState from '../core/GameState.js';
 import { SlotEngine } from '../gambling/casino/SlotEngine.js';
 import { LotteryEngine } from '../gambling/casino/LotteryEngine.js';
+import { WheelEngine } from '../gambling/casino/WheelEngine.js';
 
 class GamblingPanel {
     constructor() {
         const refresh = () => this.refreshBalanceDisplay();
         this.slot = new SlotEngine(refresh);
         this.lottery = new LotteryEngine(refresh);
-        this.activeTab = 'slot'; // 'slot' | 'lottery'
+        this.wheel = new WheelEngine(refresh);
+        this.activeTab = 'slot'; // 'slot' | 'lottery' | 'wheel'
     }
 
     show() {
@@ -52,24 +54,29 @@ class GamblingPanel {
                 </div>
 
                 <!-- ── Tab Switcher ── -->
-                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap;">
                     <button class="casino-tab-btn" data-tab-id="slot" style="
-                        flex: 1; padding: 0.65rem; border-radius: 8px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+                        flex: 1; min-width: 120px; padding: 0.65rem; border-radius: 8px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
                         background: ${this.activeTab === 'slot' ? 'var(--accent-primary-soft)' : 'transparent'};
                         color: ${this.activeTab === 'slot' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.6)'};
                     ">🎰 Goldy Crush Slot</button>
                     <button class="casino-tab-btn" data-tab-id="lottery" style="
-                        flex: 1; padding: 0.65rem; border-radius: 8px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+                        flex: 1; min-width: 120px; padding: 0.65rem; border-radius: 8px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
                         background: ${this.activeTab === 'lottery' ? 'var(--accent-primary-soft)' : 'transparent'};
                         color: ${this.activeTab === 'lottery' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.6)'};
                     ">🎫 Mega Lottery</button>
+                    <button class="casino-tab-btn" data-tab-id="wheel" style="
+                        flex: 1; min-width: 120px; padding: 0.65rem; border-radius: 8px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+                        background: ${this.activeTab === 'wheel' ? 'var(--accent-primary-soft)' : 'transparent'};
+                        color: ${this.activeTab === 'wheel' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.6)'};
+                    ">🎡 Spinning Wheel</button>
                 </div>
 
                 <!-- ── Main Game Board ── -->
                 <div class="casino-board" style="background:rgba(255,255,255,0.01); border:1px solid var(--border-color); border-radius:20px; padding:2rem; min-height:480px;">
                     <!-- Active View Panel -->
                     <div id="casino-game-panel">
-                        ${this.activeTab === 'slot' ? this.slot.getHTML() : this.lottery.getHTML()}
+                        ${this.activeTab === 'slot' ? this.slot.getHTML() : (this.activeTab === 'lottery' ? this.lottery.getHTML() : this.wheel.getHTML())}
                     </div>
                 </div>
 
@@ -120,13 +127,15 @@ class GamblingPanel {
                 // Update active game content
                 const gamePanel = document.getElementById('casino-game-panel');
                 if (gamePanel) {
-                    gamePanel.innerHTML = tabId === 'slot' ? this.slot.getHTML() : this.lottery.getHTML();
-                    
-                    // Rebind active engine events
                     if (tabId === 'slot') {
+                        gamePanel.innerHTML = this.slot.getHTML();
                         this.slot.bindEvents(gamePanel, () => this.refreshBalanceDisplay());
-                    } else {
+                    } else if (tabId === 'lottery') {
+                        gamePanel.innerHTML = this.lottery.getHTML();
                         this.lottery.bindEvents(gamePanel, () => this.refreshBalanceDisplay());
+                    } else {
+                        gamePanel.innerHTML = this.wheel.getHTML();
+                        this.wheel.bindEvents(gamePanel, () => this.refreshBalanceDisplay());
                     }
                 }
             });
@@ -137,8 +146,10 @@ class GamblingPanel {
         if (gamePanel) {
             if (this.activeTab === 'slot') {
                 this.slot.bindEvents(gamePanel, () => this.refreshBalanceDisplay());
-            } else {
+            } else if (this.activeTab === 'lottery') {
                 this.lottery.bindEvents(gamePanel, () => this.refreshBalanceDisplay());
+            } else {
+                this.wheel.bindEvents(gamePanel, () => this.refreshBalanceDisplay());
             }
         }
     }
