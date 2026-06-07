@@ -115,7 +115,9 @@ class CryptoMarket {
             CHZ: { name: 'Chiliz', price: 0.06, basePrice: 0.06, volatility: 0.1, category: 'Sports & Entertainment', icon: '🌶️' },
             EOS: { name: 'EOS', price: 0.48, basePrice: 0.48, volatility: 0.08, category: 'Smart Contract Platfrom', icon: 'ε' },
             IOTA: { name: 'IOTA', price: 0.14, basePrice: 0.14, volatility: 0.07, category: 'Internet of Things DLT', icon: 'ι' },
-            ASTR: { name: 'Astar', price: 0.05, basePrice: 0.05, volatility: 0.1, category: 'Multichain Smart Contract', icon: '✨' }
+            ASTR: { name: 'Astar', price: 0.05, basePrice: 0.05, volatility: 0.1, category: 'Multichain Smart Contract', icon: '✨' },
+            AURA: { name: 'Aura Network', price: 1.00, basePrice: 1.00, volatility: 0.12, category: 'Cosmos Ecosystem L1', icon: '🌌' },
+            NEX: { name: 'Nexus AI', price: 2.50, basePrice: 2.50, volatility: 0.15, category: 'AI Computing Network', icon: '🧬' }
         };
 
         Object.keys(cryptos).forEach(symbol => {

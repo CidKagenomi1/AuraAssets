@@ -92,6 +92,8 @@ class ViewManager {
     this.marketSort = { key: 'default', dir: 'asc' };
     this.currentMarketTab = 'stocks';
     this.activeDynamicTab = 'cashflow';
+    this.currentPassiveView = 'staking';
+    this._renderPassiveIncome = true;
   }
 
   init() {
@@ -121,9 +123,7 @@ class ViewManager {
     gameState.on('cryptoUpdate', () => this.updateMarketView());
     document.addEventListener('passiveIncomeTick', () => {
       if (this.currentView === 'market') {
-        // Passive income changed — allow staking/bot panels to re-render with fresh data
-        if (this.currentMarketTab === 'staking-mining') this._renderStakingMining = true;
-        if (this.currentMarketTab === 'bot-trading') this._renderBotTrading = true;
+        if (this.currentMarketTab === 'passive-income') this._renderPassiveIncome = true;
         this.updateMarketView();
       }
     });
@@ -327,11 +327,8 @@ class ViewManager {
         this.currentMarketTab = tabId;
 
         // Set render flag for heavy panels so they render ONCE on tab open
-        // — not on every stock/crypto price update event
-        if (tabId === 'staking-mining') {
-          this._renderStakingMining = true;
-        } else if (tabId === 'bot-trading') {
-          this._renderBotTrading = true;
+        if (tabId === 'passive-income') {
+          this._renderPassiveIncome = true;
         }
 
         this.updateMarketView();
@@ -339,9 +336,7 @@ class ViewManager {
     });
   }
 
-  // Stub bind methods — buttons use window.* global onclick handlers, no extra binding needed
-  _bindStakingMiningButtons() {}
-  _bindBotTradingButtons() {
+  _bindPassiveIncomeButtons() {
     const botCapitalInput = document.getElementById('bot-capital-input');
     if (botCapitalInput) {
       ui.setupNumericInput(botCapitalInput, {
@@ -388,29 +383,29 @@ class ViewManager {
     const portfolioCount = (stockMarket.getPortfolio() || []).length + (cryptoMarket.getWallet() || []).length;
     const piState = passiveIncomeManager.getState();
     
-    // Staking asset count + mining rig count
-    let stakingMiningCount = 0;
-    Object.values(piState.rigs).forEach(c => stakingMiningCount += c);
-    Object.values(piState.staked).forEach(c => { if (c > 0) stakingMiningCount += 1; });
-
-    const botCount = piState.bots.length;
+    // Total passive income assets + rigs + bots + active launchdrops
+    let passiveIncomeCount = 0;
+    Object.values(piState.rigs).forEach(c => passiveIncomeCount += c);
+    Object.values(piState.staked).forEach(c => { if (c > 0) passiveIncomeCount += 1; });
+    passiveIncomeCount += piState.bots.length;
+    if (piState.launchdrops) {
+      piState.launchdrops.forEach(ld => { if (ld.committed > 0 && ld.status !== 'ENDED') passiveIncomeCount += 1; });
+    }
 
     const badgeStocks = document.getElementById('badge-stocks');
     const badgeCrypto = document.getElementById('badge-crypto');
-    const badgeStakingMining = document.getElementById('badge-staking-mining');
-    const badgeBotTrading = document.getElementById('badge-bot-trading');
+    const badgePassiveIncome = document.getElementById('badge-passive-income');
     const badgePortfolio = document.getElementById('badge-portfolio');
 
     if (badgeStocks) badgeStocks.textContent = allStocks.length;
     if (badgeCrypto) badgeCrypto.textContent = allCryptos.length;
-    if (badgeStakingMining) badgeStakingMining.textContent = stakingMiningCount;
-    if (badgeBotTrading) badgeBotTrading.textContent = botCount;
+    if (badgePassiveIncome) badgePassiveIncome.textContent = passiveIncomeCount;
     if (badgePortfolio) badgePortfolio.textContent = portfolioCount;
 
     // Toggle search controls bar visibility
     const searchBar = document.getElementById('market-search-bar-container');
     if (searchBar) {
-      if (this.currentMarketTab === 'staking-mining' || this.currentMarketTab === 'bot-trading') {
+      if (this.currentMarketTab === 'passive-income') {
         searchBar.style.display = 'none';
       } else {
         searchBar.style.display = 'flex';
@@ -477,28 +472,15 @@ class ViewManager {
       cryptoList.innerHTML = cryptos.map(c => buildCryptoRow(c)).join('');
     }
 
-    // Update Staking & Mining — ONLY re-render on passiveIncomeTick or explicit call,
-    // NOT on every stocksUpdate/cryptoUpdate to prevent continuous DOM replacement
-    const stakingMiningPanel = document.getElementById('market-staking-mining');
-    if (stakingMiningPanel && this.currentMarketTab === 'staking-mining' && this._renderStakingMining) {
+    // Update Passive Income & Launchdrops — ONLY on demand/tick
+    const passiveIncomePanel = document.getElementById('market-passive-income');
+    if (passiveIncomePanel && this.currentMarketTab === 'passive-income' && this._renderPassiveIncome) {
       const activeEl = document.activeElement;
-      const isTyping = activeEl && stakingMiningPanel.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
+      const isTyping = activeEl && passiveIncomePanel.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
       if (force || !isTyping) {
-        stakingMiningPanel.innerHTML = this.renderStakingMiningView();
-        this._bindStakingMiningButtons();
-        this._renderStakingMining = false;
-      }
-    }
-
-    // Update Bot Trading — same: only on demand
-    const botTradingPanel = document.getElementById('market-bot-trading');
-    if (botTradingPanel && this.currentMarketTab === 'bot-trading' && this._renderBotTrading) {
-      const activeEl = document.activeElement;
-      const isTyping = activeEl && botTradingPanel.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
-      if (force || !isTyping) {
-        botTradingPanel.innerHTML = this.renderBotTradingView();
-        this._bindBotTradingButtons();
-        this._renderBotTrading = false;
+        passiveIncomePanel.innerHTML = this.renderPassiveIncomeView();
+        this._bindPassiveIncomeButtons();
+        this._renderPassiveIncome = false;
       }
     }
 
@@ -800,12 +782,114 @@ class ViewManager {
     });
   }
 
-  // ===== RENDER STAKING & MINING TABS =====
-  renderStakingMiningView() {
-    const piState = passiveIncomeManager.getState();
-    const balance = gameState.getBalance();
+  // ===== RENDER PASSIVE INCOME & LAUNCHDROPS UNIFIED VIEW =====
+  renderPassiveIncomeView() {
+    const activeView = this.currentPassiveView || 'staking';
+    let subViewHTML = '';
 
-    // Calculate totals
+    if (activeView === 'staking') {
+      subViewHTML = this.renderStakingMiningView_OnlyStaking();
+    } else if (activeView === 'mining') {
+      subViewHTML = this.renderStakingMiningView_OnlyMining();
+    } else if (activeView === 'bot') {
+      subViewHTML = this.renderBotTradingView();
+    } else if (activeView === 'launchdrop') {
+      subViewHTML = this.renderLaunchdropView();
+    }
+
+    return `
+      <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; animation: fade-up 0.3s ease;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+          <div>
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: white;">⚡ Investasi Pasif & Launch</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Kelola berbagai instrumen investasi pasif Anda di bawah ini.</p>
+          </div>
+          <div>
+            <select id="passive-income-type-select" class="form-input" style="background: var(--bg-surface); color: white; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-weight: 700; width: 220px;" onchange="window.changePassiveView(this.value)">
+              <option value="staking" ${activeView === 'staking' ? 'selected' : ''}>🔒 Vault Staking Kripto</option>
+              <option value="mining" ${activeView === 'mining' ? 'selected' : ''}>⛏️ Rig Pertambangan</option>
+              <option value="bot" ${activeView === 'bot' ? 'selected' : ''}>🤖 Trading Bot Otomatis</option>
+              <option value="launchdrop" ${activeView === 'launchdrop' ? 'selected' : ''}>🚀 Launchdrop Kripto</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          ${subViewHTML}
+        </div>
+      </div>
+    `;
+  }
+
+  renderStakingMiningView_OnlyStaking() {
+    const piState = passiveIncomeManager.getState();
+    const wallet = gameState.get('crypto') || {};
+
+    const stakingHTML = Object.entries(passiveIncomeManager.stakingAssets).map(([symbol, spec]) => {
+      const holding = wallet[symbol];
+      const walletAmt = holding ? holding.amount : 0;
+      const stakedAmt = piState.staked[symbol] || 0;
+      const pendingReward = piState.stakingRewards?.[symbol] || 0;
+      const crypto = cryptoMarket.getCrypto(symbol);
+      const coinIcon = crypto ? crypto.icon : '🪙';
+      const apyPct = (spec.apy * 100).toFixed(1);
+
+      return `
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 200px;">
+            <span style="font-size: 1.75rem; width: 32px; text-align:center;">${coinIcon}</span>
+            <div>
+              <div style="font-weight: 800; color: white;">${spec.name} (${symbol})</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">
+                Saldo Wallet: <span style="color: white;">${cryptoMarket.formatAmount(walletAmt)}</span> | 
+                Staked: <span style="color: var(--accent-primary); font-weight:700;">${cryptoMarket.formatAmount(stakedAmt)}</span>
+              </div>
+            </div>
+          </div>
+          <div style="text-align: right; display: flex; align-items: center; gap: 1.25rem; margin-left: auto;">
+            <div>
+              <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Reward Pending</div>
+              <div style="font-size: 0.95rem; font-weight: 800; color: #10b981; text-align: right;">+${cryptoMarket.formatAmount(pendingReward)} ${symbol}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Est. APY</div>
+              <div style="font-size: 1.1rem; font-weight: 800; color: var(--accent-primary); text-align: right;">${apyPct}%</div>
+            </div>
+            <div style="display: flex; gap: 4px;">
+              <button onclick="stakeCryptoPrompt('${symbol}')" class="btn btn-primary btn-sm" style="font-size: 0.7rem; font-weight: 800; padding: 4px 12px; height: 28px; justify-content:center;" ${walletAmt <= 0 ? 'disabled' : ''}>Stake</button>
+              ${stakedAmt > 0 ? `<button onclick="unstakeCryptoPrompt('${symbol}')" class="btn btn-secondary btn-sm" style="font-size: 0.7rem; font-weight: 800; padding: 4px 12px; height: 28px; justify-content:center; color: var(--accent-danger); border-color: rgba(239,68,68,0.2);">Unstake</button>` : ''}
+              ${pendingReward > 0 ? `<button onclick="claimStakingReward('${symbol}')" class="btn btn-primary btn-sm" style="font-size: 0.7rem; font-weight: 800; padding: 4px 12px; height: 28px; justify-content:center; background: #10b981; border-color: #10b981;">Klaim</button>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    let totalPendingRewards = 0;
+    if (piState.stakingRewards) {
+      Object.values(piState.stakingRewards).forEach(r => totalPendingRewards += r);
+    }
+
+    return `
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.75rem;">
+          <div>
+            <h4 style="font-size:1.05rem; font-weight:800; color:white; display:flex; align-items:center; gap:0.4rem;">🔒 Vault Staking Kripto</h4>
+            <p style="font-size:0.75rem; color:var(--text-muted);">Kunci aset kripto Anda di Smart Contract Staking untuk mendapatkan yield APY pasif secara kontinu.</p>
+          </div>
+          ${totalPendingRewards > 0 ? `<button onclick="claimAllStakingRewards()" class="btn btn-primary btn-sm" style="font-size:0.75rem; font-weight:800; background: #10b981; border-color:#10b981;">Klaim Semua Yield</button>` : ''}
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          ${stakingHTML}
+        </div>
+      </div>
+    `;
+  }
+
+  renderStakingMiningView_OnlyMining() {
+    const piState = passiveIncomeManager.getState();
+    const btc = cryptoMarket.getCrypto('BTC');
+    const btcPrice = btc ? btc.price : 60000;
+
     let totalYieldBTC = 0;
     let totalPowerCost = 0;
     Object.entries(piState.rigs).forEach(([type, count]) => {
@@ -814,11 +898,9 @@ class ViewManager {
       totalPowerCost += rig.powerCost * count;
     });
 
-    const btc = cryptoMarket.getCrypto('BTC');
-    const btcPrice = btc ? btc.price : 60000;
     const estEarnUSD = totalYieldBTC * btcPrice;
+    const pendingMiningReward = piState.miningRewards || 0;
 
-    // Build Rigs HTML
     const rigsHTML = Object.entries(passiveIncomeManager.rigTypes).map(([type, rig]) => {
       const count = piState.rigs[type] || 0;
       return `
@@ -842,71 +924,98 @@ class ViewManager {
       `;
     }).join('');
 
-    // Build Staking HTML
-    const wallet = gameState.get('crypto') || {};
-    const stakingHTML = Object.entries(passiveIncomeManager.stakingAssets).map(([symbol, spec]) => {
-      const holding = wallet[symbol];
-      const walletAmt = holding ? holding.amount : 0;
-      const stakedAmt = piState.staked[symbol] || 0;
-      const crypto = cryptoMarket.getCrypto(symbol);
-      const coinIcon = crypto ? crypto.icon : '🪙';
-      const apyPct = (spec.apy * 100).toFixed(1);
+    return `
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.25rem; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 1rem;">
+          <div>
+            <h4 style="font-size:1.05rem; font-weight:800; color:white; display:flex; align-items:center; gap:0.4rem;">⛏️ Rig Pertambangan Kripto</h4>
+            <p style="font-size:0.75rem; color:var(--text-muted);">Beli rig untuk menambang Bitcoin (BTC) secara otomatis setiap tick. Biaya listrik akan dikurangi dari kas Anda.</p>
+          </div>
+          <div style="display:flex; gap:0.75rem; align-items:center;">
+            <div style="text-align: right; background: rgba(0,0,0,0.3); padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Hasil Tambang Belum Diklaim</div>
+              <div style="font-size: 1.1rem; font-weight: 800; color: #f59e0b; text-shadow:0 0 8px rgba(245,158,11,0.25);">${cryptoMarket.formatAmount(pendingMiningReward)} BTC</div>
+              <div style="font-size: 0.75rem; color: var(--accent-primary); font-weight:600;">≈ $ ${estEarnUSD.toFixed(2)}/tick (Listrik: $ ${totalPowerCost.toFixed(0)})</div>
+            </div>
+            ${pendingMiningReward > 0 ? `<button onclick="claimMiningRewards()" class="btn btn-primary" style="background:#f59e0b; border-color:#f59e0b; height:46px; font-weight:800; font-size:0.85rem;">Klaim Hasil</button>` : ''}
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem;">
+          ${rigsHTML}
+        </div>
+      </div>
+    `;
+  }
+
+  renderLaunchdropView() {
+    const piState = passiveIncomeManager.getState();
+    const balance = gameState.getBalance();
+
+    const launchdropsHTML = (piState.launchdrops || []).map(ld => {
+      const isCommitted = ld.committed > 0;
+      const isClaimable = ld.status === 'CLAIMABLE';
+      const isEnded = ld.status === 'ENDED';
+      const rewardAmt = ld.committed * ld.rate;
+
+      let statusBadgeColor = 'rgba(59,130,246,0.12)';
+      let statusTextColor = '#3b82f6';
+      let statusText = 'ACTIVE 🟢';
+
+      if (isClaimable) {
+        statusBadgeColor = 'rgba(16,185,129,0.12)';
+        statusTextColor = '#10b981';
+        statusText = 'CLAIMABLE 🎁';
+      } else if (isEnded) {
+        statusBadgeColor = 'rgba(255,255,255,0.06)';
+        statusTextColor = 'var(--text-muted)';
+        statusText = 'ENDED 🏁';
+      }
 
       return `
-        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
-          <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 200px;">
-            <span style="font-size: 1.75rem; width: 32px; text-align:center;">${coinIcon}</span>
-            <div>
-              <div style="font-weight: 800; color: white;">${spec.name} (${symbol})</div>
-              <div style="font-size: 0.75rem; color: var(--text-muted);">
-                Saldo Wallet: <span style="color: white;">${cryptoMarket.formatAmount(walletAmt)}</span> | 
-                Staked: <span style="color: var(--accent-primary); font-weight:700;">${cryptoMarket.formatAmount(stakedAmt)}</span>
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+              <div>
+                <span style="font-weight: 800; color: white; font-size: 1.05rem;">${ld.name} (${ld.symbol})</span>
+                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top:0.25rem;">Rate: 1 USD ≈ ${ld.rate} ${ld.symbol}</div>
+              </div>
+              <span style="font-size: 0.72rem; background: ${statusBadgeColor}; color: ${statusTextColor}; padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 700;">
+                ${statusText}
+              </span>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 0.75rem;">${ld.desc}</p>
+            
+            <div style="font-size: 0.8rem; color: var(--text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; background: rgba(0,0,0,0.15); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);">
+              <div>Committed: <span style="color: white; font-weight:600;">$ ${ld.committed.toLocaleString()}</span></div>
+              <div>Est. Reward: <span style="color: #10b981; font-weight:700;">+${rewardAmt.toFixed(2)} ${ld.symbol}</span></div>
+              <div style="grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.05); padding-top:0.35rem; margin-top:0.15rem;">
+                ${isEnded ? 'Durasi Berakhir' : `Sisa Waktu: <span style="color: white; font-weight:600;">${ld.timeRemaining} tick</span>`}
               </div>
             </div>
           </div>
-          <div style="text-align: right; display: flex; align-items: center; gap: 1.25rem; margin-left: auto;">
-            <div>
-              <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Est. APY</div>
-              <div style="font-size: 1.1rem; font-weight: 800; color: var(--accent-primary); text-align: right;">${apyPct}%</div>
-            </div>
-            <div style="display: flex; gap: 4px;">
-              <button onclick="stakeCryptoPrompt('${symbol}')" class="btn btn-primary btn-sm" style="font-size: 0.7rem; font-weight: 800; padding: 4px 12px; height: 28px; justify-content:center;" ${walletAmt <= 0 ? 'disabled' : ''}>Stake</button>
-              ${stakedAmt > 0 ? `<button onclick="unstakeCryptoPrompt('${symbol}')" class="btn btn-secondary btn-sm" style="font-size: 0.7rem; font-weight: 800; padding: 4px 12px; height: 28px; justify-content:center; color: var(--accent-danger); border-color: rgba(239,68,68,0.2);">Unstake</button>` : ''}
-            </div>
+          <div style="display: flex; gap: 0.5rem;">
+            ${ld.status === 'ACTIVE' ? `
+              <button onclick="commitLaunchdropPrompt('${ld.id}')" class="btn btn-primary btn-sm" style="flex: 1; font-size: 0.75rem; font-weight:800; height:32px; justify-content:center;">Commit Modal</button>
+            ` : ''}
+            ${isClaimable ? `
+              <button onclick="claimLaunchdropReward('${ld.id}')" class="btn btn-primary btn-sm" style="flex: 1; font-size: 0.75rem; font-weight:800; height:32px; justify-content:center; background:#10b981; border-color:#10b981;">Klaim Token</button>
+            ` : ''}
+            ${isEnded ? `
+              <button class="btn btn-secondary btn-sm" style="flex: 1; font-size: 0.75rem; font-weight:800; height:32px; justify-content:center;" disabled>Alokasi Diklaim</button>
+            ` : ''}
           </div>
         </div>
       `;
     }).join('');
 
     return `
-      <div style="display: flex; flex-direction: column; gap: 1.5rem; animation: fade-up 0.3s ease;">
-        <!-- Mining Area -->
-        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 1rem;">
-            <div>
-              <h3 style="font-size: 1.15rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">⛏️ Rig Pertambangan Kripto</h3>
-              <p style="font-size: 0.8rem; color: var(--text-muted); max-width: 600px;">Beli rig untuk menambang Bitcoin (BTC) secara otomatis setiap tick. Biaya listrik akan dikurangi dari kas Anda.</p>
-            </div>
-            <div style="text-align: right; background: rgba(0,0,0,0.3); padding: 0.5rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-              <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">Total Hasil Miner</div>
-              <div style="font-size: 1.1rem; font-weight: 800; color: #f59e0b;">+${(totalYieldBTC * 105120).toFixed(4)} BTC/tahun</div>
-              <div style="font-size: 0.75rem; color: var(--accent-primary); font-weight:600;">≈ $ ${estEarnUSD.toFixed(2)}/tick (Listrik: $ ${totalPowerCost.toFixed(0)})</div>
-            </div>
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem;">
-            ${rigsHTML}
-          </div>
+      <div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+          <h4 style="font-size:1.05rem; font-weight:800; color:white; display:flex; align-items:center; gap:0.4rem;">🚀 Launchdrop Kripto</h4>
+          <p style="font-size:0.75rem; color:var(--text-muted);">Commit kas Anda ke presale proyek token kripto baru untuk mendapatkan airdrop alokasi besar saat proyek diluncurkan.</p>
         </div>
-
-        <!-- Staking Area -->
-        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem;">
-          <div style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.75rem; margin-bottom: 1rem;">
-            <h3 style="font-size: 1.15rem; font-weight: 800; color: white; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">🔒 Vault Staking Kripto</h3>
-            <p style="font-size: 0.8rem; color: var(--text-muted);">Kunci aset kripto Anda di Smart Contract Staking untuk mendapatkan hasil bunga (yield) tahunan secara kontinu.</p>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-            ${stakingHTML}
-          </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; width: 100%;">
+          ${launchdropsHTML}
         </div>
       </div>
     `;
@@ -1096,7 +1205,7 @@ window.buyMiningRig = (type) => {
   try {
     passiveIncomeManager.buyRig(type);
     ui.success(`Rig ${passiveIncomeManager.rigTypes[type].name} berhasil dibeli!`, 'Mining Rig');
-    viewManager._renderStakingMining = true;
+    viewManager._renderPassiveIncome = true;
     viewManager.updateMarketView(true);
   } catch(e) { ui.error(e.message); }
 };
@@ -1105,7 +1214,7 @@ window.sellMiningRig = (type) => {
   try {
     passiveIncomeManager.sellRig(type);
     ui.success(`Rig ${passiveIncomeManager.rigTypes[type].name} berhasil dijual!`, 'Mining Rig');
-    viewManager._renderStakingMining = true;
+    viewManager._renderPassiveIncome = true;
     viewManager.updateMarketView(true);
   } catch(e) { ui.error(e.message); }
 };
@@ -1132,7 +1241,7 @@ window.stakeCryptoPrompt = async (symbol) => {
       if (isNaN(amt) || amt <= 0 || amt > maxAmt) { ui.error('Jumlah input tidak valid'); return; }
       passiveIncomeManager.stake(symbol, amt);
       ui.success(`Berhasil staking ${amt.toFixed(4)} ${symbol}!`, 'Staking Vault');
-      viewManager._renderStakingMining = true;
+      viewManager._renderPassiveIncome = true;
       viewManager.updateMarketView(true);
     }
   } catch(e) {
@@ -1163,7 +1272,7 @@ window.unstakeCryptoPrompt = async (symbol) => {
       if (isNaN(amt) || amt <= 0 || amt > maxAmt) { ui.error('Jumlah input tidak valid'); return; }
       passiveIncomeManager.unstake(symbol, amt);
       ui.success(`Berhasil unstaking ${amt.toFixed(4)} ${symbol}!`, 'Staking Vault');
-      viewManager._renderStakingMining = true;
+      viewManager._renderPassiveIncome = true;
       viewManager.updateMarketView(true);
     }
   } catch(e) {
@@ -1187,7 +1296,7 @@ window.deploySelectedBot = () => {
   try {
     passiveIncomeManager.startBot('ai', symbol, assetType, capital);
     ui.success(`AI Auto-Trading Bot berhasil dijalankan pada ${symbol}!`, 'Deploy Bot');
-    viewManager._renderBotTrading = true;
+    viewManager._renderPassiveIncome = true;
     viewManager.updateMarketView(true);
   } catch (e) {
     ui.error(e.message);
@@ -1198,11 +1307,73 @@ window.stopTradingBot = (id) => {
   try {
     passiveIncomeManager.stopBot(id);
     ui.success('Bot dihentikan dan seluruh modal serta profit dikreditkan ke kas!', 'Bot Stopped');
-    viewManager._renderBotTrading = true;
+    viewManager._renderPassiveIncome = true;
     viewManager.updateMarketView(true);
   } catch(e) {
     ui.error(e.message);
   }
+};
+
+window.changePassiveView = (view) => {
+  viewManager.currentPassiveView = view;
+  viewManager._renderPassiveIncome = true;
+  viewManager.updateMarketView(true);
+};
+
+window.claimStakingReward = (symbol) => {
+  try {
+    passiveIncomeManager.claimStaking(symbol);
+    ui.success(`Berhasil mengklaim reward staking ${symbol}!`, 'Klaim Staking');
+    viewManager._renderPassiveIncome = true;
+    viewManager.updateMarketView(true);
+  } catch(e) { ui.error(e.message); }
+};
+
+window.claimAllStakingRewards = () => {
+  try {
+    passiveIncomeManager.claimAllStaking();
+    ui.success('Seluruh reward staking berhasil diklaim ke wallet!', 'Klaim Semua Staking');
+    viewManager._renderPassiveIncome = true;
+    viewManager.updateMarketView(true);
+  } catch(e) { ui.error(e.message); }
+};
+
+window.claimMiningRewards = () => {
+  try {
+    passiveIncomeManager.claimMining();
+    ui.success('Hasil penambangan Bitcoin berhasil ditambahkan ke wallet!', 'Klaim Mining');
+    viewManager._renderPassiveIncome = true;
+    viewManager.updateMarketView(true);
+  } catch(e) { ui.error(e.message); }
+};
+
+window.commitLaunchdropPrompt = async (id) => {
+  try {
+    const balance = gameState.getBalance();
+    if (balance <= 0) { ui.error('Saldo kas Anda kosong'); return; }
+
+    const amount = await ui.promptMoney({
+      title: 'Commit Kas ke Launchdrop',
+      maxAmount: balance,
+      confirmText: 'Commit'
+    });
+
+    if (amount) {
+      passiveIncomeManager.commitLaunchdrop(id, amount);
+      ui.success(`Berhasil melakukan commit $${amount.toLocaleString()} ke Launchdrop!`, 'Launchdrop');
+      viewManager._renderPassiveIncome = true;
+      viewManager.updateMarketView(true);
+    }
+  } catch(e) { ui.error(e.message); }
+};
+
+window.claimLaunchdropReward = (id) => {
+  try {
+    passiveIncomeManager.claimLaunchdrop(id);
+    ui.success('Token hasil Launchdrop berhasil diklaim ke wallet Anda!', 'Klaim Launchdrop');
+    viewManager._renderPassiveIncome = true;
+    viewManager.updateMarketView(true);
+  } catch(e) { ui.error(e.message); }
 };
 
 window.downloadBotCard = (id, isActive) => {
@@ -1346,7 +1517,7 @@ window.downloadBotCard = (id, isActive) => {
 // Global helpers for search and asset filtering inside trading bot setup
 window.filterBotAssetSearch = (query) => {
   window._botAssetSearchQuery = query;
-  viewManager._renderBotTrading = true;
+  viewManager._renderPassiveIncome = true;
   viewManager.updateMarketView(true);
   
   // Restore focus to input and place cursor at the end
@@ -1360,7 +1531,7 @@ window.filterBotAssetSearch = (query) => {
 
 window.setBotAssetTypeTab = (tab) => {
   window._botAssetTypeTab = tab;
-  viewManager._renderBotTrading = true;
+  viewManager._renderPassiveIncome = true;
   viewManager.updateMarketView(true);
 };
 

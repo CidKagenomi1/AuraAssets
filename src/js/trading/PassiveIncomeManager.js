@@ -40,6 +40,12 @@ class PassiveIncomeManager {
             state = {
                 rigs: { CPU: 0, GPU: 0, ASIC: 0, Industrial: 0 },
                 staked: {}, // { symbol: amount }
+                stakingRewards: {}, // symbol: amount
+                miningRewards: 0, // amount of BTC
+                launchdrops: [
+                    { id: 'AURA', name: 'Aura Network', symbol: 'AURA', desc: 'Cosmos-based Layer-1 blockchain for smart contracts.', timeRemaining: 60, committed: 0, status: 'ACTIVE', rate: 0.1 },
+                    { id: 'NEX', name: 'Nexus AI', symbol: 'NEX', desc: 'Enterprise decentralized Artificial Intelligence computation core.', timeRemaining: 120, committed: 0, status: 'ACTIVE', rate: 0.25 }
+                ],
                 bots: [],    // [ { id, type, asset, assetType, capital, profit, profitPct, status, runtimeDays, entryPrice } ]
                 botHistory: [] // [ { id, type, asset, assetType, capital, profit, profitPct, runtimeTicks, entryPrice, stopTime } ]
             };
@@ -48,6 +54,15 @@ class PassiveIncomeManager {
             let changed = false;
             if (!state.rigs) { state.rigs = { CPU: 0, GPU: 0, ASIC: 0, Industrial: 0 }; changed = true; }
             if (!state.staked) { state.staked = {}; changed = true; }
+            if (!state.stakingRewards) { state.stakingRewards = {}; changed = true; }
+            if (state.miningRewards === undefined) { state.miningRewards = 0; changed = true; }
+            if (!state.launchdrops) {
+                state.launchdrops = [
+                    { id: 'AURA', name: 'Aura Network', symbol: 'AURA', desc: 'Cosmos-based Layer-1 blockchain for smart contracts.', timeRemaining: 60, committed: 0, status: 'ACTIVE', rate: 0.1 },
+                    { id: 'NEX', name: 'Nexus AI', symbol: 'NEX', desc: 'Enterprise decentralized Artificial Intelligence computation core.', timeRemaining: 120, committed: 0, status: 'ACTIVE', rate: 0.25 }
+                ];
+                changed = true;
+            }
             if (!state.bots) { state.bots = []; changed = true; }
             if (!state.botHistory) { state.botHistory = []; changed = true; }
             if (changed) {
@@ -102,6 +117,98 @@ class PassiveIncomeManager {
         // Refund to wallet
         const crypto = cryptoMarket.getCrypto(symbol);
         cryptoMarket.addToWallet(symbol, amount, crypto ? crypto.price : 1.0);
+
+        gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
+        return true;
+    }
+
+    claimStaking(symbol) {
+        const state = this.getState();
+        const pending = state.stakingRewards[symbol] || 0;
+        if (pending <= 0) throw new Error('Tidak ada reward staking untuk diklaim');
+
+        state.stakingRewards[symbol] = 0;
+        this.saveState(state);
+
+        const crypto = cryptoMarket.getCrypto(symbol);
+        cryptoMarket.addToWallet(symbol, pending, crypto ? crypto.price : 1.0);
+
+        gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
+        return true;
+    }
+
+    claimAllStaking() {
+        const state = this.getState();
+        let claimedCount = 0;
+        Object.entries(state.stakingRewards).forEach(([symbol, amount]) => {
+            if (amount > 0) {
+                state.stakingRewards[symbol] = 0;
+                const crypto = cryptoMarket.getCrypto(symbol);
+                cryptoMarket.addToWallet(symbol, amount, crypto ? crypto.price : 1.0);
+                claimedCount++;
+            }
+        });
+
+        if (claimedCount > 0) {
+            this.saveState(state);
+            gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
+            return true;
+        }
+        throw new Error('Tidak ada reward staking untuk diklaim');
+    }
+
+    claimMining() {
+        const state = this.getState();
+        const pending = state.miningRewards || 0;
+        if (pending <= 0) throw new Error('Tidak ada hasil tambang untuk diklaim');
+
+        state.miningRewards = 0;
+        this.saveState(state);
+
+        const btc = cryptoMarket.getCrypto('BTC');
+        cryptoMarket.addToWallet('BTC', pending, btc ? btc.price : 60000);
+
+        gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
+        return true;
+    }
+
+    commitLaunchdrop(id, amount) {
+        const balance = gameState.getBalance();
+        if (balance < amount) throw new Error('Saldo kas tidak mencukupi untuk commit');
+
+        const state = this.getState();
+        const ld = state.launchdrops.find(l => l.id === id);
+        if (!ld) throw new Error('Launchdrop tidak ditemukan');
+        if (ld.status !== 'ACTIVE') throw new Error('Launchdrop sudah tidak aktif');
+
+        gameState.update('player', p => ({
+            ...p,
+            balance: p.balance - amount
+        }));
+
+        financeManager.addExpense ? financeManager.addExpense(amount, 'Launchdrop Commit', `Commit $${amount.toLocaleString()} ke ${ld.name}`) : null;
+
+        ld.committed = (ld.committed || 0) + amount;
+        this.saveState(state);
+
+        gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
+        return true;
+    }
+
+    claimLaunchdrop(id) {
+        const state = this.getState();
+        const ld = state.launchdrops.find(l => l.id === id);
+        if (!ld) throw new Error('Launchdrop tidak ditemukan');
+        if (ld.status !== 'CLAIMABLE') throw new Error('Launchdrop belum siap diklaim atau sudah diklaim');
+
+        const rewardAmount = ld.committed * ld.rate;
+        if (rewardAmount <= 0) throw new Error('Anda tidak memiliki alokasi untuk diklaim');
+
+        ld.status = 'ENDED';
+        this.saveState(state);
+
+        const crypto = cryptoMarket.getCrypto(ld.symbol);
+        cryptoMarket.addToWallet(ld.symbol, rewardAmount, crypto ? crypto.price : 1.0);
 
         gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
         return true;
@@ -273,11 +380,8 @@ class PassiveIncomeManager {
         });
 
         if (totalBTCYield > 0) {
-            const btc = cryptoMarket.getCrypto('BTC');
-            const btcPrice = btc ? btc.price : 60000;
-
-            // Credit BTC
-            cryptoMarket.addToWallet('BTC', totalBTCYield, btcPrice);
+            // Add to pending mining rewards instead of wallet directly
+            state.miningRewards = (state.miningRewards || 0) + totalBTCYield;
 
             // Deduct power consumption / maintenance fee
             if (totalPowerCost > 0) {
@@ -295,13 +399,13 @@ class PassiveIncomeManager {
             if (amount > 0) {
                 const spec = this.stakingAssets[symbol];
                 if (spec) {
-                    // APY / (approx 365 days * 24h * 12 updates/hour = 105120 ticks/year)
-                    const yieldRate = spec.apy / 105120;
+                    // Boosted yield rate: APY / 15000 for faster interactive feedback
+                    const yieldRate = spec.apy / 15000;
                     const rewardAmount = amount * yieldRate;
 
-                    // Credit reward directly to wallet
-                    const crypto = cryptoMarket.getCrypto(symbol);
-                    cryptoMarket.addToWallet(symbol, rewardAmount, crypto ? crypto.price : 1.0);
+                    // Add to pending rewards instead of wallet directly
+                    if (!state.stakingRewards) state.stakingRewards = {};
+                    state.stakingRewards[symbol] = (state.stakingRewards[symbol] || 0) + rewardAmount;
                     stateChanged = true;
                 }
             }
@@ -342,6 +446,19 @@ class PassiveIncomeManager {
             bot.profitPct = (bot.profit / bot.capital) * 100;
             stateChanged = true;
         });
+
+        // 4. Process Launchdrops countdown
+        if (state.launchdrops) {
+            state.launchdrops.forEach(ld => {
+                if (ld.status === 'ACTIVE' && ld.committed > 0) {
+                    ld.timeRemaining = Math.max(0, ld.timeRemaining - 1);
+                    if (ld.timeRemaining === 0) {
+                        ld.status = 'CLAIMABLE';
+                    }
+                    stateChanged = true;
+                }
+            });
+        }
 
         if (stateChanged) {
             this.saveState(state);
