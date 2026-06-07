@@ -1,4 +1,4 @@
-﻿/**
+/**
  * SubsidiaryPanel.js - Premium Holding Corporate M&A & Supplier Contracting Workspace
  * Features both competitive corporate auctions and premium instant direct acquisitions,
  * supporting multi-source financing (Corporate Treasury or Personal Wallet).
@@ -27,8 +27,8 @@ export const SubsidiaryPanel = {
         const subs = biz.subsidiaries || [];
         const auctions = biz.auctions || [];
 
-        const isRetail = (biz && biz.industry === 'retail');
-        const isInfrastructure = (biz && biz.industry === 'infrastructure');
+        const isRetail = (biz && (biz.industry === 'retail' || biz.industry === 'fnb'));
+        const isInfrastructure = (biz && (biz.industry === 'infrastructure' || biz.industry === 'property'));
 
         // Define dynamic terminology strings
         const terms = {
@@ -398,7 +398,7 @@ export const SubsidiaryPanel = {
     },
 
     bindEvents(biz, container, parentPage) {
-        const isRetail = (biz && biz.industry === 'retail');
+        const isRetail = (biz && (biz.industry === 'retail' || biz.industry === 'fnb'));
 
         // Bind Sub-tab clicks
         container.querySelectorAll('.sub-tab-btn').forEach(btn => {

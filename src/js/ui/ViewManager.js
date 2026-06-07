@@ -859,8 +859,8 @@ class ViewManager {
             <div>
               <div style="font-weight: 800; color: white;">${spec.name} (${symbol})</div>
               <div style="font-size: 0.75rem; color: var(--text-muted);">
-                Saldo Wallet: <span style="color: white;">${walletAmt.toFixed(4)}</span> | 
-                Staked: <span style="color: var(--accent-primary); font-weight:700;">${stakedAmt.toFixed(4)}</span>
+                Saldo Wallet: <span style="color: white;">${cryptoMarket.formatAmount(walletAmt)}</span> | 
+                Staked: <span style="color: var(--accent-primary); font-weight:700;">${cryptoMarket.formatAmount(stakedAmt)}</span>
               </div>
             </div>
           </div>
@@ -1012,8 +1012,8 @@ class ViewManager {
     const botSearchKeyword = window._botAssetSearchQuery || '';
     const activeAssetTypeTab = window._botAssetTypeTab || 'all'; // 'all' | 'stock' | 'crypto'
 
-    let filteredStocks = [...stocks];
-    let filteredCryptos = [...cryptos];
+    let filteredStocks = stockMarket.getAllStocks() || [];
+    let filteredCryptos = cryptoMarket.getAllCryptos() || [];
 
     if (botSearchKeyword) {
       filteredStocks = filteredStocks.filter(s => s.symbol.toLowerCase().includes(botSearchKeyword.toLowerCase()) || s.name.toLowerCase().includes(botSearchKeyword.toLowerCase()));

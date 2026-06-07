@@ -1,4 +1,4 @@
-﻿/**
+/**
  * BusinessManager.js - Manage Player's Company (Extended Enterprise Edition)
  * Handles startup/UMKM creation, operations, holding companies (subsidiaries), and IPO.
  */
@@ -9,13 +9,17 @@ import globalEconomy from '../core/GlobalEconomy.js';
 import ui from '../ui/UIManager.js';
 import stockMarket from '../trading/StockMarket.js';
 import TechSector from './sectors/TechSector.js';
+import MediaSector from './sectors/MediaSector.js';
 import FinanceSector from './sectors/FinanceSector.js';
 import EnergySector from './sectors/EnergySector.js';
 import AerospaceSector from './sectors/AerospaceSector.js';
-import AutomotiveSector from './sectors/AutomotiveSector.js';
-import RetailSector from './sectors/RetailSector.js';
+import ManufacturingSector from './sectors/ManufacturingSector.js';
+import TransportationSector from './sectors/TransportationSector.js';
 import HealthcareSector from './sectors/HealthcareSector.js';
+import FnBSector from './sectors/FnBSector.js';
+import RetailSector from './sectors/RetailSector.js';
 import InfrastructureSector from './sectors/InfrastructureSector.js';
+import PropertySector from './sectors/PropertySector.js';
 import { INDUSTRY_INITIATIVES } from './IndustryInitiatives.js';
 import CorporateGovernance from './CorporateGovernance.js';
 import {
@@ -53,14 +57,18 @@ class BusinessManager {
         };
 
         this.industries = {
-            tech: { name: "Teknologi & Telekomunikasi", multiplier: 2.5, volatility: 0.3 },
+            tech: { name: "Digital Technology", multiplier: 2.5, volatility: 0.3 },
+            media: { name: "Media", multiplier: 1.7, volatility: 0.25 },
             finance: { name: "Jasa Keuangan", multiplier: 2.0, volatility: 0.2 },
             energy: { name: "Energi & Utilitas", multiplier: 1.5, volatility: 0.1 },
-            manufacturing: { name: "Manufaktur & Dirgantara", multiplier: 1.8, volatility: 0.15 },
-            automotive: { name: "Otomotif & Transportasi", multiplier: 1.6, volatility: 0.2 },
+            aerospace: { name: "Maskapai Penerbangan", multiplier: 1.8, volatility: 0.15 },
+            manufacturing: { name: "Manufacture", multiplier: 1.6, volatility: 0.15 },
+            transportation: { name: "Transportation", multiplier: 1.4, volatility: 0.2 },
             healthcare: { name: "Kesehatan & Bioteknologi", multiplier: 1.4, volatility: 0.05 },
-            retail: { name: "Barang Konsumsi (FMCG) & Ritel", multiplier: 1.1, volatility: 0.1 },
-            infrastructure: { name: "Infrastruktur & Properti", multiplier: 2.2, volatility: 0.2 }
+            fnb: { name: "FnB", multiplier: 1.3, volatility: 0.15 },
+            retail: { name: "Retail", multiplier: 1.1, volatility: 0.1 },
+            infrastructure: { name: "Infrastructure", multiplier: 2.0, volatility: 0.2 },
+            property: { name: "Property", multiplier: 2.2, volatility: 0.2 }
         };
 
         this.subsidiaryTypes = {
@@ -90,7 +98,7 @@ class BusinessManager {
         gameState.set('work', work);
     }
 
-    startBusiness(name, type, industryKey, customCapital = null) {
+    startBusiness(name, type, industryKey, customCapital = null, subSector = null) {
         const typeData = this.businessTypes[type];
         const playerBalance = gameState.getBalance();
 
@@ -113,6 +121,13 @@ class BusinessManager {
             throw new Error(`Saldo tidak cukup. Anda membutuhkan $ ${financeManager.formatCurrency(setupCost)} dari saldo pribadi.`);
         }
 
+        // Easter Egg: if FnB -> Catering and name contains "MBG" or "makan siang gratis"
+        const lowercaseName = name.toLowerCase();
+        const isMBG = industryKey === 'fnb' && subSector === 'catering' && (lowercaseName.includes('mbg') || lowercaseName.includes('makan siang gratis'));
+        if (isMBG) {
+            startingCash += 10000000; // + 10 Million Dollars Cash!
+        }
+
         // Deduct setup cost
         financeManager.donate(setupCost, 'Business Setup', 'Business Setup');
 
@@ -122,8 +137,10 @@ class BusinessManager {
             name: name,
             type: type,
             industry: industryKey,
+            subSector: subSector,
+            isMBG: isMBG,
             level: 1,
-            valuation: setupCost,
+            valuation: setupCost + (isMBG ? 10000000 : 0),
             revenue: typeData.baseRevenue,
             cash: startingCash,
             employees: 1,
@@ -150,7 +167,7 @@ class BusinessManager {
         const typeText = type === 'startup' ? 'Tech Startup' : 'UMKM';
         this._addBusinessHistory('business_start', `Mendirikan Perusahaan "${name}" (${typeText}) di industri ${indName} & resmi menjabat sebagai CEO.`, name);
 
-        ui.success(`Bisnis "${name}" berhasil didirikan dengan modal $ ${financeManager.formatCurrency(setupCost)}!`, '🚀 Bisnis Dimulai');
+        ui.success(`Bisnis "${name}" berhasil didirikan dengan modal $ ${financeManager.formatCurrency(setupCost)}!${isMBG ? ' (Bonus MBG Aktif +$ 10.000.000!)' : ''}`, '🚀 Bisnis Dimulai');
 
         return true;
     }
@@ -393,6 +410,18 @@ class BusinessManager {
                     { label: 'Biaya Server & Cloud Hosting', val: techResult.cost }
                 ]
             };
+        } else if (biz.industry === 'media') {
+            const mediaResult = MediaSector.processMonthlyTick(this, biz, typeData, industry, ops, initiatives, managers);
+            monthlyExpense = mediaResult.wages + mediaResult.cost;
+            monthlyRevenue += mediaResult.revenue;
+            industryDetails = {
+                label: 'Sektor Media & Penyiaran',
+                cost: mediaResult.wages + mediaResult.cost,
+                breakdown: [
+                    { label: 'Gaji Staf & Kreator Konten', val: mediaResult.wages },
+                    { label: 'Biaya Lisensi & Penyiaran', val: mediaResult.cost }
+                ]
+            };
         } else if (biz.industry === 'finance') {
             const financeResult = FinanceSector.processMonthlyTick(this, biz, typeData, industry, ops, initiatives, managers);
             monthlyExpense = financeResult.wages + financeResult.cost;
@@ -420,40 +449,40 @@ class BusinessManager {
                     { label: 'Biaya Pemeliharaan Kilang & Bor', val: energyResult.cost }
                 ]
             };
-        } else if (biz.industry === 'manufacturing') {
+        } else if (biz.industry === 'aerospace') {
             const aeroResult = AerospaceSector.processMonthlyTick(this, biz, typeData, industry, ops, initiatives, managers);
             monthlyExpense = aeroResult.wages + aeroResult.cost;
             monthlyRevenue += aeroResult.revenue;
             industryDetails = {
-                label: 'Sektor Manufaktur & Dirgantara',
+                label: 'Sektor Maskapai Penerbangan',
                 cost: aeroResult.wages + aeroResult.cost,
                 breakdown: [
                     { label: 'Gaji Pilot, Staf Bandara & Mekanik', val: aeroResult.wages },
                     { label: 'Biaya Maint Pesawat & Grounding', val: aeroResult.cost }
                 ]
             };
-        } else if (biz.industry === 'automotive') {
-            const autoResult = AutomotiveSector.processMonthlyTick(this, biz, typeData, industry, ops, initiatives, managers);
-            monthlyExpense = autoResult.wages + autoResult.cost;
-            monthlyRevenue += autoResult.revenue;
+        } else if (biz.industry === 'manufacturing') {
+            const mfgResult = ManufacturingSector.processMonthlyTick(this, biz, typeData, industry, ops, initiatives, managers);
+            monthlyExpense = mfgResult.wages + mfgResult.cost;
+            monthlyRevenue += mfgResult.revenue;
             industryDetails = {
-                label: 'Sektor Otomotif & Pabrik',
-                cost: autoResult.wages + autoResult.cost,
+                label: 'Sektor Manufaktur & Lini Perakitan',
+                cost: mfgResult.wages + mfgResult.cost,
                 breakdown: [
-                    { label: 'Gaji Buruh & Operator Pabrik', val: autoResult.wages },
-                    { label: 'Biaya Riset Model & Bahan Perakitan', val: autoResult.cost }
+                    { label: 'Gaji Buruh & Operator Pabrik', val: mfgResult.wages },
+                    { label: 'Biaya Perakitan & Bahan Baku', val: mfgResult.cost }
                 ]
             };
-        } else if (biz.industry === 'retail') {
-            const retailResult = RetailSector.processMonthlyTick(this, biz, typeData, industry, ops, initiatives, managers);
-            monthlyExpense = retailResult.wages + retailResult.cost;
-            monthlyRevenue += retailResult.revenue;
+        } else if (biz.industry === 'transportation') {
+            const transResult = TransportationSector.processMonthlyTick(this, biz, typeData, industry, ops, initiatives, managers);
+            monthlyExpense = transResult.wages + transResult.cost;
+            monthlyRevenue += transResult.revenue;
             industryDetails = {
-                label: 'Sektor Retail & Supply Chain',
-                cost: retailResult.wages + retailResult.cost,
+                label: 'Sektor Transportasi & Armada',
+                cost: transResult.wages + transResult.cost,
                 breakdown: [
-                    { label: 'Gaji Kasir & Pramuniaga Toko', val: retailResult.wages },
-                    { label: 'Biaya Sewa Toko & Manajemen Gudang', val: retailResult.cost }
+                    { label: 'Gaji Pengemudi & Ops', val: transResult.wages },
+                    { label: 'Beban Operasional & Servis Armada', val: transResult.cost }
                 ]
             };
         } else if (biz.industry === 'healthcare') {
@@ -468,16 +497,52 @@ class BusinessManager {
                     { label: 'Biaya Pemeliharaan RS & Klinik', val: hcResult.cost }
                 ]
             };
+        } else if (biz.industry === 'fnb') {
+            const fnbResult = FnBSector.processMonthlyTick(this, biz, typeData, industry, ops, initiatives, managers);
+            monthlyExpense = fnbResult.wages + fnbResult.cost;
+            monthlyRevenue += fnbResult.revenue;
+            industryDetails = {
+                label: 'Sektor Kuliner FnB',
+                cost: fnbResult.wages + fnbResult.cost,
+                breakdown: [
+                    { label: 'Gaji Koki, Staf Dapur & Pelayan', val: fnbResult.wages },
+                    { label: 'Biaya Bahan Makanan & Utilitas Resto', val: fnbResult.cost }
+                ]
+            };
+        } else if (biz.industry === 'retail') {
+            const retailResult = RetailSector.processMonthlyTick(this, biz, typeData, industry, ops, initiatives, managers);
+            monthlyExpense = retailResult.wages + retailResult.cost;
+            monthlyRevenue += retailResult.revenue;
+            industryDetails = {
+                label: 'Sektor Retail & Supply Chain',
+                cost: retailResult.wages + retailResult.cost,
+                breakdown: [
+                    { label: 'Gaji Kasir & Pramuniaga Toko', val: retailResult.wages },
+                    { label: 'Biaya Sewa Toko & Manajemen Gudang', val: retailResult.cost }
+                ]
+            };
         } else if (biz.industry === 'infrastructure') {
             const infraResult = InfrastructureSector.processMonthlyTick(this, biz, typeData, industry, ops, initiatives, managers);
             monthlyExpense = infraResult.wages + infraResult.cost;
             monthlyRevenue += infraResult.revenue;
             industryDetails = {
-                label: 'Operasional Properti & Tata Kota',
+                label: 'Sektor Infrastruktur & Konstruksi',
                 cost: infraResult.wages + infraResult.cost,
                 breakdown: [
-                    { label: 'Gaji Pengawas & Pekerja Konstruksi', val: infraResult.wages },
-                    { label: 'Biaya Pemeliharaan Aset Properti', val: infraResult.cost }
+                    { label: 'Gaji Pengawas & Pekerja Sipil', val: infraResult.wages },
+                    { label: 'Biaya Maint Alat Berat & Logistik', val: infraResult.cost }
+                ]
+            };
+        } else if (biz.industry === 'property') {
+            const propResult = PropertySector.processMonthlyTick(this, biz, typeData, industry, ops, initiatives, managers);
+            monthlyExpense = propResult.wages + propResult.cost;
+            monthlyRevenue += propResult.revenue;
+            industryDetails = {
+                label: 'Sektor Properti & Tata Lahan',
+                cost: propResult.wages + propResult.cost,
+                breakdown: [
+                    { label: 'Gaji Agen Properti & Staff Pengelola', val: propResult.wages },
+                    { label: 'Biaya Pemeliharaan Aset Properti', val: propResult.cost }
                 ]
             };
         }
@@ -1395,26 +1460,91 @@ class BusinessManager {
     }
 
     // ==========================================
-    // AUTOMOTIVE INDUSTRY DELEGATES
+    // MANUFACTURING INDUSTRY DELEGATES
     // ==========================================
-    getAutomotiveState() {
-        return AutomotiveSector.getAutomotiveState(this);
+    getManufacturingState() {
+        return ManufacturingSector.getManufacturingState(this);
     }
 
-    setProductionVolume(volume) {
-        return AutomotiveSector.setProductionVolume(volume, this);
+    setManufacturingProductionVolume(volume) {
+        return ManufacturingSector.setProductionVolume(volume, this);
     }
 
-    setActiveModel(modelId) {
-        return AutomotiveSector.setActiveModel(modelId, this);
+    setManufacturingActiveModel(modelId) {
+        return ManufacturingSector.setActiveModel(modelId, this);
     }
 
-    upgradeAutomotiveService() {
-        return AutomotiveSector.upgradeService(this);
+    upgradeManufacturingService() {
+        return ManufacturingSector.upgradeService(this);
     }
 
-    hostRacingEvent() {
-        return AutomotiveSector.hostRacingEvent(this);
+    hostManufacturingMarketingEvent() {
+        return ManufacturingSector.hostMarketingEvent(this);
+    }
+
+    // ==========================================
+    // TRANSPORTATION INDUSTRY DELEGATES
+    // ==========================================
+    getTransportationState() {
+        return TransportationSector.getTransportationState(this);
+    }
+
+    buyTransportationVehicles(modelId, quantity) {
+        return TransportationSector.buyVehicles(modelId, quantity, this);
+    }
+
+    sellTransportationVehicle(vehicleId) {
+        return TransportationSector.sellVehicle(vehicleId, this);
+    }
+
+    repairTransportationVehicle(vehicleId) {
+        return TransportationSector.repairVehicle(vehicleId, this);
+    }
+
+    repairTransportationAllFleet() {
+        return TransportationSector.repairAllFleet(this);
+    }
+
+    // ==========================================
+    // MEDIA INDUSTRY DELEGATES
+    // ==========================================
+    getMediaState() {
+        return MediaSector.getMediaState(this);
+    }
+
+    produceMediaContent() {
+        return MediaSector.produceContent(this);
+    }
+
+    upgradeMediaServers() {
+        return MediaSector.upgradeServers(this);
+    }
+
+    setMediaAdDensity(density) {
+        return MediaSector.setAdDensity(density, this);
+    }
+
+    // ==========================================
+    // FNB INDUSTRY DELEGATES
+    // ==========================================
+    getFnBState() {
+        return FnBSector.getFnBState(this);
+    }
+
+    cleanFnBKitchen() {
+        return FnBSector.cleanKitchen(this);
+    }
+
+    renovateFnBAmbience() {
+        return FnBSector.renovateAmbience(this);
+    }
+
+    researchFnBRecipe() {
+        return FnBSector.researchRecipe(this);
+    }
+
+    setFnBMenuPricing(policyKey) {
+        return FnBSector.setMenuPricing(policyKey, this);
     }
 
     // ==========================================
@@ -1470,16 +1600,20 @@ class BusinessManager {
         return InfrastructureSector.getInfrastructureState(this);
     }
 
-    surveyInfrastructureLand() {
-        return InfrastructureSector.surveyLand(this);
+    buyInfrastructureEquipment(equipId) {
+        return InfrastructureSector.buyEquipment(equipId, this);
     }
 
-    developInfrastructureLand(landId, zoneType) {
-        return InfrastructureSector.developLand(landId, zoneType, this);
+    sellInfrastructureEquipment(instanceId) {
+        return InfrastructureSector.sellEquipment(instanceId, this);
     }
 
-    decommissionInfrastructureDevelopment(devId) {
-        return InfrastructureSector.decommissionDevelopment(devId, this);
+    bidInfrastructureProject(projectId) {
+        return InfrastructureSector.bidProject(projectId, this);
+    }
+
+    refreshInfrastructureProjects() {
+        return InfrastructureSector.refreshAvailableProjects(this);
     }
 
     lobbyBoardMember(boardId, source) {

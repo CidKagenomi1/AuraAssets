@@ -1,4 +1,4 @@
-﻿/**
+/**
  * BusinessAuctions.js - Corporate M&A Deal Marketplace
  *
  * Contains all auction/deal constants and M&A logic previously in BusinessManager.
@@ -21,21 +21,33 @@ export const COMPANY_PREFIXES = [
 ];
 
 export const COMPANY_SUFFIXES = {
-    'tech':          ['Systems', 'Software', 'AI Technologies', 'Digital', 'Robotics', 'Labs'],
-    'logistics':     ['Logistics', 'Trans', 'Express', 'Supply Chain', 'Freighters', 'Cargo'],
-    'retail':        ['Mart', 'Retail Group', 'Goods', 'Outlet', 'Franchise', 'Supermart'],
-    'energy':        ['Energy', 'Power', 'Renewables', 'Utilities', 'Solar', 'Biofuels'],
-    'manufacturing': ['Industries', 'Forge', 'Heavy Manufacturing', 'Assembler', 'Automotive', 'Aerospace'],
-    'finance':       ['Capital', 'Ventures', 'Fintech', 'Holdings', 'Securities', 'Equities']
+    'tech':           ['Systems', 'Software', 'AI Technologies', 'Digital', 'Robotics', 'Labs'],
+    'media':          ['Broadcasting', 'Media Group', 'Entertainment', 'Productions', 'Network'],
+    'finance':        ['Capital', 'Ventures', 'Fintech', 'Holdings', 'Securities', 'Equities'],
+    'energy':         ['Energy', 'Power', 'Renewables', 'Utilities', 'Solar', 'Biofuels'],
+    'aerospace':      ['Airlines', 'Airways', 'Aviation', 'Aerospace', 'Charter'],
+    'manufacturing':  ['Industries', 'Forge', 'Heavy Manufacturing', 'Assembler', 'Factories'],
+    'transportation': ['Trans', 'Logistics', 'Express', 'Car Rentals', 'Ride-Hailing'],
+    'healthcare':     ['Biotech', 'Pharma', 'Medical', 'Hospitals', 'Clinics'],
+    'fnb':            ['Foods', 'Beverages', 'Catering', 'Restaurants', 'Bistro'],
+    'retail':         ['Mart', 'Retail Group', 'Goods', 'Outlet', 'Supermart'],
+    'infrastructure': ['Contractors', 'Builders', 'Sipil Construction', 'Heavy Machines'],
+    'property':       ['Property', 'Real Estate', 'Developments', 'Landings', 'Land Group']
 };
 
 export const AUCTION_INDUSTRIES = [
-    { id: 'tech',          name: 'Teknologi & AI',              icon: '💻', baseProfit: 12000,  baseVal: 240000  },
-    { id: 'logistics',     name: 'Rantai Pasok & Logistik',     icon: '🚚', baseProfit: 8000,   baseVal: 160000  },
-    { id: 'retail',        name: 'Barang Konsumsi & Ritel',     icon: '🛒', baseProfit: 4500,   baseVal: 90000   },
-    { id: 'energy',        name: 'Energi & Utilitas',           icon: '⚡', baseProfit: 35000,  baseVal: 700000  },
-    { id: 'manufacturing', name: 'Manufaktur & Dirgantara',     icon: '🏭', baseProfit: 50000,  baseVal: 1000000 },
-    { id: 'finance',       name: 'Jasa Keuangan',               icon: '🏦', baseProfit: 25000,  baseVal: 500000  }
+    { id: 'tech',           name: 'Digital Technology',          icon: '💻', baseProfit: 12000,  baseVal: 240000  },
+    { id: 'media',          name: 'Media',                       icon: '🎥', baseProfit: 7500,   baseVal: 150000  },
+    { id: 'finance',        name: 'Jasa Keuangan',               icon: '🏦', baseProfit: 25000,  baseVal: 500000  },
+    { id: 'energy',         name: 'Energi & Utilitas',           icon: '⚡', baseProfit: 35000,  baseVal: 700000  },
+    { id: 'aerospace',      name: 'Maskapai Penerbangan',        icon: '✈️', baseProfit: 45000,  baseVal: 900000  },
+    { id: 'manufacturing',  name: 'Manufacture',                 icon: '🏭', baseProfit: 50000,  baseVal: 1000000 },
+    { id: 'transportation', name: 'Transportation',              icon: '🚗', baseProfit: 6000,   baseVal: 120000  },
+    { id: 'healthcare',     name: 'Kesehatan & Bioteknologi',    icon: '🏥', baseProfit: 18000,  baseVal: 360000  },
+    { id: 'fnb',            name: 'FnB',                         icon: '🍳', baseProfit: 5000,   baseVal: 100000  },
+    { id: 'retail',         name: 'Retail',                      icon: '🛒', baseProfit: 4500,   baseVal: 90000   },
+    { id: 'infrastructure', name: 'Infrastructure',              icon: '🏗️', baseProfit: 15000,  baseVal: 300000  },
+    { id: 'property',       name: 'Property',                    icon: '🏢', baseProfit: 20000,  baseVal: 400000  }
 ];
 
 const AI_COMPETITORS = [

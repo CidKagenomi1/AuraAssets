@@ -109,20 +109,31 @@ export const SetupWizardPanel = {
                                 <div style="border-bottom: 2px solid #ccc; padding-bottom: 0.5rem;">
                                     <label style="font-size: 0.75rem; color: #888; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 4px;">Sektor Bisnis Utama</label>
                                     <select id="biz-industry-select" style="width: 100%; border: none; background: transparent; font-size: 1.25rem; font-family: Georgia, serif; font-weight: 700; color: #111; outline: none; cursor: pointer; padding: 0.25rem 0;">
-                                        <option value="tech">Teknologi & Telekomunikasi</option>
+                                        <option value="tech">Digital Technology</option>
+                                        <option value="media">Media</option>
                                         <option value="finance">Jasa Keuangan</option>
                                         <option value="energy">Energi & Utilitas</option>
-                                        <option value="manufacturing">Manufaktur & Dirgantara</option>
-                                        <option value="automotive">Otomotif & Transportasi</option>
+                                        <option value="aerospace">Maskapai Penerbangan</option>
+                                        <option value="manufacturing">Manufacture</option>
+                                        <option value="transportation">Transportation</option>
                                         <option value="healthcare">Kesehatan & Bioteknologi</option>
-                                        <option value="retail">Barang Konsumsi & Ritel</option>
-                                        <option value="infrastructure">Infrastruktur & Properti</option>
+                                        <option value="fnb">FnB</option>
+                                        <option value="retail">Retail</option>
+                                        <option value="infrastructure">Infrastructure</option>
+                                        <option value="property">Property</option>
                                     </select>
                                 </div>
                                 <div style="border-bottom: 2px solid #ccc; padding-bottom: 0.5rem;">
                                     <label style="font-size: 0.75rem; color: #888; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 4px;">Tipe Klasifikasi</label>
                                     <div id="biz-type-display" style="font-size: 1.25rem; font-family: Georgia, serif; font-weight: 700; color: #111; padding-top: 0.25rem;">—</div>
                                 </div>
+                            </div>
+
+                            <!-- Dynamic Sub-Sector Selection Row -->
+                            <div id="biz-subsector-row" style="border-bottom: 2px solid #ccc; padding-bottom: 0.5rem; display: none; margin-top: 1.5rem;">
+                                <label style="font-size: 0.75rem; color: #888; font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 4px;">Pilih Sub-Sektor Utama</label>
+                                <select id="biz-subsector-select" style="width: 100%; border: none; background: transparent; font-size: 1.25rem; font-family: Georgia, serif; font-weight: 700; color: #111; outline: none; cursor: pointer; padding: 0.25rem 0;">
+                                </select>
                             </div>
 
                             <!-- Custom Startup Capital Field (Only for Startup) -->
@@ -163,15 +174,49 @@ export const SetupWizardPanel = {
     bindEvents(container, parentPage) {
         container.querySelector('#biz-back').addEventListener('click', () => parentPage.close());
 
-        const typeCards = container.querySelectorAll('.biz-type-card');
+        // Sub-sector choices mapping
+        const subSectorMap = {
+            manufacturing: [
+                { val: 'mobil', label: 'Mobil & Otomotif (Assembly)' },
+                { val: 'electronic', label: 'Perangkat Elektronik (High-Tech)' },
+                { val: 'furniture', label: 'Furnitur & Mebel (Ergonomic)' }
+            ],
+            transportation: [
+                { val: 'ride_hailing', label: 'Antar Jemput Online (Ride-Hailing)' },
+                { val: 'rental', label: 'Penyewaan Kendaraan (Rental)' }
+            ],
+            fnb: [
+                { val: 'restaurant', label: 'Restoran Kuliner (Fine Dining)' },
+                { val: 'cafe', label: 'Kafe & Bistro (Coffee Shop)' },
+                { val: 'catering', label: 'Katering Industri (Makan Siang)' }
+            ]
+        };
+
+        const industrySelect = container.querySelector('#biz-industry-select');
+        const subSectorRow = container.querySelector('#biz-subsector-row');
+        const subSectorSelect = container.querySelector('#biz-subsector-select');
+        
         const step1 = container.querySelector('#biz-step-1');
         const step2 = container.querySelector('#biz-step-2');
+        const typeCards = container.querySelectorAll('.biz-type-card');
         const typeDisplay = container.querySelector('#biz-type-display');
         const capitalRow = container.querySelector('#startup-capital-row');
         const capInput = container.querySelector('#biz-capital-input');
 
-        if (capInput) {
-            ui.setupNumericInput(capInput);
+        const updateSubSectorVisibility = () => {
+            const indVal = industrySelect.value;
+            const subOptions = subSectorMap[indVal];
+            if (subOptions) {
+                subSectorSelect.innerHTML = subOptions.map(opt => `<option value="${opt.val}">${opt.label}</option>`).join('');
+                subSectorRow.style.display = 'block';
+            } else {
+                subSectorSelect.innerHTML = '';
+                subSectorRow.style.display = 'none';
+            }
+        };
+
+        if (industrySelect) {
+            industrySelect.addEventListener('change', updateSubSectorVisibility);
         }
 
         typeCards.forEach(card => {
@@ -184,7 +229,7 @@ export const SetupWizardPanel = {
                 step2.classList.remove('hidden');
 
                 if (this.selectedType === 'startup') {
-                    container.querySelector('#biz-industry-select').value = 'tech';
+                    industrySelect.value = 'tech';
                     if (capitalRow) {
                         capitalRow.style.display = 'block';
                         const balLimit = container.querySelector('#personal-balance-limit');
@@ -198,6 +243,7 @@ export const SetupWizardPanel = {
                         capitalRow.style.display = 'none';
                     }
                 }
+                updateSubSectorVisibility();
             });
         });
 
@@ -209,7 +255,8 @@ export const SetupWizardPanel = {
 
         container.querySelector('#btn-start-business').addEventListener('click', () => {
             const name = container.querySelector('#biz-name-input').value.trim();
-            const industry = container.querySelector('#biz-industry-select').value;
+            const industry = industrySelect.value;
+            const subSector = subSectorRow.style.display !== 'none' ? subSectorSelect.value : null;
 
             if (!name) {
                 ui.error('Mohon tentukan nama entitas perusahaan Anda!');
@@ -233,7 +280,7 @@ export const SetupWizardPanel = {
             }
 
             try {
-                businessManager.startBusiness(name, this.selectedType, industry, customCapital);
+                businessManager.startBusiness(name, this.selectedType, industry, customCapital, subSector);
                 parentPage.render();
             } catch (e) {
                 ui.error(e.message);

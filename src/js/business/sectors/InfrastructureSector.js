@@ -1,7 +1,7 @@
-﻿/**
- * InfrastructureSector.js - Core Real Estate Development & Infrastructure Operations Simulator Engine
- * Encapsulates land research, zoning developments (Commercial, Residential, Industrial),
- * construction metrics, and monthly lease/rental income.
+/**
+ * InfrastructureSector.js - Core Civil Contracting & Heavy Equipment Operations Simulator Engine
+ * Encapsulates heavy machinery acquisition, bidding on civil construction projects (Government & Private),
+ * construction milestone progression, and monthly contract revenues.
  */
 
 import gameState from '../../core/GameState.js';
@@ -9,169 +9,148 @@ import financeManager from '../../finance/FinanceManager.js';
 import ui from '../../ui/UIManager.js';
 import globalEconomy from '../../core/GlobalEconomy.js';
 
+export const EQUIPMENT_CATALOG = [
+    { id: 'excavator', name: 'Excavator Cat 320', type: 'Excavator', price: 35000, maintenance: 1000, speedBoost: 0.1 },
+    { id: 'bulldozer', name: 'Bulldozer D6R', type: 'Bulldozer', price: 45000, maintenance: 1200, speedBoost: 0.1 },
+    { id: 'tower_crane', name: 'Tower Crane TC6013', type: 'Tower Crane', price: 110000, maintenance: 3000, speedBoost: 0.25 }
+];
+
+export const CONTRACT_TEMPLATES = [
+    { id: 'proj_road', name: 'Rehabilitasi Jalan Raya Nasional', source: 'Pemerintah', budget: 150000, duration: 4, req: { excavator: 1, bulldozer: 1 } },
+    { id: 'proj_bridge', name: 'Pondasi Jembatan Sungai Metro', source: 'Pemerintah', budget: 380000, duration: 6, req: { excavator: 1, tower_crane: 1 } },
+    { id: 'proj_dock', name: 'Perluasan Dermaga Terminal Petikemas', source: 'Swasta', budget: 450000, duration: 5, req: { excavator: 2, tower_crane: 1 } },
+    { id: 'proj_subway', name: 'Stasiun Bawah Tanah MRT Jalur Barat', source: 'Pemerintah', budget: 850000, duration: 8, req: { excavator: 2, bulldozer: 1, tower_crane: 1 } },
+    { id: 'proj_apart', name: 'Konstruksi Gedung Apartemen Kemayoran', source: 'Swasta', budget: 1200000, duration: 10, req: { excavator: 2, bulldozer: 1, tower_crane: 2 } }
+];
+
 export const InfrastructureSector = {
     getInfrastructureState(manager) {
         const biz = gameState.get('business');
         if (!biz || !biz.active) return null;
         if (!biz.infrastructure) {
             biz.infrastructure = {
-                discoveredLands: [
-                    { id: 'land_init_1', name: 'Kavling BSD City Blok A', price: 90000, multiplier: 1.2, status: 'available' },
-                    { id: 'land_init_2', name: 'Kavling Sudirman Central', price: 180000, multiplier: 2.2, status: 'available' }
+                heavyEquipment: [
+                    { id: 'eq_init_1', ...EQUIPMENT_CATALOG[0] } // Starts with 1 excavator
                 ],
-                developments: [
-                    { id: 'dev_init_1', name: 'Kawasan Hunian Bintaro', zone: 'Pemukiman', buildCost: 100000, revenue: 10800, maintenance: 1440 }
+                activeProjects: [],
+                availableProjects: [
+                    { ...CONTRACT_TEMPLATES[0], id: 'proj_av_' + Math.random().toString(36).substr(2, 5) },
+                    { ...CONTRACT_TEMPLATES[1], id: 'proj_av_' + Math.random().toString(36).substr(2, 5) }
                 ],
-                demandFluctuation: 1.0,
-                surveyCost: 15000
+                demandFluctuation: 1.0
             };
             gameState.update('business', b => ({ ...b, infrastructure: biz.infrastructure }));
         }
         return biz.infrastructure;
     },
 
-    generateRandomLands(count) {
-        const locations = ['BSD City', 'Menteng', 'Karawang Barat', 'PIK 2', 'Surabaya Barat', 'Cikarang Selatan', 'Sentul Hills', 'Jimbaran Hills'];
-        const names = ['Kavling ', 'Lahan Strategis ', 'Area Ekspansi ', 'Tanah Lapang ', 'Blok Prospektif '];
-        
-        const lands = [];
-        for (let i = 0; i < count; i++) {
-            const loc = locations[Math.floor(Math.random() * locations.length)];
-            const suffix = names[Math.floor(Math.random() * names.length)];
-            const name = suffix + loc;
-            
-            const multiplier = parseFloat((0.8 + Math.random() * 1.6).toFixed(2)); // 0.8x to 2.4x
-            const price = Math.round((60000 + Math.random() * 80000) * multiplier);
+    buyEquipment(equipId, manager) {
+        const biz = gameState.get('business');
+        if (!biz || !biz.active) throw new Error('Perusahaan tidak aktif');
+        const infra = this.getInfrastructureState(manager);
 
-            lands.push({
-                id: 'land_' + Math.random().toString(36).substr(2, 9),
-                name,
-                price,
-                multiplier,
-                status: 'available'
+        const spec = EQUIPMENT_CATALOG.find(e => e.id === equipId);
+        if (!spec) throw new Error('Alat berat tidak dikenal!');
+
+        if (biz.cash < spec.price) {
+            throw new Error(`Kas Treasury Perusahaan tidak mencukupi ($ ${financeManager.formatCurrency(biz.cash)} / Butuh $ ${financeManager.formatCurrency(spec.price)})`);
+        }
+
+        biz.cash -= spec.price;
+        infra.heavyEquipment.push({
+            id: 'eq_' + Math.random().toString(36).substr(2, 9),
+            ...spec
+        });
+        biz.valuation += spec.price * 1.3; // Asset ownership raises valuation
+
+        gameState.update('business', b => ({
+            ...b,
+            cash: biz.cash,
+            valuation: biz.valuation,
+            infrastructure: infra
+        }));
+
+        ui.success(`Sukses membeli alat berat "${spec.name}"! Jaringan konstruksi Anda menguat.`, '🚜 Alat Berat Baru');
+        return true;
+    },
+
+    sellEquipment(instanceId, manager) {
+        const biz = gameState.get('business');
+        if (!biz || !biz.active) throw new Error('Perusahaan tidak aktif');
+        const infra = this.getInfrastructureState(manager);
+
+        const index = infra.heavyEquipment.findIndex(e => e.id === instanceId);
+        if (index === -1) throw new Error('Alat berat tidak ditemukan!');
+
+        const equip = infra.heavyEquipment[index];
+        const resaleValue = Math.round(equip.price * 0.55); // 55% resale value
+
+        biz.cash += resaleValue;
+        infra.heavyEquipment.splice(index, 1);
+        biz.valuation = Math.max(0, biz.valuation - (equip.price * 1.3));
+
+        gameState.update('business', b => ({
+            ...b,
+            cash: biz.cash,
+            valuation: biz.valuation,
+            infrastructure: infra
+        }));
+
+        ui.success(`Berhasil menjual "${equip.name}" seharga $ ${resaleValue.toLocaleString()}!`, '🚜 Alat Berat Terjual');
+        return true;
+    },
+
+    refreshAvailableProjects(manager) {
+        const biz = gameState.get('business');
+        if (!biz || !biz.active) return;
+        const infra = this.getInfrastructureState(manager);
+
+        infra.availableProjects = [];
+        for (let i = 0; i < 3; i++) {
+            const temp = CONTRACT_TEMPLATES[Math.floor(Math.random() * CONTRACT_TEMPLATES.length)];
+            infra.availableProjects.push({
+                ...temp,
+                id: 'proj_av_' + Math.random().toString(36).substr(2, 5)
             });
         }
-        return lands;
+
+        gameState.update('business', b => ({ ...b, infrastructure: infra }));
     },
 
-    surveyLand(manager) {
-        const biz = gameState.get('business');
-        if (!biz || !biz.active) throw new Error('Perusahaan tidak aktif');
-        const infra = this.getInfrastructureState(manager);
-        
-        const cost = infra.surveyCost;
-        if (biz.cash < cost) {
-            throw new Error(`Kas Treasury Perusahaan tidak mencukupi untuk melakukan riset lahan ($ ${financeManager.formatCurrency(biz.cash)} / Butuh $ ${financeManager.formatCurrency(cost)})`);
-        }
-
-        biz.cash -= cost;
-        const newLands = this.generateRandomLands(2);
-        infra.discoveredLands = [...(infra.discoveredLands || []), ...newLands];
-
-        gameState.update('business', b => ({
-            ...b,
-            cash: biz.cash,
-            infrastructure: infra
-        }));
-
-        ui.success(`Riset geologis selesai! Ditemukan 2 prospek lahan mentah baru untuk dikembangkan.`, '🔍 Riset Lahan Sukses');
-        return true;
-    },
-
-    developLand(landId, zoneType, manager) {
+    bidProject(projectId, manager) {
         const biz = gameState.get('business');
         if (!biz || !biz.active) throw new Error('Perusahaan tidak aktif');
         const infra = this.getInfrastructureState(manager);
 
-        const index = infra.discoveredLands.findIndex(l => l.id === landId);
-        if (index === -1) throw new Error('Prospek lahan tidak ditemukan!');
+        const proj = infra.availableProjects.find(p => p.id === projectId);
+        if (!proj) throw new Error('Proyek tidak ditemukan di bursa tender!');
 
-        const land = infra.discoveredLands[index];
-        const mult = land.multiplier;
+        // Check if player has the required equipment
+        const ownedCounts = { excavator: 0, bulldozer: 0, tower_crane: 0 };
+        infra.heavyEquipment.forEach(e => {
+            if (ownedCounts[e.id] !== undefined) ownedCounts[e.id]++;
+        });
 
-        let buildCost = 0;
-        let baseRevenue = 0;
-        let baseMaint = 0;
-        let displayZone = '';
-
-        if (zoneType === 'commercial') {
-            displayZone = 'Area Komersial';
-            buildCost = Math.round(120000 * mult);
-            baseRevenue = Math.round(15000 * mult);
-            baseMaint = Math.round(2500 * mult);
-        } else if (zoneType === 'residential') {
-            displayZone = 'Pemukiman';
-            buildCost = Math.round(80000 * mult);
-            baseRevenue = Math.round(9000 * mult);
-            baseMaint = Math.round(1200 * mult);
-        } else if (zoneType === 'industrial') {
-            displayZone = 'Industri';
-            buildCost = Math.round(200000 * mult);
-            baseRevenue = Math.round(28000 * mult);
-            baseMaint = Math.round(5500 * mult);
-        } else {
-            throw new Error('Zona pembangunan tidak valid!');
+        // We check equipment by id catalog
+        for (const [reqKey, reqQty] of Object.entries(proj.req)) {
+            const ownedQty = infra.heavyEquipment.filter(e => e.id === reqKey).length;
+            if (ownedQty < reqQty) {
+                const spec = EQUIPMENT_CATALOG.find(e => e.id === reqKey);
+                throw new Error(`Tender ditolak! Anda kekurangan alat berat tipe "${spec?.name || reqKey}". Butuh: ${reqQty}, Dimiliki: ${ownedQty}.`);
+            }
         }
 
-        const totalAcquisitionCost = land.price + buildCost;
+        // Remove from available and add to active
+        infra.availableProjects = infra.availableProjects.filter(p => p.id !== projectId);
+        infra.activeProjects.push({
+            ...proj,
+            monthsLeft: proj.duration,
+            progress: 0
+        });
 
-        if (biz.cash < totalAcquisitionCost) {
-            throw new Error(`Kas Treasury Perusahaan tidak mencukupi untuk mengakuisisi & membangun lahan ($ ${financeManager.formatCurrency(biz.cash)} / Butuh $ ${financeManager.formatCurrency(totalAcquisitionCost)})`);
-        }
+        gameState.update('business', b => ({ ...b, infrastructure: infra }));
 
-        biz.cash -= totalAcquisitionCost;
-
-        // Add to active developments
-        const newDevelopment = {
-            id: 'dev_' + Math.random().toString(36).substr(2, 9),
-            name: land.name.replace('Kavling ', '').replace('Lahan Strategis ', ''),
-            zone: displayZone,
-            buildCost: totalAcquisitionCost,
-            revenue: baseRevenue,
-            maintenance: baseMaint
-        };
-
-        infra.developments.push(newDevelopment);
-        infra.discoveredLands.splice(index, 1); // remove from available land list
-
-        // Valuation boost
-        biz.valuation += totalAcquisitionCost * 1.5;
-
-        gameState.update('business', b => ({
-            ...b,
-            cash: biz.cash,
-            valuation: biz.valuation,
-            infrastructure: infra
-        }));
-
-        ui.success(`Lahan "${newDevelopment.name}" resmi dikembangkan menjadi "${displayZone}"!`, '🏗️ Konstruksi Selesai');
-        return true;
-    },
-
-    decommissionDevelopment(devId, manager) {
-        const biz = gameState.get('business');
-        if (!biz || !biz.active) throw new Error('Perusahaan tidak aktif');
-        const infra = this.getInfrastructureState(manager);
-
-        const index = infra.developments.findIndex(d => d.id === devId);
-        if (index === -1) throw new Error('Properti pembangunan tidak ditemukan!');
-
-        const dev = infra.developments[index];
-        const sellValue = Math.round(dev.buildCost * 0.60); // 60% liquidation value
-        
-        biz.cash += sellValue;
-        infra.developments.splice(index, 1);
-
-        biz.valuation = Math.max(0, biz.valuation - (dev.buildCost * 1.5));
-
-        gameState.update('business', b => ({
-            ...b,
-            cash: biz.cash,
-            valuation: biz.valuation,
-            infrastructure: infra
-        }));
-
-        ui.success(`Properti "${dev.name}" berhasil dijual seharga $ ${sellValue.toLocaleString()}!`, '💰 Properti Likuid');
+        ui.success(`Tender proyek "${proj.name}" diterima! Kontrak sipil resmi ditandatangani.`, '🏗️ Kontrak Didapat');
         return true;
     },
 
@@ -179,45 +158,73 @@ export const InfrastructureSector = {
         const infra = this.getInfrastructureState(manager);
         if (!infra) return { wages: 0, cost: 0, revenue: 0 };
 
-        // 1. Demand Fluctuation (between 0.80 and 1.30)
-        const econMult = globalEconomy.getDemandMultiplier('infrastructure');
+        // 1. Demand Fluctuation (dynamically driven by the global economic cycle)
+        const econMult = globalEconomy.getDemandMultiplier('infrastructure') || 1.0;
         const randDev = (Math.random() - 0.5) * 0.15;
         infra.demandFluctuation = parseFloat(Math.max(0.6, Math.min(2.0, econMult + randDev)).toFixed(2));
 
-        // 2. Compute Developments Financials
-        let totalRevenue = 0;
-        let totalMaintenance = 0;
+        let monthlyRevenue = 0;
+        let equipmentMaintenance = 0;
 
-        infra.developments.forEach(dev => {
-            const revRate = dev.revenue;
-            const maintRate = dev.maintenance;
-            
-            // Adjust calculations by ERP and demand
-            let erpModifier = 1.0;
-            if (ops.production === 'jit') erpModifier *= 1.10;
-            if (ops.production === 'batch') erpModifier *= 1.05;
-            
-            totalRevenue += revRate * erpModifier * infra.demandFluctuation;
-            totalMaintenance += maintRate;
+        // Calculate heavy machinery maintenance
+        infra.heavyEquipment.forEach(eq => {
+            equipmentMaintenance += eq.maintenance;
         });
 
-        // 3. Initiative Multiplier adjustments
-        let initiativeRevBoost = 0;
-        if (initiatives.infra_leed) {
-            initiativeRevBoost += totalRevenue * 0.15; // +15% revenue green boost
-            totalMaintenance *= 0.90; // -10% maintenance
-        }
-        if (initiatives.infra_precast) {
-            totalMaintenance *= 0.95; // -5% maintenance
+        // Speed modifications from equipment/initiatives
+        let speedMult = 1.0;
+        if (initiatives.infra_heavy_machinery) speedMult += 0.25;
+        if (initiatives.infra_safety_first) equipmentMaintenance *= 0.95; // HSE reduces accidents/wear by 5%
+        if (ops.production === 'jit') speedMult += 0.15; // JIT ERP schedules project milestones faster
+
+        // 2. Process active projects progress
+        let completedProjects = [];
+        infra.activeProjects.forEach(proj => {
+            // Calculate project progress rate
+            const monthlyPayment = (proj.budget / proj.duration) * infra.demandFluctuation;
+            
+            // Strategic initiatives modifiers
+            let milestoneModifier = 1.0;
+            if (initiatives.infra_civil_license) {
+                milestoneModifier += 0.25; // Civil licensing yields 25% higher payouts
+            }
+            
+            monthlyRevenue += monthlyPayment * milestoneModifier;
+            proj.progress += Math.round(100 / proj.duration * speedMult);
+            proj.monthsLeft = Math.max(0, proj.monthsLeft - 1);
+
+            if (proj.monthsLeft <= 0 || proj.progress >= 100) {
+                completedProjects.push(proj.id);
+            }
+        });
+
+        // Show toast notifications for completed civil projects
+        if (completedProjects.length > 0) {
+            infra.activeProjects = infra.activeProjects.filter(p => {
+                if (completedProjects.includes(p.id)) {
+                    setTimeout(() => {
+                        ui.success(`Proyek konstruksi "${p.name}" telah selesai dengan sukses! Reputasi kontraktor meningkat.`, '🎉 Proyek Selesai');
+                    }, 200);
+                    // Grant one-time completion bonus
+                    monthlyRevenue += p.budget * 0.1; // 10% completion bonus!
+                    return false;
+                }
+                return true;
+            });
         }
 
-        totalRevenue += initiativeRevBoost;
-
-        if (initiatives.infra_township) {
-            totalRevenue += 12000; // Flat monthly community rental revenue
+        // 3. Regrow available projects if empty or low
+        if (infra.availableProjects.length < 2 || Math.random() < 0.3) {
+            const temp = CONTRACT_TEMPLATES[Math.floor(Math.random() * CONTRACT_TEMPLATES.length)];
+            infra.availableProjects.push({
+                ...temp,
+                id: 'proj_av_' + Math.random().toString(36).substr(2, 5)
+            });
         }
 
-        // 4. Save state back
+        // Limit available projects to 4 maximum
+        infra.availableProjects = infra.availableProjects.slice(0, 4);
+
         gameState.update('business', b => ({
             ...b,
             infrastructure: infra
@@ -225,8 +232,8 @@ export const InfrastructureSector = {
 
         return {
             wages: 0,
-            cost: Math.round(totalMaintenance),
-            revenue: Math.round(totalRevenue)
+            cost: Math.round(equipmentMaintenance),
+            revenue: Math.round(monthlyRevenue)
         };
     }
 };

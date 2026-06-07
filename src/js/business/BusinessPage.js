@@ -21,6 +21,11 @@ import BoardPanel from './panels/BoardPanel.js';
 import SetupWizardPanel from './panels/SetupWizardPanel.js';
 import HealthcareOpsPanel from './panels/ops/HealthcareOpsPanel.js';
 import InfrastructureOpsPanel from './panels/ops/InfrastructureOpsPanel.js';
+import PropertyOpsPanel from './panels/ops/PropertyOpsPanel.js';
+import ManufacturingOpsPanel from './panels/ops/ManufacturingOpsPanel.js';
+import TransportationOpsPanel from './panels/ops/TransportationOpsPanel.js';
+import MediaOpsPanel from './panels/ops/MediaOpsPanel.js';
+import FnBOpsPanel from './panels/ops/FnBOpsPanel.js';
 import { renderSVGChart, bindChartHoverEvents } from './panels/BusinessChart.js';
 import { renderOpsTab, bindOpsTabEvents } from './panels/BusinessOpsTab.js';
 
@@ -287,24 +292,32 @@ class BusinessPage {
                     <button class="tab-btn ${this.activeTab === 'overview' ? 'active' : ''}" data-tab="overview" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">Dashboard</button>
                     ${biz.industry === 'tech' ? `
                     <button class="tab-btn ${this.activeTab === 'tech' ? 'active' : ''}" data-tab="tech" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🖥️ Lab R&D & Server</button>
+                    ` : biz.industry === 'media' ? `
+                    <button class="tab-btn ${this.activeTab === 'media_ops' ? 'active' : ''}" data-tab="media_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🎥 Divisi Media</button>
                     ` : biz.industry === 'finance' ? `
-                    <button class="tab-btn ${this.activeTab === 'finance_ops' ? 'active' : ''}" data-tab="finance_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🏦 Operasional Bank & Holding</button>
+                    <button class="tab-btn ${this.activeTab === 'finance_ops' ? 'active' : ''}" data-tab="finance_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🏦 Operasional Bank</button>
                     ` : biz.industry === 'energy' ? `
                     <button class="tab-btn ${this.activeTab === 'energy_ops' ? 'active' : ''}" data-tab="energy_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">⚡ Eksplorasi & Kilang</button>
+                    ` : biz.industry === 'aerospace' ? `
+                    <button class="tab-btn ${this.activeTab === 'aerospace_ops' ? 'active' : ''}" data-tab="aerospace_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">✈️ Divisi Maskapai</button>
                     ` : biz.industry === 'manufacturing' ? `
-                    <button class="tab-btn ${this.activeTab === 'manufacturing_ops' ? 'active' : ''}" data-tab="manufacturing_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">✈️ Manajerial</button>
-                    ` : biz.industry === 'automotive' ? `
-                    <button class="tab-btn ${this.activeTab === 'automotive_ops' ? 'active' : ''}" data-tab="automotive_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🏎️ Divisi Otomotif</button>
+                    <button class="tab-btn ${this.activeTab === 'manufacturing_ops' ? 'active' : ''}" data-tab="manufacturing_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🏭 Perakitan Pabrik</button>
+                    ` : biz.industry === 'transportation' ? `
+                    <button class="tab-btn ${this.activeTab === 'transportation_ops' ? 'active' : ''}" data-tab="transportation_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🚗 Divisi Transportasi</button>
+                    ` : biz.industry === 'healthcare' ? `
+                    <button class="tab-btn ${this.activeTab === 'healthcare_ops' ? 'active' : ''}" data-tab="healthcare_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🏥 RS & Farmasi</button>
+                    ` : biz.industry === 'fnb' ? `
+                    <button class="tab-btn ${this.activeTab === 'fnb_ops' ? 'active' : ''}" data-tab="fnb_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🍳 Divisi Restoran</button>
                     ` : biz.industry === 'retail' ? `
                     <button class="tab-btn ${this.activeTab === 'retail_ops' ? 'active' : ''}" data-tab="retail_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🛒 Divisi Ritel</button>
-                    ` : biz.industry === 'healthcare' ? `
-                    <button class="tab-btn ${this.activeTab === 'healthcare_ops' ? 'active' : ''}" data-tab="healthcare_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🏥 Manajemen RS & Farmasi</button>
                     ` : biz.industry === 'infrastructure' ? `
-                    <button class="tab-btn ${this.activeTab === 'infrastructure_ops' ? 'active' : ''}" data-tab="infrastructure_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🏗️ Divisi Properti & Lahan</button>
+                    <button class="tab-btn ${this.activeTab === 'infrastructure_ops' ? 'active' : ''}" data-tab="infrastructure_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🏗️ Kontraktor Sipil</button>
+                    ` : biz.industry === 'property' ? `
+                    <button class="tab-btn ${this.activeTab === 'property_ops' ? 'active' : ''}" data-tab="property_ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🏢 Properti & Lahan</button>
                     ` : `
                     <button class="tab-btn ${this.activeTab === 'ops' ? 'active' : ''}" data-tab="ops" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">Manajemen</button>
                     `}
-                    <button class="tab-btn ${this.activeTab === 'subsidiaries' ? 'active' : ''}" data-tab="subsidiaries" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">${biz.industry === 'retail' ? '🤝 Supplier' : (biz.industry === 'infrastructure' ? '🤝 Fendor' : '💼 Anak Bisnis')}</button>
+                    <button class="tab-btn ${this.activeTab === 'subsidiaries' ? 'active' : ''}" data-tab="subsidiaries" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">${biz.industry === 'retail' || biz.industry === 'fnb' ? '🤝 Supplier' : (biz.industry === 'infrastructure' || biz.industry === 'property' ? '🤝 Fendor' : '💼 Anak Bisnis')}</button>
                     <button class="tab-btn ${this.activeTab === 'ipo' ? 'active' : ''}" data-tab="ipo" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">${isPublic ? 'Bursa & Deviden' : 'Go Public (IPO)'}</button>
                     ${isPublic ? `
                     <button class="tab-btn ${this.activeTab === 'board' ? 'active' : ''}" data-tab="board" style="padding: 6px 16px; font-size: 0.8rem; border-radius: 20px; font-weight: 700; transition: all 0.2s;">🤝 Investor & Direksi</button>
@@ -342,16 +355,24 @@ class BusinessPage {
                 return FinanceOpsPanel.render(biz);
             case 'energy_ops':
                 return EnergyOpsPanel.render(biz);
-            case 'manufacturing_ops':
+            case 'aerospace_ops':
                 return AerospaceOpsPanel.render(biz);
-            case 'automotive_ops':
-                return AutomotiveOpsPanel.render(biz);
+            case 'manufacturing_ops':
+                return ManufacturingOpsPanel.render(biz);
+            case 'transportation_ops':
+                return TransportationOpsPanel.render(biz);
             case 'retail_ops':
                 return RetailOpsPanel.render(biz);
             case 'healthcare_ops':
                 return HealthcareOpsPanel.render(biz);
             case 'infrastructure_ops':
                 return InfrastructureOpsPanel.render(biz);
+            case 'property_ops':
+                return PropertyOpsPanel.render(biz);
+            case 'media_ops':
+                return MediaOpsPanel.render(biz);
+            case 'fnb_ops':
+                return FnBOpsPanel.render(biz);
             case 'subsidiaries':
                 return SubsidiaryPanel.render(biz, this);
             case 'ipo':
@@ -833,14 +854,19 @@ class BusinessPage {
             EnergyOpsPanel.bindEvents(biz, this.container, this);
         }
 
-        // Delegate Aerospace/Manufacturing Panel Events
-        if (this.activeTab === 'manufacturing_ops') {
+        // Delegate Aerospace Panel Events
+        if (this.activeTab === 'aerospace_ops') {
             AerospaceOpsPanel.bindEvents(biz, this.container, this);
         }
+
+        // Delegate Manufacturing Panel Events
+        if (this.activeTab === 'manufacturing_ops') {
+            ManufacturingOpsPanel.bindEvents(biz, this.container, this);
+        }
         
-        // Delegate Automotive Panel Events
-        if (this.activeTab === 'automotive_ops') {
-            AutomotiveOpsPanel.bindEvents(biz, this.container, this);
+        // Delegate Transportation Panel Events
+        if (this.activeTab === 'transportation_ops') {
+            TransportationOpsPanel.bindEvents(biz, this.container, this);
         }
 
         // Delegate Retail Panel Events
@@ -856,6 +882,21 @@ class BusinessPage {
         // Delegate Infrastructure Panel Events
         if (this.activeTab === 'infrastructure_ops') {
             InfrastructureOpsPanel.bindEvents(biz, this.container, this);
+        }
+
+        // Delegate Property Panel Events
+        if (this.activeTab === 'property_ops') {
+            PropertyOpsPanel.bindEvents(biz, this.container, this);
+        }
+
+        // Delegate Media Panel Events
+        if (this.activeTab === 'media_ops') {
+            MediaOpsPanel.bindEvents(biz, this.container, this);
+        }
+
+        // Delegate FnB Panel Events
+        if (this.activeTab === 'fnb_ops') {
+            FnBOpsPanel.bindEvents(biz, this.container, this);
         }
 
         // Delegate Board Panel Events

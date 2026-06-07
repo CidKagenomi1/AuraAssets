@@ -1,12 +1,13 @@
 /**
- * InfrastructureOpsPanel.js - Custom High-Fidelity Management Dashboard for Infrastructure & Property Sector
- * Manage land surveys, zoning construction (Commercial, Residential, Industrial), and leasing revenues.
+ * InfrastructureOpsPanel.js - Custom High-Fidelity Management Dashboard for Infrastructure/Contracting Sector
+ * Manage heavy equipment purchases (Excavators, Bulldozers, Cranes) and bid on civil construction projects.
  */
 
 import gameState from '../../../core/GameState.js';
 import financeManager from '../../../finance/FinanceManager.js';
 import businessManager from '../../BusinessManager.js';
 import ui from '../../../ui/UIManager.js';
+import { EQUIPMENT_CATALOG } from '../../sectors/InfrastructureSector.js';
 
 const formatCompact = (num) => {
     if (!isFinite(num) || num >= 1e30) return '∞';
@@ -19,107 +20,161 @@ const formatCompact = (num) => {
 export const InfrastructureOpsPanel = {
     render(biz) {
         const infra = businessManager.getInfrastructureState();
-        if (!infra) return `<p class="text-muted" style="padding: 2rem; text-align: center;">Memuat data divisi properti...</p>`;
+        if (!infra) return `<p class="text-muted" style="padding: 2rem; text-align: center;">Memuat data divisi infrastruktur...</p>`;
 
-        const lands = infra.discoveredLands || [];
-        const developments = infra.developments || [];
+        const ownedEquipment = infra.heavyEquipment || [];
+        const activeProjects = infra.activeProjects || [];
+        const availableProjects = infra.availableProjects || [];
         const demand = infra.demandFluctuation || 1.0;
         const demandPercent = Math.round(demand * 100);
 
-        let totalRevenue = 0;
-        let totalMaint = 0;
-        developments.forEach(d => {
-            totalRevenue += d.revenue * demand;
-            totalMaint += d.maintenance;
+        // Count owned equipment types for UI reference
+        const ownedCounts = { excavator: 0, bulldozer: 0, tower_crane: 0 };
+        ownedEquipment.forEach(eq => {
+            if (eq.id === 'excavator' || eq.id === 'bulldozer' || eq.id === 'tower_crane') {
+                ownedCounts[eq.id]++;
+            } else if (eq.name.toLowerCase().includes('excavator')) {
+                ownedCounts.excavator++;
+            } else if (eq.name.toLowerCase().includes('bulldozer')) {
+                ownedCounts.bulldozer++;
+            } else if (eq.name.toLowerCase().includes('crane')) {
+                ownedCounts.tower_crane++;
+            }
         });
 
-        // Discovered Raw Lands Market cards
-        const landsHtml = lands.length === 0 ? `
+        // 1. Calculate active totals
+        let activeBridgesCount = activeProjects.length;
+        let totalActiveBudget = activeProjects.reduce((acc, curr) => acc + curr.budget, 0);
+        let monthlyEquipMaint = ownedEquipment.reduce((acc, curr) => acc + curr.maintenance, 0);
+
+        // 2. Available projects HTML
+        const availableHtml = availableProjects.length === 0 ? `
             <div style="grid-column: 1 / -1; padding: 2.5rem; text-align: center; color: var(--text-dim); border: 1px dashed var(--border-color); border-radius: 8px; background: rgba(0,0,0,0.15);">
-                📡 Tidak ada prospek lahan aktif. Tekan tombol "CARI PROSPEK LAHAN" untuk menyurvei wilayah baru!
+                🏢 Tidak ada tender proyek aktif saat ini. Tunggu bulan depan untuk pembukaan proyek baru!
             </div>
-        ` : lands.map(land => {
-            const canAffordLand = biz.cash >= land.price;
-            
-            // Preview stats for different zones based on land multiplier
-            const m = land.multiplier;
-            const preview = {
-                commercial: { buildCost: Math.round(120000 * m), rev: Math.round(15000 * m), maint: Math.round(2500 * m) },
-                residential: { buildCost: Math.round(80000 * m), rev: Math.round(9000 * m), maint: Math.round(1200 * m) },
-                industrial: { buildCost: Math.round(200000 * m), rev: Math.round(28000 * m), maint: Math.round(5500 * m) }
-            };
+        ` : availableProjects.map(proj => {
+            // Check requirements
+            const reqTexts = [];
+            let meetsAllReqs = true;
+
+            for (const [reqKey, reqQty] of Object.entries(proj.req)) {
+                const ownedQty = ownedCounts[reqKey] || 0;
+                const matches = ownedQty >= reqQty;
+                if (!matches) meetsAllReqs = false;
+
+                const nameMapping = { excavator: 'Excavator', bulldozer: 'Bulldozer', tower_crane: 'Tower Crane' };
+                const label = nameMapping[reqKey] || reqKey;
+                reqTexts.push(`
+                    <div style="display:flex; justify-content:space-between; align-items:center; color:${matches ? '#10b981' : '#f87171'}; font-weight:700;">
+                        <span>⚙️ ${label} (Butuh ${reqQty})</span>
+                        <span>Miliki: ${ownedQty}</span>
+                    </div>
+                `);
+            }
 
             return `
-                <div class="card land-card" data-land-id="${land.id}" data-multiplier="${m}" data-price="${land.price}" style="padding: 1.25rem; border: 1px solid var(--border-color); background: rgba(255,255,255,0.01); display: flex; flex-direction: column; gap: 0.75rem; position: relative;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div class="card tender-card" data-id="${proj.id}" style="padding: 1.25rem; border: 1px solid var(--border-color); background: rgba(255,255,255,0.01); display: flex; flex-direction: column; gap: 0.75rem; position: relative;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
                         <div>
-                            <div style="font-size: 0.7rem; color: #a855f7; font-weight: 800; text-transform: uppercase;">Prospek Lahan</div>
-                            <div style="font-size: 1.05rem; font-weight: 900; color: #fff;">${land.name}</div>
+                            <div style="font-size: 0.65rem; color: #a855f7; font-weight: 800; text-transform: uppercase;">Tender ${proj.source}</div>
+                            <div style="font-size: 0.95rem; font-weight: 900; color: #fff; line-height: 1.3;">${proj.name}</div>
                         </div>
-                        <div style="font-size: 1.5rem; background: rgba(168,85,247,0.1); color: #a855f7; padding: 4px 10px; border-radius: 6px; font-weight: 800;">${m}x</div>
                     </div>
                     
                     <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.75rem; color: var(--text-muted); background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 6px;">
-                        <div style="display: flex; justify-content: space-between;"><span>Harga Lahan:</span> <strong style="color: #fbbf24;">$ ${land.price.toLocaleString()}</strong></div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 4px;">
-                            <span>Pilih Rencana Zona:</span>
-                            <select class="zone-select" data-land-id="${land.id}" style="padding: 2px 6px; font-size: 0.72rem; border-radius: 4px; background: #111; color: #fff; border: 1px solid var(--border-color); font-weight: 700;">
-                                <option value="commercial">Area Komersial (Ruko/Mall)</option>
-                                <option value="residential">Pemukiman (Residensial)</option>
-                                <option value="industrial">Industri (Kawasan Logistik)</option>
-                            </select>
-                        </div>
+                        <div style="display: flex; justify-content: space-between;"><span>Nilai Kontrak:</span> <strong style="color: #fbbf24;">$ ${proj.budget.toLocaleString()}</strong></div>
+                        <div style="display: flex; justify-content: space-between;"><span>Durasi Proyek:</span> <strong style="color: #fff;">${proj.duration} Bulan</strong></div>
                     </div>
 
-                    <!-- Dynamic Zone Stats Preview Box -->
-                    <div class="zone-preview-box" data-land-id="${land.id}" style="font-size: 0.72rem; color: var(--text-dim); background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 0.6rem 0.75rem; border-radius: 6px; display: flex; flex-direction: column; gap: 0.25rem;">
-                        <div style="display: flex; justify-content: space-between;"><span>Biaya Bangun Zona:</span> <strong style="color: #fff;" class="lbl-build-cost">$ ${preview.commercial.buildCost.toLocaleString()}</strong></div>
-                        <div style="display: flex; justify-content: space-between;"><span>Total Investasi:</span> <strong style="color: #fbbf24;" class="lbl-total-cost">$ ${(land.price + preview.commercial.buildCost).toLocaleString()}</strong></div>
-                        <div style="display: flex; justify-content: space-between;"><span>Est. Sewa / Bln:</span> <strong style="color: #10b981;" class="lbl-rev-est">$ ${preview.commercial.rev.toLocaleString()}</strong></div>
-                        <div style="display: flex; justify-content: space-between;"><span>Pemeliharaan / Bln:</span> <strong style="color: #ef4444;" class="lbl-maint-est">$ ${preview.commercial.maint.toLocaleString()}</strong></div>
+                    <div style="font-size: 0.72rem; color: var(--text-dim); background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 0.6rem 0.75rem; border-radius: 6px; display: flex; flex-direction: column; gap: 0.35rem;">
+                        <div style="font-weight: 800; color:#ccc; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:3px; margin-bottom:2px;">Persyaratan Alat Berat:</div>
+                        ${reqTexts.join('')}
                     </div>
 
                     <div style="margin-top: auto; display: flex; flex-direction: column; gap: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-                        <button class="btn btn-sm btn-develop-land btn-primary" data-land-id="${land.id}" style="font-weight: 900; padding: 6px 12px; border-radius: 6px; width: 100%;">
-                            🏗️ AKUISISI & BANGUN
+                        <button class="btn btn-sm btn-bid-project ${meetsAllReqs ? 'btn-primary' : 'btn-secondary'}" data-id="${proj.id}" ${meetsAllReqs ? '' : 'disabled style="opacity:0.5; cursor:not-allowed;"'} style="font-weight: 900; padding: 6px 12px; border-radius: 6px; width: 100%;">
+                            ${meetsAllReqs ? '🏗️ AJUKAN TENDER' : '❌ ALAT BERAT TIDAK CUKUP'}
                         </button>
                     </div>
                 </div>
             `;
         }).join('');
 
-        // Developed active properties list
-        const developmentsListHtml = developments.length === 0 ? `
+        // 3. Active projects table HTML
+        const activeProjectsHtml = activeProjects.length === 0 ? `
             <tr>
                 <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 2.5rem; font-size: 0.85rem;">
-                    📭 Belum ada properti komersial/residensial yang aktif menyewa. Cari dan bangun lahan baru di atas!
+                    📭 Belum ada proyek sipil yang sedang berjalan. Ajukan penawaran tender di atas!
                 </td>
             </tr>
-        ` : developments.map(dev => {
-            const resale = Math.round(dev.buildCost * 0.60);
+        ` : activeProjects.map(proj => {
+            const progress = proj.progress || 0;
             return `
                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                     <td style="padding: 0.85rem 0.5rem; font-weight: 850; color: #fff;">
-                        🏢 ${dev.name}
+                        🏢 ${proj.name}
                     </td>
                     <td style="padding: 0.85rem 0.5rem;">
                         <span style="background: rgba(168,85,247,0.12); color: #c084fc; font-weight: 800; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(168,85,247,0.25);">
-                            ${dev.zone}
+                            ${proj.source}
                         </span>
                     </td>
                     <td style="padding: 0.85rem 0.5rem; font-family: monospace; color: #ccc;">
-                        $ ${dev.buildCost.toLocaleString()}
+                        $ ${proj.budget.toLocaleString()}
                     </td>
                     <td style="padding: 0.85rem 0.5rem;">
-                        <div style="font-weight: 800; color: #10b981;">+$ ${Math.round(dev.revenue * demand).toLocaleString()} / bln</div>
-                        <div style="font-size: 0.65rem; color: #ef4444;">Maint: -$ ${dev.maintenance.toLocaleString()} / bln</div>
+                        <div style="font-weight: 800; color: #fbbf24;">${proj.monthsLeft} bln tersisa</div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted);">Durasi total: ${proj.duration} bln</div>
                     </td>
-                    <td style="padding: 0.85rem 0.5rem; text-align: right;">
-                        <button class="btn btn-sm btn-decommission-property" data-id="${dev.id}" data-name="${dev.name}" data-resale="${resale}" style="padding: 4px 10px; font-size: 0.65rem; font-weight: 900; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #f87171; border-radius: 6px; transition: all 0.2s;">
-                            💰 JUAL (+$ ${formatCompact(resale)})
-                        </button>
+                    <td style="padding: 0.85rem 0.5rem; width: 150px; text-align: right;">
+                        <div style="display:flex; align-items:center; gap:0.5rem; justify-content: flex-end;">
+                            <span style="font-size:0.75rem; font-weight:700;">${progress}%</span>
+                            <div style="width: 80px; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+                                <div style="width: ${Math.min(100, progress)}%; height: 100%; background: #10b981;"></div>
+                            </div>
+                        </div>
                     </td>
                 </tr>
+            `;
+        }).join('');
+
+        // 4. Equipment Catalog HTML
+        const equipmentCatalogHtml = EQUIPMENT_CATALOG.map(eq => {
+            const canAfford = biz.cash >= eq.price;
+            return `
+                <div class="card" style="padding: 1rem; border: 1px solid var(--border-color); background: rgba(0,0,0,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+                    <div>
+                        <div style="font-weight: 800; color: #fff; font-size: 0.88rem;">🚜 ${eq.name}</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
+                            Maint: <strong style="color: #ef4444;">$ ${eq.maintenance.toLocaleString()}/bln</strong> | Progres: <strong style="color: #10b981;">+${eq.speedBoost * 100}% speed</strong>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm btn-buy-machinery" data-id="${eq.id}" style="font-weight: 850; font-size: 0.7rem; padding: 6px 12px; border-radius: 6px; white-space: nowrap;">
+                        🚜 BELI ($ ${formatCompact(eq.price)})
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        // 5. Owned heavy equipment list HTML
+        const ownedEquipmentHtml = ownedEquipment.length === 0 ? `
+            <div style="padding: 2rem; text-align: center; color: var(--text-dim); font-size: 0.8rem; border: 1px dashed var(--border-color); border-radius: 8px;">
+                📭 Tidak ada alat berat yang dimiliki. Beli armada konstruksi di sebelah kanan!
+            </div>
+        ` : ownedEquipment.map(eq => {
+            const resale = Math.round(eq.price * 0.55);
+            return `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; background: rgba(255,255,255,0.01); margin-bottom: 0.5rem;">
+                    <div>
+                        <div style="font-weight: 800; color: #fff; font-size: 0.85rem;">🚜 ${eq.name}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">
+                            Biaya Pemeliharaan: <span style="color: #ef4444;">$ ${eq.maintenance.toLocaleString()}/bln</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-sell-machinery" data-id="${eq.id}" data-name="${eq.name}" data-resale="${resale}" style="font-weight: 900; font-size: 0.65rem; padding: 4px 10px; border-radius: 4px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #f87171; transition: all 0.2s;">
+                        💰 JUAL (+$ ${formatCompact(resale)})
+                    </button>
+                </div>
             `;
         }).join('');
 
@@ -129,163 +184,118 @@ export const InfrastructureOpsPanel = {
                 <!-- Metrics Grid -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
                     <div class="card" style="border-left: 4px solid #a855f7; padding: 1.25rem; background: rgba(255,255,255,0.015);">
-                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Portofolio Properti Aktif</div>
-                        <div style="font-size: 1.65rem; font-weight: 900; color: #a855f7;">${developments.length} Unit Komersil</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Tingkat Hunian Sewa: 100%</div>
+                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Alat Berat Aktif</div>
+                        <div style="font-size: 1.65rem; font-weight: 900; color: #a855f7;">${ownedEquipment.length} Unit Alat</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Exca: ${ownedCounts.excavator} | Bulldozer: ${ownedCounts.bulldozer} | Crane: ${ownedCounts.tower_crane}</div>
                     </div>
                     
                     <div class="card" style="border-left: 4px solid #10b981; padding: 1.25rem; background: rgba(255,255,255,0.015);">
-                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Kas Masuk Sewa Bulanan</div>
-                        <div style="font-size: 1.65rem; font-weight: 900; color: #10b981;">+$ ${Math.round(totalRevenue).toLocaleString()} / bln</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Est. Pengeluaran: -$ ${totalMaint.toLocaleString()} / bln</div>
+                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Proyek Sipil Berjalan</div>
+                        <div style="font-size: 1.65rem; font-weight: 900; color: #10b981;">${activeBridgesCount} Proyek Aktif</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Total nilai kontrak: $ ${totalActiveBudget.toLocaleString()}</div>
                     </div>
                     
                     <div class="card" style="border-left: 4px solid #f59e0b; padding: 1.25rem; background: rgba(255,255,255,0.015);">
-                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Nilai Properti Terakumulasi</div>
-                        <div style="font-size: 1.65rem; font-weight: 900; color: #fbbf24;">$ ${developments.reduce((acc, curr) => acc + curr.buildCost, 0).toLocaleString()}</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Valuasi Aset Riil Perusahaan</div>
+                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Beban Maint. Alat Berat</div>
+                        <div style="font-size: 1.65rem; font-weight: 900; color: #ef4444;">-$ ${monthlyEquipMaint.toLocaleString()} / bln</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Biaya perawatan armada aktif</div>
                     </div>
-
+ 
                     <div class="card" style="border-left: 4px solid #ec4899; padding: 1.25rem; background: rgba(255,255,255,0.015);">
                         <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Tingkat Suku Bunga & Demand</div>
                         <div style="font-size: 1.65rem; font-weight: 900; color: ${demandPercent > 100 ? '#10b981' : '#ec4899'};">${demandPercent}%</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Mempengaruhi daya beli & sewa ruko/pemukiman</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Siklus ekonomi mempengaruhi nilai pembayaran bulanan</div>
                     </div>
                 </div>
-
-                <!-- Strategic Land Survey Exploration panel -->
-                <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; gap: 2rem; flex-wrap: wrap; background: linear-gradient(90deg, rgba(168,85,247,0.04) 0%, transparent 100%);">
-                    <div style="flex: 1; min-width: 280px;">
-                        <h3 style="margin-top: 0; font-size: 1.05rem; font-weight: 900; color: #a855f7; margin-bottom: 0.5rem;">
-                            📡 Cari Prospek Lahan Properti Baru
-                        </h3>
-                        <p class="text-muted" style="font-size: 0.75rem; margin: 0; line-height: 1.4;">
-                            Kirim tim analis tata kota & geologis untuk mensurvei kavling prospektif baru. Biaya survei adalah <strong>$ 15.000</strong> per ekspedisi. Menemukan lahan kosong di wilayah dengan multiplier strategis.
-                        </p>
-                    </div>
-                    <button class="btn btn-primary" id="btn-survey-land" style="font-weight: 950; font-size: 0.8rem; padding: 10px 24px; border-radius: 8px;">
-                        📡 CARI PROSPEK LAHAN ($ 15.000)
-                    </button>
-                </div>
-
-                <!-- Raw Lands List (Bursa Lahan Prospektif) -->
+ 
+                <!-- Tender Projects Bursa (Bursa Tender Kontrak) -->
                 <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color);">
                     <h3 style="margin-top: 0; font-size: 1.05rem; font-weight: 900; color: #fff; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <span>🗺️</span> Kavling Lahan Prospektif (Belum Dikembangkan)
+                        <span>🗺️</span> Bursa Tender Proyek Sipil & Infrastruktur Nasional
                     </h3>
                     <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 1.5rem;">
-                        Daftar kavling tanah kosong hasil survei geologis. Sebelum membeli, Anda dapat menentukan jenis zona pembangunan (Komersil, Residensial, atau Industri) untuk melihat rancangan biaya & proyeksi hasil sewa bulanan.
+                        Daftar tender proyek pemerintah dan swasta yang dibuka. Untuk mengajukan penawaran kontrak, perusahaan Anda wajib memiliki jenis alat berat yang disyaratkan dalam kondisi siap beroperasi.
                     </p>
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
-                        ${landsHtml}
+                        ${availableHtml}
                     </div>
                 </div>
 
-                <!-- Active Property Developments (Portofolio Sewa) -->
+                <!-- Two-Column Heavy Equipment & Inventory Panel -->
+                <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem;">
+                    
+                    <!-- Left: Inventory list -->
+                    <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color);">
+                        <h3 style="margin-top: 0; font-size: 1.05rem; font-weight: 900; color: #fff; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>🚜</span> Inventori Alat Berat Perusahaan
+                        </h3>
+                        <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 1.25rem;">
+                            Daftar mesin konstruksi aktif Anda. Alat berat dapat dilikuidasi / dijual seharga **55% dari nilai pembelian awal**.
+                        </p>
+                        <div style="max-height: 300px; overflow-y: auto; padding-right: 4px;" class="custom-scroll">
+                            ${ownedEquipmentHtml}
+                        </div>
+                    </div>
+
+                    <!-- Right: Buy Catalog -->
+                    <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color);">
+                        <h3 style="margin-top: 0; font-size: 1.05rem; font-weight: 900; color: #fff; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>🏗️</span> Depot Pembelian Alat Berat Baru
+                        </h3>
+                        <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 1.25rem;">
+                            Beli alat berat modern untuk memperluas kapabilitas konstruksi Anda dan memenuhi spesifikasi tender proyek sipil yang lebih besar.
+                        </p>
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            ${equipmentCatalogHtml}
+                        </div>
+                    </div>
+                </div>
+ 
+                <!-- Active Projects Portfolio (Kontrak Berjalan) -->
                 <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color);">
                     <h3 style="margin-top: 0; font-size: 1.05rem; font-weight: 900; color: #fff; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <span>🏢</span> Portofolio Properti Sewa & Aset Riil Aktif
+                        <span>🏢</span> Portofolio Kontrak Konstruksi Sipil Aktif
                     </h3>
                     <div style="overflow-x: auto; width: 100%;">
                         <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.8rem;">
                             <thead>
                                 <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted);">
-                                    <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Nama Properti / Lokasi</th>
-                                    <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Klasifikasi Zona</th>
-                                    <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Nilai Akuisisi Total</th>
-                                    <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Kinerja Keuangan Bulanan</th>
-                                    <th style="padding: 0.6rem 0.5rem; text-align: right; font-weight: 800;">Likuidasi</th>
+                                    <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Nama Kontrak / Proyek</th>
+                                    <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Pemberi Tugas</th>
+                                    <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Nilai Proyek</th>
+                                    <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Sisa Waktu Pengerjaan</th>
+                                    <th style="padding: 0.6rem 0.5rem; text-align: right; font-weight: 800;">Milestone Konstruksi</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${developmentsListHtml}
+                                ${activeProjectsHtml}
                             </tbody>
                         </table>
                     </div>
                 </div>
-
+ 
             </div>
         `;
     },
 
     bindEvents(biz, container, parentPage) {
-        // Dynamic stats update when changing zone selection
-        container.querySelectorAll('.zone-select').forEach(select => {
-            select.addEventListener('change', () => {
-                const landId = select.dataset.landId;
-                const selectedZone = select.value;
-                
-                const card = container.querySelector(`.land-card[data-land-id="${landId}"]`);
-                if (!card) return;
-
-                const m = parseFloat(card.dataset.multiplier);
-                const price = parseInt(card.dataset.price);
-
-                let buildCost = 0;
-                let rev = 0;
-                let maint = 0;
-
-                if (selectedZone === 'commercial') {
-                    buildCost = Math.round(120000 * m);
-                    rev = Math.round(15000 * m);
-                    maint = Math.round(2500 * m);
-                } else if (selectedZone === 'residential') {
-                    buildCost = Math.round(80000 * m);
-                    rev = Math.round(9000 * m);
-                    maint = Math.round(1200 * m);
-                } else if (selectedZone === 'industrial') {
-                    buildCost = Math.round(200000 * m);
-                    rev = Math.round(28000 * m);
-                    maint = Math.round(5500 * m);
-                }
-
-                // Update labels inside the preview box
-                const previewBox = container.querySelector(`.zone-preview-box[data-land-id="${landId}"]`);
-                if (previewBox) {
-                    previewBox.querySelector('.lbl-build-cost').innerText = `$ ${buildCost.toLocaleString()}`;
-                    previewBox.querySelector('.lbl-total-cost').innerText = `$ ${(price + buildCost).toLocaleString()}`;
-                    previewBox.querySelector('.lbl-rev-est').innerText = `$ ${rev.toLocaleString()}`;
-                    previewBox.querySelector('.lbl-maint-est').innerText = `$ ${maint.toLocaleString()}`;
-                }
-            });
-        });
-
-        // Survey Land
-        const btnSurvey = container.querySelector('#btn-survey-land');
-        if (btnSurvey) {
-            btnSurvey.addEventListener('click', async () => {
-                try {
-                    businessManager.surveyInfrastructureLand();
-                    if (parentPage) parentPage.render();
-                } catch (e) {
-                    ui.error(e.message);
-                }
-            });
-        }
-
-        // Develop Land
-        container.querySelectorAll('.btn-develop-land').forEach(btn => {
+        // Buy heavy machinery
+        container.querySelectorAll('.btn-buy-machinery').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const landId = btn.dataset.landId;
-                const select = container.querySelector(`.zone-select[data-land-id="${landId}"]`);
-                if (!select) return;
-
-                const zoneType = select.value;
-                let zoneName = '';
-                if (zoneType === 'commercial') zoneName = 'Area Komersial (Mall / Ruko)';
-                else if (zoneType === 'residential') zoneName = 'Pemukiman (Residensial)';
-                else if (zoneType === 'industrial') zoneName = 'Industri (Kawasan Logistik)';
+                const equipId = btn.dataset.id;
+                const spec = EQUIPMENT_CATALOG.find(e => e.id === equipId);
+                if (!spec) return;
 
                 const confirmed = await ui.confirm({
-                    title: `Kembangkan Lahan Properti?`,
-                    message: `Apakah Anda yakin ingin mengakuisisi lahan ini dan membangun zona "${zoneName}"? Dana treasury perusahaan akan terpotong untuk pembelian lahan dan biaya pembangunan.`,
-                    confirmText: 'Mulai Konstruksi'
+                    title: `Beli ${spec.name}?`,
+                    message: `Apakah Anda yakin ingin membelanjakan dana kas treasury perusahaan sebesar $ ${spec.price.toLocaleString()} untuk membeli alat berat ini?`,
+                    confirmText: 'Beli Alat Berat'
                 });
 
                 if (confirmed) {
                     try {
-                        businessManager.developInfrastructureLand(landId, zoneType);
+                        businessManager.buyInfrastructureEquipment(equipId);
                         if (parentPage) parentPage.render();
                     } catch (e) {
                         ui.error(e.message);
@@ -294,26 +304,39 @@ export const InfrastructureOpsPanel = {
             });
         });
 
-        // Decommission property (Sell)
-        container.querySelectorAll('.btn-decommission-property').forEach(btn => {
+        // Sell heavy machinery
+        container.querySelectorAll('.btn-sell-machinery').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const devId = btn.dataset.id;
+                const instanceId = btn.dataset.id;
                 const name = btn.dataset.name;
                 const resale = parseInt(btn.dataset.resale);
 
                 const confirmed = await ui.confirm({
-                    title: `Jual Aset Properti?`,
-                    message: `Apakah Anda yakin ingin menjual properti "${name}"? Anda akan melikuidasi aset ini dan menerima kas bersih sebesar $ ${resale.toLocaleString()} (60% dari total nilai investasi).`,
-                    confirmText: 'Jual Properti'
+                    title: `Jual ${name}?`,
+                    message: `Apakah Anda yakin ingin melikuidasi alat berat ini seharga $ ${resale.toLocaleString()} secara tunai?`,
+                    confirmText: 'Jual Alat Berat'
                 });
 
                 if (confirmed) {
                     try {
-                        businessManager.decommissionInfrastructureDevelopment(devId);
+                        businessManager.sellInfrastructureEquipment(instanceId);
                         if (parentPage) parentPage.render();
                     } catch (e) {
                         ui.error(e.message);
                     }
+                }
+            });
+        });
+
+        // Bid Project
+        container.querySelectorAll('.btn-bid-project').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const projectId = btn.dataset.id;
+                try {
+                    businessManager.bidInfrastructureProject(projectId);
+                    if (parentPage) parentPage.render();
+                } catch (e) {
+                    ui.error(e.message);
                 }
             });
         });
