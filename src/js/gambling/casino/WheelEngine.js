@@ -1,21 +1,23 @@
 /**
- * WheelEngine.js - Premium Spinning Wheel (Roda Keberuntungan)
- * Handles rotational physics, sectors, bet sizing, and multipliers.
+ * WheelEngine.js - Upgraded Spinning Wheel (Roda Keberuntungan)
+ * Features 10 Free Spins, 50 Bonus Spins (3x Multiplier), ETH & SOL Crypto Payouts,
+ * and automated numeric auto spin controls.
  */
 
 import financeManager from '../../finance/FinanceManager.js';
 import gameState from '../../core/GameState.js';
 import ui from '../../ui/UIManager.js';
+import cryptoMarket from '../../trading/CryptoMarket.js';
 
 const SECTORS = [
-    { label: '💎 50.0x', multiplier: 50.0, color: '#fbbf24', text: '#000' }, // Gold
-    { label: '💀 0.0x',  multiplier: 0.0,  color: '#ef4444', text: '#fff' }, // Red
-    { label: '⭐ 2.0x',  multiplier: 2.0,  color: '#a855f7', text: '#fff' }, // Purple
-    { label: '🪵 0.5x',  multiplier: 0.5,  color: '#3b82f6', text: '#fff' }, // Blue
-    { label: '⚡ 10.0x', multiplier: 10.0, color: '#06b6d4', text: '#000' }, // Cyan
-    { label: '💰 1.2x',  multiplier: 1.2,  color: '#10b981', text: '#fff' }, // Green
-    { label: '🔥 25.0x', multiplier: 25.0, color: '#ec4899', text: '#fff' }, // Magenta
-    { label: '🪙 5.0x',  multiplier: 5.0,  color: '#f97316', text: '#fff' }  // Orange
+    { label: '💎 50.0x', multiplier: 50.0, color: '#fbbf24', text: '#000', type: 'usd' }, // Gold
+    { label: '🎁 10 FREE', multiplier: 0, color: '#3b82f6', text: '#fff', type: 'freespin' }, // Blue
+    { label: '⭐ 2.0x',  multiplier: 2.0,  color: '#a855f7', text: '#fff', type: 'usd' }, // Purple
+    { label: 'Ξ 0.1 ETH', multiplier: 0, amount: 0.1, symbol: 'ETH', color: '#627eea', text: '#fff', type: 'crypto' }, // ETH Blue
+    { label: '⚡ 10.0x', multiplier: 10.0, color: '#06b6d4', text: '#000', type: 'usd' }, // Cyan
+    { label: '◎ 1.5 SOL', multiplier: 0, amount: 1.5, symbol: 'SOL', color: '#14f195', text: '#000', type: 'crypto' }, // SOL Neon Green
+    { label: '🔥 50 BONUS (3x)', multiplier: 0, color: '#ec4899', text: '#fff', type: 'bonusspin' }, // Magenta
+    { label: '🪙 5.0x',  multiplier: 5.0,  color: '#f97316', text: '#fff', type: 'usd' }  // Orange
 ];
 
 export class WheelEngine {
@@ -23,6 +25,10 @@ export class WheelEngine {
         this.onBalanceRefresh = onBalanceRefresh;
         this.isSpinning = false;
         this.currentRotation = 0;
+        this.freeSpinsRemaining = 0;
+        this.bonusSpinsRemaining = 0;
+        this.autoSpinCount = 0;
+        this.isAutoSpinning = false;
     }
 
     getHTML() {
@@ -45,31 +51,65 @@ export class WheelEngine {
 
             const largeArcFlag = anglePerSector > 180 ? 1 : 0;
 
-            // Draw pie wedge
             paths += `
                 <g>
                     <path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArcFlag} 1 ${x2} ${y2} Z" 
                           fill="${sec.color}" stroke="rgba(0,0,0,0.2)" stroke-width="2" />
-                    <text x="${cx + (r * 0.65) * Math.cos((startAngle + anglePerSector/2) * Math.PI / 180)}" 
-                          y="${cy + (r * 0.65) * Math.sin((startAngle + anglePerSector/2) * Math.PI / 180)}"
-                          fill="${sec.text}" font-weight="900" font-size="11" text-anchor="middle" dominant-baseline="central"
-                          transform="rotate(${(startAngle + anglePerSector/2) + 90}, ${cx + (r * 0.65) * Math.cos((startAngle + anglePerSector/2) * Math.PI / 180)}, ${cy + (r * 0.65) * Math.sin((startAngle + anglePerSector/2) * Math.PI / 180)})">
-                        ${sec.label.split(' ')[1]}
+                    <text x="${cx + (r * 0.62) * Math.cos((startAngle + anglePerSector/2) * Math.PI / 180)}" 
+                          y="${cy + (r * 0.62) * Math.sin((startAngle + anglePerSector/2) * Math.PI / 180)}"
+                          fill="${sec.text}" font-weight="900" font-size="9" text-anchor="middle" dominant-baseline="central"
+                          transform="rotate(${(startAngle + anglePerSector/2) + 90}, ${cx + (r * 0.62) * Math.cos((startAngle + anglePerSector/2) * Math.PI / 180)}, ${cy + (r * 0.62) * Math.sin((startAngle + anglePerSector/2) * Math.PI / 180)})">
+                        ${sec.label.split(' ').slice(1).join(' ')}
                     </text>
                 </g>
             `;
         });
+
+        // Special spins remaining indicators
+        let statusIndicators = '';
+        if (this.freeSpinsRemaining > 0) {
+            statusIndicators += `
+                <div style="background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span>🎁 PUTARAN GRATIS SISA:</span>
+                    <span style="font-size: 1.1rem; color: #fff;">${this.freeSpinsRemaining} SPIN</span>
+                </div>
+            `;
+        }
+        if (this.bonusSpinsRemaining > 0) {
+            statusIndicators += `
+                <div style="background: rgba(236,72,153,0.15); border: 1px solid rgba(236,72,153,0.3); color: #f472b6; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span>🔥 PUTARAN BONUS SISA (3X LIPAT):</span>
+                    <span style="font-size: 1.1rem; color: #fff;">${this.bonusSpinsRemaining} SPIN</span>
+                </div>
+            `;
+        }
+
+        // Determine Spin Button text & color styling
+        let spinBtnText = '🎡 PUTAR RODA';
+        let spinBtnGrad = 'linear-gradient(135deg,#a855f7 0%,#ec4899 100%)';
+        let spinBtnShadow = 'rgba(168,85,247,0.35)';
+
+        if (this.bonusSpinsRemaining > 0) {
+            spinBtnText = `🔥 PUTAR BONUS 3X (${this.bonusSpinsRemaining})`;
+            spinBtnGrad = 'linear-gradient(135deg,#ec4899 0%,#f43f5e 100%)';
+            spinBtnShadow = 'rgba(236,72,153,0.5)';
+        } else if (this.freeSpinsRemaining > 0) {
+            spinBtnText = `🎁 PUTAR GRATIS (${this.freeSpinsRemaining})`;
+            spinBtnGrad = 'linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%)';
+            spinBtnShadow = 'rgba(59,130,246,0.5)';
+        }
 
         return `
         <div style="max-width: 620px; margin: 0 auto; text-align: center; animation: fade-up 0.3s ease;">
             <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.5rem; font-size: 1.6rem; letter-spacing: -0.03em;">
                 🎡 <span style="background: linear-gradient(90deg,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">SPINNING WHEEL</span>
             </h3>
-            <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:1.5rem; text-transform:uppercase; letter-spacing:0.1em;">Putar Roda Keberuntungan &amp; Dapatkan Multiplier Hingga 50x!</p>
+            <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:1.5rem; text-transform:uppercase; letter-spacing:0.1em;">Dapatkan Multiplier, Putaran Gratis, &amp; Saldo Kripto ETH/SOL!</p>
+
+            ${statusIndicators}
 
             <!-- Wheel Container -->
             <div style="position:relative; width:320px; height:320px; margin: 0 auto 1.5rem auto;">
-                
                 <!-- Pointer/Indicator (Top 12 o'clock) -->
                 <div style="
                     position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
@@ -99,25 +139,37 @@ export class WheelEngine {
                 <span style="color:rgba(255,255,255,0.25); font-size:0.8rem; font-style:italic; text-transform:uppercase; letter-spacing:0.1em;">Silakan Putar Roda Raksasa...</span>
             </div>
 
+            <!-- Auto Spin Controls -->
+            <div style="background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.05); border-radius:16px; padding:1.25rem; margin-bottom:1.25rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap: wrap;">
+                <div style="text-align:left; flex: 1; min-width: 130px;">
+                    <label style="display:block; font-size:0.75rem; color:rgba(255,255,255,0.5); margin-bottom:0.25rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em;">AUTO SPIN COUNT</label>
+                    <input type="number" id="wheel-autospin-count" value="10" min="1" max="1000" style="background:var(--bg-surface); border:1px solid var(--border-color); font-size:1.1rem; font-weight:700; color:#fff; width:100%; text-align:center; border-radius:8px; padding: 0.35rem 0.5rem; outline:none;">
+                </div>
+                <div style="flex:2; display:flex; gap:0.5rem; height: 44px; margin-top: auto; min-width: 200px;">
+                    <button id="btn-wheel-auto-start" class="bet-chip" style="flex:1; border-radius:10px; background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.3); color: #a855f7; font-size:0.85rem; font-weight: 800;">🤖 AUTO SPIN</button>
+                    <button id="btn-wheel-auto-stop" class="bet-chip" style="flex:1; border-radius:10px; background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #ef4444; font-size:0.85rem; font-weight: 800; display:none;">⏹️ STOP (0)</button>
+                </div>
+            </div>
+
             <!-- Bet Panel -->
             <div style="background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.05); border-radius:16px; padding:1.25rem; margin-bottom:1.25rem;">
                 <label style="display:block; font-size:0.75rem; color:rgba(255,255,255,0.5); margin-bottom:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em;">JUMLAH TARUHAN</label>
                 <div style="display:flex; gap:0.4rem; align-items:center; justify-content:center; margin-bottom:0.75rem;">
                     <span style="font-size:1.4rem; font-weight:900; color:#ec4899;">$</span>
-                    <input type="text" id="wheel-bet-input" value="100,000" style="background:transparent; border:none; font-size:1.75rem; font-weight:900; color:#fff; width:200px; text-align:center; border-bottom:2px solid rgba(236,72,153,0.4); outline:none; padding:0.25rem 0;">
+                    <input type="text" id="wheel-bet-input" value="100,000" style="background:transparent; border:none; font-size:1.75rem; font-weight:900; color:#fff; width:200px; text-align:center; border-bottom:2px solid rgba(236,72,153,0.4); outline:none; padding:0.25rem 0;" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>
                 </div>
                 <div style="display:flex; gap:0.4rem; justify-content:center; flex-wrap:wrap;">
-                    <button class="bet-chip wheel-preset" data-val="10000">$10K</button>
-                    <button class="bet-chip wheel-preset" data-val="100000">$100K</button>
-                    <button class="bet-chip wheel-preset" data-val="1000000">$1M</button>
-                    <button class="bet-chip wheel-preset" data-val="10000000">$10M</button>
-                    <button class="bet-chip bet-chip-max wheel-preset" id="btn-wheel-max">MAX</button>
+                    <button class="bet-chip wheel-preset" data-val="10000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$10K</button>
+                    <button class="bet-chip wheel-preset" data-val="100000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$100K</button>
+                    <button class="bet-chip wheel-preset" data-val="1000000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$1M</button>
+                    <button class="bet-chip wheel-preset" data-val="10000000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$10M</button>
+                    <button class="bet-chip bet-chip-max wheel-preset" id="btn-wheel-max" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>MAX</button>
                 </div>
             </div>
 
             <!-- Spin Button -->
-            <button id="btn-wheel-spin" class="spin-btn" style="background:linear-gradient(135deg,#a855f7 0%,#ec4899 100%); border:none; font-weight:900; font-size:1.3rem; padding:1.1rem 3rem; width:100%; border-radius:14px; box-shadow:0 6px 20px rgba(168,85,247,0.35); cursor:pointer; transition:all 0.25s; color:#fff; letter-spacing:0.05em; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
-                🎡 PUTAR RODA
+            <button id="btn-wheel-spin" class="spin-btn" style="background:${spinBtnGrad}; border:none; font-weight:900; font-size:1.3rem; padding:1.1rem 3rem; width:100%; border-radius:14px; box-shadow:0 6px 20px ${spinBtnShadow}; cursor:pointer; transition:all 0.25s; color:#fff; letter-spacing:0.05em; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+                ${spinBtnText}
             </button>
         </div>
         `;
@@ -146,18 +198,69 @@ export class WheelEngine {
             });
         });
 
-        document.getElementById('btn-wheel-spin')?.addEventListener('click', () => this.spin());
+        document.getElementById('btn-wheel-spin')?.addEventListener('click', () => {
+            this.stopAutoSpin();
+            this.spin();
+        });
+
+        // Auto Spin Buttons
+        document.getElementById('btn-wheel-auto-start')?.addEventListener('click', () => {
+            const countInput = document.getElementById('wheel-autospin-count');
+            const count = parseInt(countInput ? countInput.value : '10', 10);
+            if (isNaN(count) || count <= 0) {
+                ui.error('Masukkan jumlah putaran otomatis yang valid!');
+                return;
+            }
+            this.startAutoSpin(count);
+        });
+
+        document.getElementById('btn-wheel-auto-stop')?.addEventListener('click', () => {
+            this.stopAutoSpin();
+        });
+    }
+
+    startAutoSpin(count) {
+        this.autoSpinCount = count;
+        this.isAutoSpinning = true;
+
+        const startBtn = document.getElementById('btn-wheel-auto-start');
+        const stopBtn = document.getElementById('btn-wheel-auto-stop');
+        
+        if (startBtn) startBtn.style.display = 'none';
+        if (stopBtn) {
+            stopBtn.style.display = 'block';
+            stopBtn.textContent = `⏹️ STOP (${this.autoSpinCount})`;
+        }
+
+        this.spin();
+    }
+
+    stopAutoSpin() {
+        this.isAutoSpinning = false;
+        this.autoSpinCount = 0;
+
+        const startBtn = document.getElementById('btn-wheel-auto-start');
+        const stopBtn = document.getElementById('btn-wheel-auto-stop');
+        
+        if (startBtn) startBtn.style.display = 'block';
+        if (stopBtn) stopBtn.style.display = 'none';
     }
 
     async spin() {
         if (this.isSpinning) return;
 
+        const isFree = this.freeSpinsRemaining > 0;
+        const isBonus = this.bonusSpinsRemaining > 0;
+        
         const input = document.getElementById('wheel-bet-input');
         const betAmount = input?.getNumericValue ? input.getNumericValue() : (parseInt(input?.value.replace(/,/g, '') || '0', 10));
 
-        if (betAmount <= 0) { ui.error('Masukkan jumlah taruhan yang valid!'); return; }
-        const balance = gameState.getBalance();
-        if (betAmount > balance) { ui.error('Saldo tidak mencukupi!'); return; }
+        // Validation only if spin is paid
+        if (!isFree && !isBonus) {
+            if (betAmount <= 0) { ui.error('Masukkan jumlah taruhan yang valid!'); this.stopAutoSpin(); return; }
+            const balance = gameState.getBalance();
+            if (betAmount > balance) { ui.error('Saldo tidak mencukupi!'); this.stopAutoSpin(); return; }
+        }
 
         this.isSpinning = true;
         const spinBtn = document.getElementById('btn-wheel-spin');
@@ -169,18 +272,25 @@ export class WheelEngine {
         const winDisplay = document.getElementById('wheel-win-display');
         if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.8rem; font-style:italic;">Memutar roda keberuntungan...</span>`;
 
-        // Deduct bet
-        financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Roda Keberuntungan');
-        this.onBalanceRefresh?.();
+        // Deduct bet if not free/bonus
+        if (!isFree && !isBonus) {
+            financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Roda Keberuntungan');
+            this.onBalanceRefresh?.();
+        } else {
+            // Decrement special spins remaining
+            if (isBonus) {
+                this.bonusSpinsRemaining--;
+            } else {
+                this.freeSpinsRemaining--;
+            }
+        }
 
         const donations = gameState.get('donations') || { luckMultiplier: 1.0 };
         const luck = donations.luckMultiplier || 1.0;
 
-        // Determine winning sector (weighted random or standard random)
-        // With higher luck, we decrease the chance of 0.0x (Index 1) and increase others
-        const weights = SECTORS.map((s, idx) => {
-            if (idx === 1) return 1.0 / luck; // lower weight for loss
-            if (s.multiplier >= 20.0) return 1.0 * luck; // higher weight for big wins
+        // Determine winning sector clockwise weights
+        const weights = SECTORS.map((s) => {
+            if (s.type === 'bonusspin' || s.multiplier >= 25.0) return 1.0 * luck;
             return 1.0;
         });
 
@@ -198,10 +308,7 @@ export class WheelEngine {
         const sector = SECTORS[selectedIdx];
         const anglePerSector = 360 / SECTORS.length;
 
-        // Calculate rotation angle
-        // Sector index W is at W * 45 degrees.
-        // To point to W at 12 o'clock, we must align it with the top pointer (index 0 is at 0 degrees, index W is at W*45 deg).
-        // Rotate the wheel by: 360 - (selectedIdx * 45) - 22.5 (middle of the sector wedge)
+        // Spin rotation physics
         const rotationTarget = 360 * 5 + (360 - (selectedIdx * anglePerSector) - (anglePerSector / 2));
         this.currentRotation += rotationTarget - (this.currentRotation % 360);
 
@@ -210,31 +317,99 @@ export class WheelEngine {
             wheelSvg.style.transform = `rotate(${this.currentRotation}deg)`;
         }
 
-        // Wait 4 seconds for rotation transition to complete
+        // Wait 4 seconds for slow deceleration animation
         await new Promise(res => setTimeout(res, 4050));
 
-        // Evaluate payout
-        const payout = Math.round(betAmount * sector.multiplier);
-        if (payout > 0) {
-            financeManager.addIncome(payout, 'Investasi', `Hasil Roda Keberuntungan: ${sector.label}`);
-            this.onBalanceRefresh?.();
+        // Evaluate payout rewards
+        const payoutMultiplier = isBonus ? 3 : 1; // 3x multiplier applied during bonus spins
+        let rewardLabel = '';
 
-            if (sector.multiplier >= 20.0) {
-                if (winDisplay) winDisplay.innerHTML = `<span style="font-weight:900; font-size:1.1rem; color:#fbbf24; animation:jackpotFlash 0.5s infinite; padding:0.4rem 1rem; border-radius:8px;">🏆 MEGA WIN! +$${financeManager.formatCurrency(payout)} (${sector.label})</span>`;
-                ui.success(`MEGA WIN! +$ ${financeManager.formatCurrency(payout)} — Roda Mendarat di ${sector.label}!`, '🎡 Roda Berputar');
+        if (sector.type === 'usd') {
+            const payout = Math.round(betAmount * sector.multiplier * payoutMultiplier);
+            if (payout > 0) {
+                financeManager.addIncome(payout, 'Investasi', `Hasil Roda: ${sector.label} (${payoutMultiplier}x multiplier)`);
+                rewardLabel = `+$${financeManager.formatCurrency(payout)}`;
             } else {
-                if (winDisplay) winDisplay.innerHTML = `<span style="font-weight:800; font-size:0.95rem; color:#34d399; animation:winPulse 1s ease-in-out infinite;">✅ MENANG +$${financeManager.formatCurrency(payout)} (${sector.label})</span>`;
-                ui.success(`MENANG! +$ ${financeManager.formatCurrency(payout)} — Roda Mendarat di ${sector.label}!`, '🎡 Roda Berputar');
+                rewardLabel = 'ZONK';
             }
-        } else {
-            if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.8rem; font-style:italic;">Zonk! Roda mendarat di ${sector.label}</span>`;
-            ui.toast({ type: 'warning', title: 'Kalah', message: 'Roda mendarat di 0.0x. Coba lagi!' });
+        } 
+        else if (sector.type === 'crypto') {
+            const finalAmt = sector.amount * payoutMultiplier;
+            const cryptoData = cryptoMarket.getCrypto(sector.symbol);
+            const price = cryptoData ? cryptoData.price : 1.0;
+            
+            cryptoMarket.addToWallet(sector.symbol, finalAmt, price);
+            rewardLabel = `+${finalAmt.toFixed(2)} ${sector.symbol} (wallet updated!)`;
+        } 
+        else if (sector.type === 'freespin') {
+            this.freeSpinsRemaining += 10; // 10 Free Spins awarded!
+            rewardLabel = `🎁 +10 FREE SPINS!`;
+        } 
+        else if (sector.type === 'bonusspin') {
+            this.bonusSpinsRemaining += 50; // 50 Bonus Spins (3x) awarded!
+            rewardLabel = `🔥 +50 BONUS SPINS (3X Multiplier)!`;
+        }
+
+        // Win Toast & Displays
+        if (winDisplay) {
+            winDisplay.innerHTML = `<span style="font-weight:900; font-size:1rem; color:#fbbf24; animation:winPulse 1s ease-in-out infinite;">🎉 Mendarat di ${sector.label}! Hasil: ${rewardLabel}</span>`;
+        }
+        ui.success(`Roda mendarat di ${sector.label}! Hadiah: ${rewardLabel}`, '🎡 Roda Berputar');
+
+        // Refresh HTML and state values
+        this.onBalanceRefresh?.();
+
+        // Refresh container structure to show new free spin badges
+        const gamePanel = document.getElementById('casino-game-panel');
+        if (gamePanel) {
+            // Re-render HTML to update the top badges and inputs safely
+            const activeInputVal = document.getElementById('wheel-bet-input')?.value || '100,000';
+            const autoVal = document.getElementById('wheel-autospin-count')?.value || '10';
+
+            gamePanel.innerHTML = this.getHTML();
+            this.bindEvents(gamePanel, this.onBalanceRefresh);
+            
+            // Retain input values
+            const newInput = document.getElementById('wheel-bet-input');
+            if (newInput) newInput.value = activeInputVal;
+            const newAuto = document.getElementById('wheel-autospin-count');
+            if (newAuto) newAuto.value = autoVal;
         }
 
         this.isSpinning = false;
-        if (spinBtn) {
-            spinBtn.disabled = false;
-            spinBtn.innerHTML = '🎡 PUTAR RODA';
+        
+        // Reset spin button state
+        const freshSpinBtn = document.getElementById('btn-wheel-spin');
+        if (freshSpinBtn) {
+            freshSpinBtn.disabled = false;
+        }
+
+        // Auto spin countdown loops
+        const hasSpecialSpins = this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0;
+        
+        if (this.isAutoSpinning) {
+            // If we have free/bonus spins remaining, continue without decrementing autospin count
+            if (hasSpecialSpins) {
+                const stopBtn = document.getElementById('btn-wheel-auto-stop');
+                if (stopBtn) stopBtn.textContent = `⏹️ STOP (${this.autoSpinCount})`;
+                
+                setTimeout(() => {
+                    if (this.isAutoSpinning) this.spin();
+                }, 1500);
+            } 
+            // Otherwise decrement standard auto spin count
+            else if (this.autoSpinCount > 1) {
+                this.autoSpinCount--;
+                
+                const stopBtn = document.getElementById('btn-wheel-auto-stop');
+                if (stopBtn) stopBtn.textContent = `⏹️ STOP (${this.autoSpinCount})`;
+                
+                setTimeout(() => {
+                    if (this.isAutoSpinning) this.spin();
+                }, 1500);
+            } else {
+                this.stopAutoSpin();
+            }
         }
     }
 }
