@@ -86,7 +86,7 @@ export class SlotEngine {
         return `
         <div style="max-width: 720px; margin: 0 auto; text-align: center;">
             <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.5rem; font-size: 1.6rem; letter-spacing: -0.03em;">
-                ⛏️ <span style="background: linear-gradient(90deg,#fbbf24,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">GOLD DIGGER</span> SLOT <span style="font-size: 0.9rem; background: #fbbf24; color: #000; padding: 2px 6px; border-radius: 4px; font-weight:900;">6 x 3</span>
+                🎰 <span style="background: linear-gradient(90deg,#fbbf24,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">GOLDY CRUSH</span> SLOT
             </h3>
             <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:1.5rem; text-transform:uppercase; letter-spacing:0.1em;">6 Kolom, 3 Baris &amp; 5 Garis Payout (Kemenangan Ganda!)</p>
 
