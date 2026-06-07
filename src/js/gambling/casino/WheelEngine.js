@@ -2,6 +2,7 @@
  * WheelEngine.js - Upgraded Spinning Wheel (Roda Keberuntungan)
  * Features 10 Free Spins, 50 Bonus Spins (3x Multiplier), ETH & SOL Crypto Payouts,
  * and automated numeric auto spin controls.
+ * Mobile responsive optimized (preventing vertical scrolling).
  */
 
 import financeManager from '../../finance/FinanceManager.js';
@@ -69,17 +70,17 @@ export class WheelEngine {
         let statusIndicators = '';
         if (this.freeSpinsRemaining > 0) {
             statusIndicators += `
-                <div style="background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                <div class="wheel-status-indicator" style="background: rgba(59,130,246,0.12); color: #60a5fa; border-color: rgba(59,130,246,0.25);">
                     <span>🎁 PUTARAN GRATIS SISA:</span>
-                    <span style="font-size: 1.1rem; color: #fff;">${this.freeSpinsRemaining} SPIN</span>
+                    <span style="font-size: 1rem; color: #fff;">${this.freeSpinsRemaining} SPIN</span>
                 </div>
             `;
         }
         if (this.bonusSpinsRemaining > 0) {
             statusIndicators += `
-                <div style="background: rgba(236,72,153,0.15); border: 1px solid rgba(236,72,153,0.3); color: #f472b6; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 800; font-size: 0.85rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                <div class="wheel-status-indicator" style="background: rgba(236,72,153,0.12); color: #f472b6; border-color: rgba(236,72,153,0.25);">
                     <span>🔥 PUTARAN BONUS SISA (3X LIPAT):</span>
-                    <span style="font-size: 1.1rem; color: #fff;">${this.bonusSpinsRemaining} SPIN</span>
+                    <span style="font-size: 1rem; color: #fff;">${this.bonusSpinsRemaining} SPIN</span>
                 </div>
             `;
         }
@@ -101,30 +102,20 @@ export class WheelEngine {
 
         return `
         <div style="max-width: 620px; margin: 0 auto; text-align: center; animation: fade-up 0.3s ease;">
-            <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.5rem; font-size: 1.6rem; letter-spacing: -0.03em;">
+            <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.35rem; font-size: 1.4rem; letter-spacing: -0.03em;">
                 🎡 <span style="background: linear-gradient(90deg,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">SPINNING WHEEL</span>
             </h3>
-            <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:1.5rem; text-transform:uppercase; letter-spacing:0.1em;">Dapatkan Multiplier, Putaran Gratis, &amp; Saldo Kripto ETH/SOL!</p>
+            <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">Dapatkan Multiplier, Putaran Gratis, &amp; Saldo Kripto ETH/SOL!</p>
 
             ${statusIndicators}
 
             <!-- Wheel Container -->
-            <div style="position:relative; width:320px; height:320px; margin: 0 auto 1.5rem auto;">
+            <div class="wheel-container-wrapper">
                 <!-- Pointer/Indicator (Top 12 o'clock) -->
-                <div style="
-                    position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-                    width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent;
-                    border-top: 30px solid #ec4899; z-index: 5;
-                    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
-                "></div>
+                <div class="wheel-pointer"></div>
 
                 <!-- SVG Wheel Circle -->
-                <div id="wheel-svg-container" style="
-                    width: 300px; height: 300px; border-radius: 50%;
-                    border: 8px solid #3c2419; box-shadow: 0 0 30px rgba(168,85,247,0.3), inset 0 0 10px rgba(0,0,0,0.8);
-                    transition: transform 4s cubic-bezier(0.1, 0.8, 0.1, 1);
-                    transform: rotate(0deg); overflow: hidden; margin: 10px; background: #111;
-                ">
+                <div id="wheel-svg-container" class="wheel-svg-box">
                     <svg viewBox="0 0 300 300" style="width:100%; height:100%;">
                         ${paths}
                         <!-- Center pin/decor -->
@@ -135,43 +126,185 @@ export class WheelEngine {
             </div>
 
             <!-- Win Display -->
-            <div id="wheel-win-display" style="height:36px; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(168,85,247,0.1); margin-bottom:1rem;">
-                <span style="color:rgba(255,255,255,0.25); font-size:0.8rem; font-style:italic; text-transform:uppercase; letter-spacing:0.1em;">Silakan Putar Roda Raksasa...</span>
+            <div id="wheel-win-display" class="wheel-win-box">
+                <span style="color:rgba(255,255,255,0.25); font-size:0.75rem; font-style:italic; text-transform:uppercase; letter-spacing:0.08em;">Silakan Putar Roda Raksasa...</span>
             </div>
 
             <!-- Auto Spin Controls -->
-            <div style="background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.05); border-radius:16px; padding:1.25rem; margin-bottom:1.25rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap: wrap;">
-                <div style="text-align:left; flex: 1; min-width: 130px;">
-                    <label style="display:block; font-size:0.75rem; color:rgba(255,255,255,0.5); margin-bottom:0.25rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em;">AUTO SPIN COUNT</label>
-                    <input type="number" id="wheel-autospin-count" value="10" min="1" max="1000" style="background:var(--bg-surface); border:1px solid var(--border-color); font-size:1.1rem; font-weight:700; color:#fff; width:100%; text-align:center; border-radius:8px; padding: 0.35rem 0.5rem; outline:none;">
+            <div class="wheel-controls-box">
+                <div style="text-align:left; flex: 1; min-width: 110px;">
+                    <label style="display:block; font-size:0.65rem; color:rgba(255,255,255,0.5); margin-bottom:0.15rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;">AUTO SPIN</label>
+                    <input type="number" id="wheel-autospin-count" value="10" min="1" max="1000" style="background:var(--bg-surface); border:1px solid var(--border-color); font-size:1rem; font-weight:700; color:#fff; width:100%; text-align:center; border-radius:6px; padding: 0.25rem 0.4rem; outline:none;">
                 </div>
-                <div style="flex:2; display:flex; gap:0.5rem; height: 44px; margin-top: auto; min-width: 200px;">
-                    <button id="btn-wheel-auto-start" class="bet-chip" style="flex:1; border-radius:10px; background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.3); color: #a855f7; font-size:0.85rem; font-weight: 800;">🤖 AUTO SPIN</button>
-                    <button id="btn-wheel-auto-stop" class="bet-chip" style="flex:1; border-radius:10px; background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #ef4444; font-size:0.85rem; font-weight: 800; display:none;">⏹️ STOP (0)</button>
+                <div style="flex:1.5; display:flex; gap:0.4rem; height: 36px; margin-top: auto; min-width: 150px;">
+                    <button id="btn-wheel-auto-start" class="bet-chip" style="flex:1; border-radius:8px; background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.3); color: #a855f7; font-size:0.8rem; font-weight: 800;">🤖 AUTO SPIN</button>
+                    <button id="btn-wheel-auto-stop" class="bet-chip" style="flex:1; border-radius:8px; background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #ef4444; font-size:0.8rem; font-weight: 800; display:none;">⏹️ STOP (0)</button>
                 </div>
             </div>
 
             <!-- Bet Panel -->
-            <div style="background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.05); border-radius:16px; padding:1.25rem; margin-bottom:1.25rem;">
-                <label style="display:block; font-size:0.75rem; color:rgba(255,255,255,0.5); margin-bottom:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em;">JUMLAH TARUHAN</label>
-                <div style="display:flex; gap:0.4rem; align-items:center; justify-content:center; margin-bottom:0.75rem;">
-                    <span style="font-size:1.4rem; font-weight:900; color:#ec4899;">$</span>
-                    <input type="text" id="wheel-bet-input" value="100,000" style="background:transparent; border:none; font-size:1.75rem; font-weight:900; color:#fff; width:200px; text-align:center; border-bottom:2px solid rgba(236,72,153,0.4); outline:none; padding:0.25rem 0;" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>
+            <div class="wheel-bet-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem; flex-wrap:wrap; gap:0.25rem;">
+                    <label style="font-size:0.68rem; color:rgba(255,255,255,0.5); font-weight:700; text-transform:uppercase; letter-spacing:0.08em;">TARUHAN</label>
+                    <div style="display:flex; gap:0.25rem; align-items:center;">
+                        <span style="font-size:1.1rem; font-weight:900; color:#ec4899;">$</span>
+                        <input type="text" id="wheel-bet-input" value="100,000" style="background:transparent; border:none; font-size:1.3rem; font-weight:900; color:#fff; width:110px; text-align:right; border-bottom:1.5px solid rgba(236,72,153,0.4); outline:none; padding:0.1rem 0;" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>
+                    </div>
                 </div>
-                <div style="display:flex; gap:0.4rem; justify-content:center; flex-wrap:wrap;">
-                    <button class="bet-chip wheel-preset" data-val="10000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$10K</button>
-                    <button class="bet-chip wheel-preset" data-val="100000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$100K</button>
-                    <button class="bet-chip wheel-preset" data-val="1000000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$1M</button>
-                    <button class="bet-chip wheel-preset" data-val="10000000" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$10M</button>
-                    <button class="bet-chip bet-chip-max wheel-preset" id="btn-wheel-max" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>MAX</button>
+                <div style="display:flex; gap:0.35rem; justify-content:center; flex-wrap:wrap;">
+                    <button class="bet-chip wheel-preset" data-val="10000" style="padding:0.25rem 0.5rem; font-size:0.7rem;" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$10K</button>
+                    <button class="bet-chip wheel-preset" data-val="100000" style="padding:0.25rem 0.5rem; font-size:0.7rem;" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$100K</button>
+                    <button class="bet-chip wheel-preset" data-val="1000000" style="padding:0.25rem 0.5rem; font-size:0.7rem;" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$1M</button>
+                    <button class="bet-chip wheel-preset" data-val="10000000" style="padding:0.25rem 0.5rem; font-size:0.7rem;" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>$10M</button>
+                    <button class="bet-chip bet-chip-max wheel-preset" id="btn-wheel-max" style="padding:0.25rem 0.5rem; font-size:0.7rem;" ${this.freeSpinsRemaining > 0 || this.bonusSpinsRemaining > 0 ? 'disabled' : ''}>MAX</button>
                 </div>
             </div>
 
             <!-- Spin Button -->
-            <button id="btn-wheel-spin" class="spin-btn" style="background:${spinBtnGrad}; border:none; font-weight:900; font-size:1.3rem; padding:1.1rem 3rem; width:100%; border-radius:14px; box-shadow:0 6px 20px ${spinBtnShadow}; cursor:pointer; transition:all 0.25s; color:#fff; letter-spacing:0.05em; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+            <button id="btn-wheel-spin" class="spin-btn-action-wheel" style="background:${spinBtnGrad}; box-shadow:0 4px 12px ${spinBtnShadow};">
                 ${spinBtnText}
             </button>
         </div>
+
+        <style>
+            .wheel-container-wrapper {
+                position:relative; 
+                width:260px; 
+                height:260px; 
+                margin: 0 auto 1rem auto;
+            }
+            .wheel-pointer {
+                position: absolute; 
+                top: -8px; 
+                left: 50%; 
+                transform: translateX(-50%);
+                width: 0; 
+                height: 0; 
+                border-left: 12px solid transparent; 
+                border-right: 12px solid transparent;
+                border-top: 24px solid #ec4899; 
+                z-index: 5;
+                filter: drop-shadow(0 3px 4px rgba(0,0,0,0.5));
+            }
+            .wheel-svg-box {
+                width: 240px; 
+                height: 240px; 
+                border-radius: 50%;
+                border: 6px solid #3c2419; 
+                box-shadow: 0 0 20px rgba(168,85,247,0.25), inset 0 0 10px rgba(0,0,0,0.8);
+                transition: transform 4s cubic-bezier(0.1, 0.8, 0.1, 1);
+                transform: rotate(0deg); 
+                overflow: hidden; 
+                margin: 10px; 
+                background: #111;
+            }
+            .wheel-win-box {
+                height:32px; 
+                display:flex; 
+                align-items:center; 
+                justify-content:center; 
+                background: rgba(0,0,0,0.3); 
+                border-radius: 6px; 
+                border: 1px solid rgba(168,85,247,0.1); 
+                margin-bottom:0.6rem;
+            }
+            .wheel-controls-box {
+                background:rgba(0,0,0,0.2); 
+                border:1px solid rgba(255,255,255,0.05); 
+                border-radius:12px; 
+                padding:0.75rem; 
+                margin-bottom:0.75rem; 
+                display:flex; 
+                align-items:center; 
+                justify-content:space-between; 
+                gap:0.75rem; 
+                flex-wrap: wrap;
+            }
+            .wheel-bet-panel {
+                background:rgba(0,0,0,0.2); 
+                border:1px solid rgba(255,255,255,0.05); 
+                border-radius:12px; 
+                padding:0.75rem; 
+                margin-bottom:0.75rem;
+            }
+            .spin-btn-action-wheel {
+                border:none; 
+                font-weight:900; 
+                font-size:1.15rem; 
+                padding:0.8rem 2rem; 
+                width:100%; 
+                border-radius:10px; 
+                cursor:pointer; 
+                transition:all 0.25s; 
+                color:#fff; 
+                letter-spacing:0.05em; 
+                text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            }
+            .wheel-status-indicator {
+                border: 1px solid; 
+                padding: 0.4rem 0.75rem; 
+                border-radius: 6px; 
+                font-weight: 800; 
+                font-size: 0.75rem; 
+                margin-bottom: 0.5rem; 
+                display: flex; 
+                justify-content: space-between; 
+                align-items: center;
+            }
+            .bet-chip {
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.1);
+                color: rgba(255,255,255,0.8);
+                font-size: 0.72rem;
+                font-weight: 700;
+                padding: 0.25rem 0.5rem;
+                border-radius: 12px;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .bet-chip:hover:not(:disabled) { background: rgba(236,72,153,0.15); border-color: rgba(236,72,153,0.4); color: #ec4899; }
+            .bet-chip-max { background: rgba(236,72,153,0.1); border-color: rgba(236,72,153,0.3); color: #ec4899; }
+            .spin-btn-action-wheel:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
+            .spin-btn-action-wheel:active:not(:disabled) { transform: translateY(0); }
+            .spin-btn-action-wheel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+            @media (max-width: 600px) {
+                .wheel-container-wrapper {
+                    width: 210px;
+                    height: 210px;
+                    margin: 0 auto 0.5rem auto;
+                }
+                .wheel-pointer {
+                    top: -6px;
+                    border-left-width: 10px;
+                    border-right-width: 10px;
+                    border-top-width: 20px;
+                }
+                .wheel-svg-box {
+                    width: 190px;
+                    height: 190px;
+                    border-width: 4px;
+                    margin: 5px;
+                }
+                .wheel-controls-box {
+                    padding: 0.5rem;
+                    margin-bottom: 0.5rem;
+                    gap: 0.5rem;
+                }
+                .wheel-bet-panel {
+                    padding: 0.5rem;
+                    margin-bottom: 0.5rem;
+                }
+                .spin-btn-action-wheel {
+                    font-size: 1rem;
+                    padding: 0.65rem 1.5rem;
+                }
+                .wheel-win-box {
+                    height: 26px;
+                    margin-bottom: 0.5rem;
+                }
+            }
+        </style>
         `;
     }
 
@@ -270,7 +403,7 @@ export class WheelEngine {
         }
 
         const winDisplay = document.getElementById('wheel-win-display');
-        if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.8rem; font-style:italic;">Memutar roda keberuntungan...</span>`;
+        if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.75rem; font-style:italic;">Memutar roda keberuntungan...</span>`;
 
         // Deduct bet if not free/bonus
         if (!isFree && !isBonus) {

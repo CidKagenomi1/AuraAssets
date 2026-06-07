@@ -1,6 +1,7 @@
 /**
  * LotteryEngine.js - Interactive Mega Lottery Engine
  * Handles tickets, lucky number selection, bouncing draw animation, and progressive jackpots.
+ * Mobile responsive optimized (preventing vertical scrolling).
  */
 
 import financeManager from '../../finance/FinanceManager.js';
@@ -45,124 +46,111 @@ export class LotteryEngine {
         for (let i = 1; i <= 20; i++) {
             const isSelected = this.selectedNumbers.includes(i);
             numberGrid += `
-                <button class="lottery-num-btn ${isSelected ? 'selected' : ''}" data-num="${i}" style="
-                    width: 46px; height: 46px; border-radius: 50%;
-                    background: ${isSelected ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255,255,255,0.04)'};
-                    color: ${isSelected ? '#000' : 'rgba(255,255,255,0.8)'};
-                    border: 1px solid ${isSelected ? '#fbbf24' : 'rgba(255,255,255,0.1)'};
-                    font-weight: 800; font-size: 1rem; cursor: pointer; transition: all 0.2s;
-                ">${i}</button>
+                <button class="lottery-num-btn ${isSelected ? 'selected' : ''}" data-num="${i}">${i}</button>
             `;
         }
 
         // Render history logs
         const historyHTML = history.length === 0
-            ? `<div style="font-size:0.75rem; color:rgba(255,255,255,0.3); font-style:italic;">Belum ada riwayat undian.</div>`
+            ? `<div style="font-size:0.7rem; color:rgba(255,255,255,0.3); font-style:italic;">Belum ada riwayat undian.</div>`
             : history.map(h => {
                 const isWin = h.matches > 0;
                 return `
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding: 0.5rem 0.75rem; border-radius: 8px; font-size:0.75rem; border:1px solid rgba(255,255,255,0.03);">
-                        <div style="display:flex; align-items:center; gap:0.4rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding: 0.35rem 0.5rem; border-radius: 6px; font-size:0.7rem; border:1px solid rgba(255,255,255,0.03);">
+                        <div style="display:flex; align-items:center; gap:0.3rem;">
                             <span>🎫 ${h.selected.join(', ')}</span>
-                            <span style="color:rgba(255,255,255,0.3);">vs</span>
+                            <span style="color:rgba(255,255,255,0.3); font-size: 0.6rem;">vs</span>
                             <span style="color:#fbbf24; font-weight:700;">🔮 ${h.drawn.join(', ')}</span>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-weight:700; color:${isWin ? '#34d399' : 'var(--text-muted)'}">${h.matches} Match (${isWin ? '+' + financeManager.formatCurrency(h.payout) : 'Kalah'})</div>
+                            <div style="font-weight:700; color:${isWin ? '#34d399' : 'var(--text-muted)'}">${h.matches} M (${isWin ? '+' + financeManager.formatCurrency(h.payout) : '0'})</div>
                         </div>
                     </div>
                 `;
-            }).join('');
+            }).slice(0, 3).join(''); // Show only last 3 items to save mobile vertical height
 
         return `
         <div style="max-width: 620px; margin: 0 auto; text-align: center; animation: fade-up 0.3s ease;">
-            <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.5rem; font-size: 1.6rem; letter-spacing: -0.03em;">
+            <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.35rem; font-size: 1.4rem; letter-spacing: -0.03em;">
                 🎫 <span style="background: linear-gradient(90deg,#f59e0b,#fbbf24); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">MEGA LOTTERY</span>
             </h3>
-            <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:1.5rem; text-transform:uppercase; letter-spacing:0.1em;">Pilih 4 Nomor Keberuntungan Anda &amp; Raih Jackpot Progresif!</p>
+            <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">Pilih 4 Nomor Keberuntungan Anda &amp; Raih Jackpot Progresif!</p>
 
             <!-- Progressive Jackpot Display -->
-            <div style="
-                background: linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(20,15,10,0.9) 100%);
-                border: 2px dashed #f59e0b;
-                border-radius: 20px;
-                padding: 1.25rem;
-                margin-bottom: 1.5rem;
-                box-shadow: 0 0 20px rgba(245,158,11,0.1);
-            ">
-                <div style="font-size:0.7rem; color:rgba(255,255,255,0.5); font-weight:800; letter-spacing:0.15em; text-transform:uppercase;">GRAND JACKPOT PROGRESIF</div>
-                <div style="font-size: 2.2rem; font-weight: 900; color: #fbbf24; margin-top: 0.25rem; text-shadow: 0 0 12px rgba(251,191,36,0.3); display: flex; justify-content: center; align-items: baseline; gap: 0.3rem;">
-                    <span style="font-size: 1.5rem;">$</span>
+            <div class="lottery-jackpot-banner">
+                <div style="font-size:0.65rem; color:rgba(255,255,255,0.5); font-weight:800; letter-spacing:0.12em; text-transform:uppercase;">GRAND JACKPOT PROGRESIF</div>
+                <div class="lottery-jackpot-val-text">
+                    <span style="font-size: 1.1rem; color: #fbbf24;">$</span>
                     <span id="lottery-jackpot-pool-val">${jackpot.toLocaleString('en-US')}</span>
                 </div>
-                <div style="font-size: 0.72rem; color: rgba(255,255,255,0.4); margin-top: 0.25rem;">Biaya tiket: $ 10.000 (15% ditambahkan ke kolam jackpot)</div>
+                <div style="font-size: 0.68rem; color: rgba(255,255,255,0.4); margin-top: 0.15rem;">Biaya: $10K (15% masuk Jackpot)</div>
             </div>
 
             <!-- Number Picker Board -->
-            <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); border-radius:20px; padding:1.5rem; margin-bottom:1.5rem;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <div class="lottery-number-picker-board">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
                     <div style="text-align:left;">
-                        <h4 style="font-size:0.95rem; font-weight:800; color:#fff; margin:0;">Pilih 4 Nomor (1 - 20)</h4>
-                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.15rem;" id="lottery-selected-status">Terpilih: 0 / 4</div>
+                        <h4 style="font-size:0.85rem; font-weight:800; color:#fff; margin:0;">Pilih 4 Nomor (1 - 20)</h4>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.1rem;" id="lottery-selected-status">Terpilih: 0 / 4</div>
                     </div>
-                    <button id="btn-lottery-quickpick" class="bet-chip" style="border-radius:8px; font-size:0.75rem; font-weight:800; padding:6px 12px;">⚡ QUICK PICK</button>
+                    <button id="btn-lottery-quickpick" class="bet-chip" style="border-radius:6px; font-size:0.72rem; font-weight:800; padding:4px 8px;">⚡ QUICK PICK</button>
                 </div>
 
-                <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; justify-items: center; margin-bottom: 1.25rem;">
+                <div class="lottery-grid-cols">
                     ${numberGrid}
                 </div>
 
                 <!-- Ticket Amount Selector -->
-                <div style="border-top:1px solid rgba(255,255,255,0.05); padding-top:1rem; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+                <div class="lottery-qty-cost-bar">
                     <div style="text-align:left;">
-                        <label style="display:block; font-size:0.75rem; color:rgba(255,255,255,0.5); margin-bottom:0.15rem; font-weight:700;">JUMLAH TIKET</label>
-                        <input type="number" id="lottery-ticket-qty" value="1" min="1" max="100" style="background:var(--bg-surface); border:1px solid var(--border-color); font-size:1.1rem; font-weight:700; color:#fff; width:100px; text-align:center; border-radius:8px; padding: 0.35rem 0.5rem; outline:none;">
+                        <label style="display:block; font-size:0.68rem; color:rgba(255,255,255,0.5); margin-bottom:0.1rem; font-weight:700;">JUMLAH TIKET</label>
+                        <input type="number" id="lottery-ticket-qty" value="1" min="1" max="100" style="background:var(--bg-surface); border:1px solid var(--border-color); font-size:0.95rem; font-weight:700; color:#fff; width:80px; text-align:center; border-radius:6px; padding: 0.25rem; outline:none;">
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:0.75rem; color:rgba(255,255,255,0.5); font-weight:700;">TOTAL BIAYA</div>
-                        <div style="font-size:1.4rem; font-weight:900; color:#fff; margin-top:0.1rem;" id="lottery-total-cost-display">$ 10,000</div>
+                        <div style="font-size:0.68rem; color:rgba(255,255,255,0.5); font-weight:700;">TOTAL BIAYA</div>
+                        <div style="font-size:1.15rem; font-weight:900; color:#fff; margin-top:0.1rem;" id="lottery-total-cost-display">$ 10,000</div>
                     </div>
                 </div>
             </div>
 
             <!-- Draw Ball Animation Area -->
-            <div id="lottery-draw-area" style="background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.05); border-radius:20px; padding:1.5rem; margin-bottom:1.5rem; position:relative; overflow:hidden; min-height:110px; display:flex; align-items:center; justify-content:center;">
-                <div id="lottery-balls-container" style="display:flex; gap:1.25rem; justify-content:center; align-items:center; width:100%;">
-                    <span style="color:rgba(255,255,255,0.2); font-size:0.8rem; font-style:italic;">Hasil undian akan muncul di sini...</span>
+            <div id="lottery-draw-area" class="lottery-draw-area-box">
+                <div id="lottery-balls-container" style="display:flex; gap:0.75rem; justify-content:center; align-items:center; width:100%;">
+                    <span style="color:rgba(255,255,255,0.2); font-size:0.75rem; font-style:italic;">Hasil undian akan muncul di sini...</span>
                 </div>
             </div>
 
             <!-- Buy & Draw Action -->
-            <button id="btn-lottery-buy-draw" class="spin-btn" style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%); border:none; font-weight:900; font-size:1.3rem; padding:1.1rem 3rem; width:100%; border-radius:14px; box-shadow:0 6px 20px rgba(245,158,11,0.3); cursor:pointer; transition:all 0.25s; color:#fff; letter-spacing:0.05em; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+            <button id="btn-lottery-buy-draw" class="spin-btn-action-lottery">
                 🎫 BELI &amp; UNDI SEKARANG
             </button>
 
             <!-- Draw Payout table & History -->
-            <div style="margin-top:2rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:1.5rem; display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; text-align:left;">
+            <div class="lottery-footer-grid">
                 <div>
-                    <div style="font-size:0.7rem; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.1em; font-weight:800; margin-bottom:0.75rem;">— KELAS HADIAH TIKET —</div>
-                    <div style="display:flex; flex-direction:column; gap:0.4rem; font-size:0.75rem;">
-                        <div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.02); padding:0.4rem 0.6rem; border-radius:6px;">
-                            <span>4 Match (Jackpot)</span>
+                    <div style="font-size:0.65rem; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.08em; font-weight:800; margin-bottom:0.4rem;">— KELAS HADIAH TIKET —</div>
+                    <div style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.72rem;">
+                        <div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.02); padding:0.3rem 0.5rem; border-radius:6px;">
+                            <span>4 Match</span>
                             <span style="color:#fbbf24; font-weight:800;">100% JACKPOT</span>
                         </div>
-                        <div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.02); padding:0.4rem 0.6rem; border-radius:6px;">
+                        <div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.02); padding:0.3rem 0.5rem; border-radius:6px;">
                             <span>3 Match</span>
                             <span style="color:#fbbf24; font-weight:800;">100× Taruhan</span>
                         </div>
-                        <div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.02); padding:0.4rem 0.6rem; border-radius:6px;">
+                        <div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.02); padding:0.3rem 0.5rem; border-radius:6px;">
                             <span>2 Match</span>
                             <span style="color:#fbbf24; font-weight:800;">10x Taruhan</span>
                         </div>
-                        <div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.02); padding:0.4rem 0.6rem; border-radius:6px;">
+                        <div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.02); padding:0.3rem 0.5rem; border-radius:6px;">
                             <span>1 Match</span>
                             <span style="color:#fbbf24; font-weight:800;">2x Taruhan</span>
                         </div>
                     </div>
                 </div>
                 <div>
-                    <div style="font-size:0.7rem; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.1em; font-weight:800; margin-bottom:0.75rem;">— RIWAYAT UNDIAN —</div>
-                    <div style="display:flex; flex-direction:column; gap:0.4rem;" id="lottery-history-list">
+                    <div style="font-size:0.65rem; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.08em; font-weight:800; margin-bottom:0.4rem;">— RIWAYAT UNDIAN —</div>
+                    <div style="display:flex; flex-direction:column; gap:0.25rem;" id="lottery-history-list">
                         ${historyHTML}
                     </div>
                 </div>
@@ -170,6 +158,103 @@ export class LotteryEngine {
         </div>
 
         <style>
+            .lottery-jackpot-banner {
+                background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(20,15,10,0.9) 100%);
+                border: 2px dashed #f59e0b;
+                border-radius: 16px;
+                padding: 1rem;
+                margin-bottom: 0.75rem;
+                box-shadow: 0 0 16px rgba(245,158,11,0.08);
+            }
+            .lottery-jackpot-val-text {
+                font-size: 1.8rem; 
+                font-weight: 900; 
+                color: #fbbf24; 
+                margin-top: 0.15rem; 
+                text-shadow: 0 0 10px rgba(251,191,36,0.25); 
+                display: flex; 
+                justify-content: center; 
+                align-items: baseline; 
+                gap: 0.2rem;
+            }
+            .lottery-number-picker-board {
+                background:rgba(0,0,0,0.2); 
+                border:1px solid rgba(255,255,255,0.06); 
+                border-radius:16px; 
+                padding:1rem; 
+                margin-bottom:0.75rem;
+            }
+            .lottery-grid-cols {
+                display:grid; 
+                grid-template-columns: repeat(5, 1fr); 
+                gap: 0.5rem; 
+                justify-items: center; 
+                margin-bottom: 0.75rem;
+            }
+            .lottery-num-btn {
+                width: 38px; 
+                height: 38px; 
+                border-radius: 50%;
+                background: rgba(255,255,255,0.04);
+                color: rgba(255,255,255,0.8);
+                border: 1px solid rgba(255,255,255,0.1);
+                font-weight: 800; 
+                font-size: 0.9rem; 
+                cursor: pointer; 
+                transition: all 0.2s;
+            }
+            .lottery-num-btn.selected {
+                background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+                color: #000 !important;
+                border-color: #fbbf24 !important;
+            }
+            .lottery-qty-cost-bar {
+                border-top:1px solid rgba(255,255,255,0.05); 
+                padding-top:0.75rem; 
+                display:flex; 
+                justify-content:space-between; 
+                align-items:center; 
+                gap:1rem; 
+                flex-wrap:wrap;
+            }
+            .lottery-draw-area-box {
+                background:rgba(255,255,255,0.01); 
+                border:1px solid rgba(255,255,255,0.05); 
+                border-radius:16px; 
+                padding:0.75rem; 
+                margin-bottom:0.75rem; 
+                position:relative; 
+                overflow:hidden; 
+                min-height:72px; 
+                display:flex; 
+                align-items:center; 
+                justify-content:center;
+            }
+            .spin-btn-action-lottery {
+                background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%); 
+                border:none; 
+                font-weight:900; 
+                font-size:1.15rem; 
+                padding:0.8rem 2rem; 
+                width:100%; 
+                border-radius:10px; 
+                box-shadow:0 4px 12px rgba(245,158,11,0.25); 
+                cursor:pointer; 
+                transition:all 0.25s; 
+                color:#fff; 
+                letter-spacing:0.05em; 
+                text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            }
+            .lottery-footer-grid {
+                margin-top:1.25rem; 
+                border-top:1px solid rgba(255,255,255,0.05); 
+                padding-top:1rem; 
+                display:grid; 
+                grid-template-columns:1fr 1fr; 
+                gap:1rem; 
+                text-align:left;
+            }
+
             .lottery-num-btn:hover:not(.selected) {
                 background: rgba(255,255,255,0.08) !important;
                 border-color: rgba(255,255,255,0.2) !important;
@@ -184,12 +269,56 @@ export class LotteryEngine {
                 to { transform: rotate(360deg); }
             }
             .lottery-ball {
-                width: 52px; height: 52px; border-radius: 50%;
+                width: 38px; height: 38px; border-radius: 50%;
                 display: flex; align-items: center; justify-content: center;
-                font-weight: 900; font-size: 1.25rem; color: #000;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset -4px -4px 12px rgba(0,0,0,0.3), inset 4px 4px 12px rgba(255,255,255,0.4);
+                font-weight: 900; font-size: 1rem; color: #000;
+                box-shadow: 0 3px 6px rgba(0,0,0,0.4), inset -3px -3px 8px rgba(0,0,0,0.3), inset 3px 3px 8px rgba(255,255,255,0.4);
                 text-shadow: 0 1px 0 rgba(255,255,255,0.2);
                 animation: ballPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            }
+
+            @media (max-width: 600px) {
+                .lottery-jackpot-banner {
+                    padding: 0.5rem 0.75rem;
+                    border-radius: 12px;
+                    margin-bottom: 0.5rem;
+                }
+                .lottery-jackpot-val-text {
+                    font-size: 1.35rem;
+                }
+                .lottery-number-picker-board {
+                    padding: 0.65rem;
+                    margin-bottom: 0.5rem;
+                    border-radius: 12px;
+                }
+                .lottery-grid-cols {
+                    gap: 0.35rem;
+                    margin-bottom: 0.5rem;
+                }
+                .lottery-num-btn {
+                    width: 30px;
+                    height: 30px;
+                    font-size: 0.8rem;
+                }
+                .lottery-qty-cost-bar {
+                    padding-top: 0.5rem;
+                }
+                .lottery-draw-area-box {
+                    padding: 0.4rem;
+                    min-height: 52px;
+                    margin-bottom: 0.5rem;
+                    border-radius: 12px;
+                }
+                .spin-btn-action-lottery {
+                    font-size: 1rem;
+                    padding: 0.65rem 1.5rem;
+                }
+                .lottery-footer-grid {
+                    grid-template-columns: 1fr;
+                    gap: 0.75rem;
+                    margin-top: 0.75rem;
+                    padding-top: 0.75rem;
+                }
             }
         </style>
         `;
@@ -255,14 +384,8 @@ export class LotteryEngine {
             const isSelected = this.selectedNumbers.includes(num);
             if (isSelected) {
                 btn.classList.add('selected');
-                btn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
-                btn.style.color = '#000';
-                btn.style.borderColor = '#fbbf24';
             } else {
                 btn.classList.remove('selected');
-                btn.style.background = 'rgba(255,255,255,0.04)';
-                btn.style.color = 'rgba(255,255,255,0.8)';
-                btn.style.borderColor = 'rgba(255,255,255,0.1)';
             }
         });
 
@@ -328,20 +451,17 @@ export class LotteryEngine {
 
         // Animate drawing balls one by one
         for (let i = 0; i < 4; i++) {
-            // Spinning placeholder ball
             if (ballsContainer) {
                 const placeholder = document.createElement('div');
                 placeholder.className = 'lottery-ball';
                 placeholder.style.background = 'rgba(255,255,255,0.05)';
                 placeholder.style.color = '#fff';
-                placeholder.style.border = '2px dashed rgba(255,255,255,0.2)';
+                placeholder.style.border = '1px dashed rgba(255,255,255,0.2)';
                 placeholder.innerHTML = '🔮';
                 ballsContainer.appendChild(placeholder);
 
-                // Wait 800ms spinning
-                await new Promise(r => setTimeout(r, 850));
+                await new Promise(r => setTimeout(r, 650));
                 
-                // Replace with actual colored ball
                 placeholder.style.background = ballColors[i];
                 placeholder.style.border = 'none';
                 placeholder.style.color = '#000';
@@ -407,18 +527,18 @@ export class LotteryEngine {
             historyList.innerHTML = freshHistory.map(h => {
                 const isWin = h.payout > 0;
                 return `
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding: 0.5rem 0.75rem; border-radius: 8px; font-size:0.75rem; border:1px solid rgba(255,255,255,0.03);">
-                        <div style="display:flex; align-items:center; gap:0.4rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding: 0.35rem 0.5rem; border-radius: 6px; font-size:0.7rem; border:1px solid rgba(255,255,255,0.03);">
+                        <div style="display:flex; align-items:center; gap:0.3rem;">
                             <span>🎫 ${h.selected.join(', ')}</span>
-                            <span style="color:rgba(255,255,255,0.3);">vs</span>
+                            <span style="color:rgba(255,255,255,0.3); font-size: 0.6rem;">vs</span>
                             <span style="color:#fbbf24; font-weight:700;">🔮 ${h.drawn.join(', ')}</span>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-weight:700; color:${isWin ? '#34d399' : 'var(--text-muted)'}">${h.matches} Match (${isWin ? '+' + financeManager.formatCurrency(h.payout) : 'Kalah'})</div>
+                            <div style="font-weight:700; color:${isWin ? '#34d399' : 'var(--text-muted)'}">${h.matches} M (${isWin ? '+' + financeManager.formatCurrency(h.payout) : '0'})</div>
                         </div>
                     </div>
                 `;
-            }).join('');
+            }).slice(0, 3).join('');
         }
 
         const jpDisplayRefreshed = document.getElementById('lottery-jackpot-pool-val');

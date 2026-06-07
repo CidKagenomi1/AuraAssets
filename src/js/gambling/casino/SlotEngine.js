@@ -2,6 +2,7 @@
  * SlotEngine.js - Premium Gold Digger 6x3 Multi-Line Slot Engine
  * Handles 6 columns x 3 rows grid mechanics, 5 payline checking,
  * cascading visual animations, canvas particle effects, and auto spin.
+ * Mobile responsive optimized (preventing vertical scrolling).
  */
 
 import financeManager from '../../finance/FinanceManager.js';
@@ -75,93 +76,195 @@ export class SlotEngine {
         let colsHTML = '';
         for (let col = 0; col < 6; col++) {
             colsHTML += `
-                <div class="slot-reel-wrap" style="overflow:hidden; height:240px; border-radius:12px; background:#1c130e; border:2px solid #3c2419; position:relative; display: flex; flex-direction: column; justify-content: space-around; padding: 5px 0;">
-                    <div id="slot-reel-${col}-0" class="slot-symbol-block" style="font-size:3rem; height: 72px; display:flex; align-items:center; justify-content:center; transition:transform 0.1s; transform: scale(1);">🪨</div>
-                    <div id="slot-reel-${col}-1" class="slot-symbol-block" style="font-size:3rem; height: 72px; display:flex; align-items:center; justify-content:center; transition:transform 0.1s; transform: scale(1);">🪨</div>
-                    <div id="slot-reel-${col}-2" class="slot-symbol-block" style="font-size:3rem; height: 72px; display:flex; align-items:center; justify-content:center; transition:transform 0.1s; transform: scale(1);">🪨</div>
+                <div class="slot-reel-wrap">
+                    <div id="slot-reel-${col}-0" class="slot-symbol-block">🪨</div>
+                    <div id="slot-reel-${col}-1" class="slot-symbol-block">🪨</div>
+                    <div id="slot-reel-${col}-2" class="slot-symbol-block">🪨</div>
                 </div>
             `;
         }
 
         return `
         <div style="max-width: 720px; margin: 0 auto; text-align: center;">
-            <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.5rem; font-size: 1.6rem; letter-spacing: -0.03em;">
+            <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.35rem; font-size: 1.4rem; letter-spacing: -0.03em;">
                 🎰 <span style="background: linear-gradient(90deg,#fbbf24,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">GOLDY CRUSH</span> SLOT
             </h3>
-            <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:1.5rem; text-transform:uppercase; letter-spacing:0.1em;">6 Kolom, 3 Baris &amp; 5 Garis Payout (Kemenangan Ganda!)</p>
+            <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">6 Kolom, 3 Baris &amp; 5 Garis Payout (Kemenangan Ganda!)</p>
 
             <!-- Slot Machine Cabinet -->
-            <div class="slot-cabinet" style="position:relative; background: linear-gradient(180deg, #2d1e18 0%, #170f0b 100%); border: 3px solid #fbbf24; border-radius: 28px; padding: 1.75rem; margin-bottom: 1.5rem; box-shadow: 0 0 40px rgba(251,191,36,0.25), inset 0 0 30px rgba(0,0,0,0.7); overflow: hidden;">
+            <div class="slot-cabinet">
                 
                 <!-- Particle overlay canvas -->
                 <canvas id="slot-particle-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10;"></canvas>
 
                 <!-- Top lights row (Industrial Gold Theme) -->
-                <div style="display:flex; justify-content:center; gap:0.5rem; margin-bottom:1rem;">
-                    ${Array.from({length:9}, (_,i) => `<div class="slot-light" style="width:10px;height:10px;border-radius:50%;background:${i%2===0?'#fbbf24':'#f97316'};box-shadow:0 0 8px ${i%2===0?'#fbbf24':'#f97316'};animation:lightBlink ${0.5+i*0.1}s ease-in-out infinite alternate;"></div>`).join('')}
+                <div style="display:flex; justify-content:center; gap:0.4rem; margin-bottom:0.6rem;">
+                    ${Array.from({length:9}, (_,i) => `<div class="slot-light" style="width:8px;height:8px;border-radius:50%;background:${i%2===0?'#fbbf24':'#f97316'};box-shadow:0 0 6px ${i%2===0?'#fbbf24':'#f97316'};animation:lightBlink ${0.5+i*0.1}s ease-in-out infinite alternate;"></div>`).join('')}
                 </div>
 
                 <!-- Reels Window -->
-                <div class="slot-window" style="background:#0a0705; border:3px solid #513629; border-radius:20px; padding:0.75rem; margin-bottom:1rem; position:relative; overflow:hidden;">
+                <div class="slot-window">
+                    <!-- Payline indicator (Red laser/spark laser) -->
+                    <div style="position:absolute; top:50%; left:0; right:0; height:2px; background:rgba(249,115,22,0.6); transform:translateY(-50%); z-index:2; pointer-events:none; box-shadow: 0 0 6px #f97316;"></div>
                     
-                    <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:0.5rem; position:relative; z-index:1;">
+                    <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:0.35rem; position:relative; z-index:1;">
                         ${colsHTML}
                     </div>
                 </div>
 
                 <!-- Win Display -->
-                <div id="slot-win-display" style="min-height:36px; display:flex; flex-direction:column; align-items:center; justify-content:center; background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(251,191,36,0.1); padding: 0.25rem 0.5rem;">
-                    <span style="color:rgba(255,255,255,0.25); font-size:0.8rem; font-style:italic; text-transform:uppercase; letter-spacing:0.1em;">Tekan Gali Tambang Untuk Memulai...</span>
+                <div id="slot-win-display" class="slot-win-display-box">
+                    <span style="color:rgba(255,255,255,0.25); font-size:0.75rem; font-style:italic; text-transform:uppercase; letter-spacing:0.08em;">Tekan Gali Tambang Untuk Memulai...</span>
                 </div>
             </div>
 
             <!-- Auto Spin Controls -->
-            <div style="background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.05); border-radius:16px; padding:1.25rem; margin-bottom:1.25rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap: wrap;">
-                <div style="text-align:left; flex: 1; min-width: 130px;">
-                    <label style="display:block; font-size:0.75rem; color:rgba(255,255,255,0.5); margin-bottom:0.25rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em;">AUTO SPIN COUNT</label>
-                    <input type="number" id="slot-autospin-count" value="10" min="1" max="1000" style="background:var(--bg-surface); border:1px solid var(--border-color); font-size:1.1rem; font-weight:700; color:#fff; width:100%; text-align:center; border-radius:8px; padding: 0.35rem 0.5rem; outline:none;">
+            <div class="slot-controls-box">
+                <div style="text-align:left; flex: 1; min-width: 110px;">
+                    <label style="display:block; font-size:0.65rem; color:rgba(255,255,255,0.5); margin-bottom:0.15rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;">AUTO SPIN</label>
+                    <input type="number" id="slot-autospin-count" value="10" min="1" max="1000" style="background:var(--bg-surface); border:1px solid var(--border-color); font-size:1rem; font-weight:700; color:#fff; width:100%; text-align:center; border-radius:6px; padding: 0.25rem 0.4rem; outline:none;">
                 </div>
-                <div style="flex:2; display:flex; gap:0.5rem; height: 44px; margin-top: auto; min-width: 200px;">
-                    <button id="btn-slot-auto-start" class="bet-chip" style="flex:1; border-radius:10px; background: rgba(251,191,36,0.15); border-color: rgba(251,191,36,0.3); color: #fbbf24; font-size:0.85rem; font-weight: 800;">🤖 AUTO SPIN</button>
-                    <button id="btn-slot-auto-stop" class="bet-chip" style="flex:1; border-radius:10px; background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #ef4444; font-size:0.85rem; font-weight: 800; display:none;">⏹️ STOP (0)</button>
+                <div style="flex:1.5; display:flex; gap:0.4rem; height: 36px; margin-top: auto; min-width: 150px;">
+                    <button id="btn-slot-auto-start" class="bet-chip" style="flex:1; border-radius:8px; background: rgba(251,191,36,0.15); border-color: rgba(251,191,36,0.3); color: #fbbf24; font-size:0.8rem; font-weight: 800;">🤖 AUTO SPIN</button>
+                    <button id="btn-slot-auto-stop" class="bet-chip" style="flex:1; border-radius:8px; background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #ef4444; font-size:0.8rem; font-weight: 800; display:none;">⏹️ STOP (0)</button>
                 </div>
             </div>
 
             <!-- Bet Panel -->
-            <div style="background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.05); border-radius:16px; padding:1.25rem; margin-bottom:1.25rem;">
-                <label style="display:block; font-size:0.75rem; color:rgba(255,255,255,0.5); margin-bottom:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em;">JUMLAH TARUHAN</label>
-                <div style="display:flex; gap:0.4rem; align-items:center; justify-content:center; margin-bottom:0.75rem;">
-                    <span style="font-size:1.4rem; font-weight:900; color:#fbbf24;">$</span>
-                    <input type="text" id="slot-bet-input" value="100,000" style="background:transparent; border:none; font-size:1.75rem; font-weight:900; color:#fff; width:200px; text-align:center; border-bottom:2px solid rgba(251,191,36,0.4); outline:none; padding:0.25rem 0;">
+            <div class="slot-bet-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem; flex-wrap:wrap; gap:0.25rem;">
+                    <label style="font-size:0.68rem; color:rgba(255,255,255,0.5); font-weight:700; text-transform:uppercase; letter-spacing:0.08em;">TARUHAN</label>
+                    <div style="display:flex; gap:0.25rem; align-items:center;">
+                        <span style="font-size:1.1rem; font-weight:900; color:#fbbf24;">$</span>
+                        <input type="text" id="slot-bet-input" value="100,000" style="background:transparent; border:none; font-size:1.3rem; font-weight:900; color:#fff; width:110px; text-align:right; border-bottom:1.5px solid rgba(251,191,36,0.4); outline:none; padding:0.1rem 0;">
+                    </div>
                 </div>
-                <div style="display:flex; gap:0.4rem; justify-content:center; flex-wrap:wrap;">
-                    <button class="bet-chip slot-preset" data-val="10000">$10K</button>
-                    <button class="bet-chip slot-preset" data-val="100000">$100K</button>
-                    <button class="bet-chip slot-preset" data-val="1000000">$1M</button>
-                    <button class="bet-chip slot-preset" data-val="10000000">$10M</button>
-                    <button class="bet-chip bet-chip-max slot-preset" id="btn-slot-max">MAX</button>
+                <div style="display:flex; gap:0.35rem; justify-content:center; flex-wrap:wrap;">
+                    <button class="bet-chip slot-preset" data-val="10000" style="padding:0.25rem 0.5rem; font-size:0.7rem;">$10K</button>
+                    <button class="bet-chip slot-preset" data-val="100000" style="padding:0.25rem 0.5rem; font-size:0.7rem;">$100K</button>
+                    <button class="bet-chip slot-preset" data-val="1000000" style="padding:0.25rem 0.5rem; font-size:0.7rem;">$1M</button>
+                    <button class="bet-chip slot-preset" data-val="10000000" style="padding:0.25rem 0.5rem; font-size:0.7rem;">$10M</button>
+                    <button class="bet-chip bet-chip-max slot-preset" id="btn-slot-max" style="padding:0.25rem 0.5rem; font-size:0.7rem;">MAX</button>
                 </div>
             </div>
 
             <!-- Spin Button -->
-            <button id="btn-slot-spin" class="spin-btn" style="background:linear-gradient(135deg,#fbbf24 0%,#d97706 100%); border:none; font-weight:900; font-size:1.3rem; padding:1.1rem 3rem; width:100%; border-radius:14px; box-shadow:0 6px 20px rgba(251,191,36,0.3); cursor:pointer; transition:all 0.25s; color:#fff; letter-spacing:0.05em; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+            <button id="btn-slot-spin" class="spin-btn-action">
                 ⛏️ GALI TAMBANG
             </button>
 
             <!-- Paytable Info -->
-            <div style="margin-top:1.5rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:1.25rem; text-align:left;">
-                <div style="font-size:0.7rem; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.1em; font-weight:700; margin-bottom:0.75rem; text-align:center;">— TABEL KELIPATAN MULTIPLIER (6x3) —</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; font-size:0.75rem;">
+            <div class="slot-paytable-container">
+                <div style="font-size:0.65rem; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.08em; font-weight:700; margin-bottom:0.5rem; text-align:center;">— TABEL KELIPATAN MULTIPLIER (6x3) —</div>
+                <div class="slot-paytable-grid">
                     ${SYMBOLS.map(s => `
-                    <div style="background:rgba(255,255,255,0.02); padding:0.4rem 0.6rem; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-                        <span>${s.emoji} ${s.name}</span>
-                        <span style="color:#fbbf24; font-weight:700;">3x: ${s.multiplier3x}× | 4x: ${s.multiplier3x * 2.5}× | 5x: ${s.multiplier3x * 6}× | 6x: ${s.multiplier3x * 15}×</span>
+                    <div style="background:rgba(255,255,255,0.02); padding:0.3rem 0.5rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.72rem;">${s.emoji} ${s.name}</span>
+                        <span style="color:#fbbf24; font-weight:700; font-size:0.68rem;">3x:${s.multiplier3x}× | 4x:${s.multiplier3x * 2.5}× | 5x:${s.multiplier3x * 6}× | 6x:${s.multiplier3x * 15}×</span>
                     </div>`).join('')}
                 </div>
             </div>
         </div>
 
         <style>
+            .slot-cabinet {
+                position:relative; 
+                background: linear-gradient(180deg, #2d1e18 0%, #170f0b 100%); 
+                border: 3px solid #fbbf24; 
+                border-radius: 20px; 
+                padding: 1.25rem; 
+                margin-bottom: 0.75rem; 
+                box-shadow: 0 0 30px rgba(251,191,36,0.2), inset 0 0 20px rgba(0,0,0,0.7); 
+                overflow: hidden;
+            }
+            .slot-window {
+                background:#0a0705; 
+                border:3px solid #513629; 
+                border-radius:14px; 
+                padding:0.5rem; 
+                margin-bottom:0.6rem; 
+                position:relative; 
+                overflow:hidden;
+            }
+            .slot-reel-wrap {
+                overflow:hidden; 
+                height: 180px; 
+                border-radius:8px; 
+                background:#1c130e; 
+                border:1px solid #3c2419; 
+                position:relative; 
+                display: flex; 
+                flex-direction: column; 
+                justify-content: space-around; 
+                padding: 3px 0;
+            }
+            .slot-symbol-block {
+                font-size:2.2rem; 
+                height: 52px; 
+                display:flex; 
+                align-items:center; 
+                justify-content:center; 
+                transition:transform 0.1s; 
+                transform: scale(1);
+            }
+            .slot-win-display-box {
+                min-height:30px; 
+                display:flex; 
+                flex-direction:column; 
+                align-items:center; 
+                justify-content:center; 
+                background: rgba(0,0,0,0.3); 
+                border-radius: 6px; 
+                border: 1px solid rgba(251,191,36,0.1); 
+                padding: 0.2rem 0.4rem;
+            }
+            .slot-controls-box {
+                background:rgba(0,0,0,0.2); 
+                border:1px solid rgba(255,255,255,0.05); 
+                border-radius:12px; 
+                padding:0.75rem; 
+                margin-bottom:0.75rem; 
+                display:flex; 
+                align-items:center; 
+                justify-content:space-between; 
+                gap:0.75rem; 
+                flex-wrap: wrap;
+            }
+            .slot-bet-panel {
+                background:rgba(0,0,0,0.2); 
+                border:1px solid rgba(255,255,255,0.05); 
+                border-radius:12px; 
+                padding:0.75rem; 
+                margin-bottom:0.75rem;
+            }
+            .spin-btn-action {
+                background:linear-gradient(135deg,#fbbf24 0%,#d97706 100%); 
+                border:none; 
+                font-weight:900; 
+                font-size:1.15rem; 
+                padding:0.8rem 2rem; 
+                width:100%; 
+                border-radius:10px; 
+                box-shadow:0 4px 12px rgba(251,191,36,0.25); 
+                cursor:pointer; 
+                transition:all 0.25s; 
+                color:#fff; 
+                letter-spacing:0.05em; 
+                text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            }
+            .slot-paytable-container {
+                margin-top:1rem; 
+                border-top:1px solid rgba(255,255,255,0.05); 
+                padding-top:1rem; 
+                text-align:left;
+            }
+            .slot-paytable-grid {
+                display:grid; 
+                grid-template-columns:1fr 1fr; 
+                gap:0.35rem; 
+                font-size:0.7rem;
+            }
+
             @keyframes lightBlink { to { opacity: 0.2; } }
             @keyframes slotSpin {
                 0% { transform: translateY(0); }
@@ -175,17 +278,17 @@ export class SlotEngine {
                 0%, 100% { background: linear-gradient(135deg,#fbbf24 0%,#d97706 100%); }
                 50% { background: linear-gradient(135deg,#f43f5e 0%,#e11d48 100%); }
             }
-            .spin-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(251,191,36,0.55) !important; }
-            .spin-btn:active:not(:disabled) { transform: translateY(0); }
-            .spin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+            .spin-btn-action:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(251,191,36,0.45) !important; }
+            .spin-btn-action:active:not(:disabled) { transform: translateY(0); }
+            .spin-btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
             .bet-chip {
                 background: rgba(255,255,255,0.05);
                 border: 1px solid rgba(255,255,255,0.1);
                 color: rgba(255,255,255,0.8);
-                font-size: 0.75rem;
+                font-size: 0.72rem;
                 font-weight: 700;
-                padding: 0.35rem 0.75rem;
-                border-radius: 20px;
+                padding: 0.25rem 0.5rem;
+                border-radius: 12px;
                 cursor: pointer;
                 transition: all 0.2s;
             }
@@ -195,15 +298,15 @@ export class SlotEngine {
             /* Shake & Praise Animation styles */
             @keyframes shake {
                 0%, 100% { transform: translate(0, 0) rotate(0deg); }
-                10% { transform: translate(-3px, 2px) rotate(-1deg); }
-                20% { transform: translate(2px, -3px) rotate(1deg); }
-                30% { transform: translate(-1px, 2px) rotate(0deg); }
-                40% { transform: translate(3px, 1px) rotate(1deg); }
-                50% { transform: translate(-2px, -2px) rotate(-1deg); }
-                60% { transform: translate(1px, 3px) rotate(0deg); }
-                70% { transform: translate(-3px, 1px) rotate(1deg); }
-                80% { transform: translate(2px, -2px) rotate(-1deg); }
-                90% { transform: translate(-1px, 3px) rotate(0deg); }
+                10% { transform: translate(-2px, 1px) rotate(-0.5deg); }
+                20% { transform: translate(1px, -2px) rotate(0.5deg); }
+                30% { transform: translate(-1px, 1px) rotate(0deg); }
+                40% { transform: translate(2px, 1px) rotate(0.5deg); }
+                50% { transform: translate(-1px, -1px) rotate(-0.5deg); }
+                60% { transform: translate(1px, 2px) rotate(0deg); }
+                70% { transform: translate(-2px, 1px) rotate(0.5deg); }
+                80% { transform: translate(1px, -1px) rotate(-0.5deg); }
+                90% { transform: translate(-1px, 2px) rotate(0deg); }
             }
             .shake-anim {
                 animation: shake 0.5s ease-in-out;
@@ -211,21 +314,63 @@ export class SlotEngine {
 
             @keyframes praiseBounce {
                 0% { transform: translate(-50%, -50%) scale(0) rotate(-10deg); opacity: 0; }
-                30% { transform: translate(-50%, -50%) scale(1.35) rotate(5deg); opacity: 1; }
+                30% { transform: translate(-50%, -50%) scale(1.25) rotate(5deg); opacity: 1; }
                 40% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
-                80% { opacity: 1; transform: translate(-50%, -70%) scale(1); }
-                100% { opacity: 0; transform: translate(-50%, -90%) scale(0.7); }
+                80% { opacity: 1; transform: translate(-50%, -65%) scale(1); }
+                100% { opacity: 0; transform: translate(-50%, -80%) scale(0.7); }
             }
 
             .winning-symbol {
                 background: rgba(251,191,36,0.2) !important;
                 border: 2px solid #fbbf24 !important;
-                border-radius: 8px;
+                border-radius: 6px;
                 animation: pulseSymbol 0.5s ease-in-out infinite alternate;
             }
             @keyframes pulseSymbol {
                 0% { transform: scale(1); }
-                100% { transform: scale(1.1); }
+                100% { transform: scale(1.08); }
+            }
+
+            /* Responsive Media Queries to avoid scrolling and overflow */
+            @media (max-width: 600px) {
+                .slot-cabinet {
+                    padding: 0.5rem;
+                    border-radius: 14px;
+                    margin-bottom: 0.5rem;
+                }
+                .slot-window {
+                    padding: 0.35rem;
+                    margin-bottom: 0.4rem;
+                }
+                .slot-reel-wrap {
+                    height: 120px;
+                    border-radius: 6px;
+                    padding: 1px 0;
+                }
+                .slot-symbol-block {
+                    font-size: 1.45rem;
+                    height: 36px;
+                }
+                .slot-controls-box {
+                    padding: 0.5rem;
+                    margin-bottom: 0.5rem;
+                    gap: 0.5rem;
+                }
+                .slot-bet-panel {
+                    padding: 0.5rem;
+                    margin-bottom: 0.5rem;
+                }
+                .spin-btn-action {
+                    font-size: 1rem;
+                    padding: 0.65rem 1.5rem;
+                }
+                .slot-paytable-grid {
+                    grid-template-columns: 1fr;
+                    gap: 0.25rem;
+                }
+                .slot-win-display-box {
+                    min-height: 24px;
+                }
             }
         </style>
         `;
@@ -427,7 +572,7 @@ export class SlotEngine {
                     const el = document.getElementById(`slot-reel-${colIdx}-${r}`);
                     if (el) {
                         el.textContent = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)].emoji;
-                        el.style.filter = 'blur(2px)';
+                        el.style.filter = 'blur(1px)';
                     }
                 }
                 ticks++;
@@ -438,7 +583,7 @@ export class SlotEngine {
                         if (el) {
                             el.textContent = finalEmojis[r];
                             el.style.filter = 'none';
-                            el.style.transform = 'scale(1.1)';
+                            el.style.transform = 'scale(1.08)';
                             setTimeout(() => { el.style.transform = 'scale(1)'; }, 150);
                         }
                     }
@@ -473,11 +618,11 @@ export class SlotEngine {
         const spinBtn = document.getElementById('btn-slot-spin');
         if (spinBtn) {
             spinBtn.disabled = true;
-            spinBtn.innerHTML = '<span style="animation:spin 0.5s linear infinite;display:inline-block;">⛏️</span> MENGGALI TAMBANG (6x3)...';
+            spinBtn.innerHTML = '<span style="animation:spin 0.5s linear infinite;display:inline-block;">⛏️</span> MENGGALI TAMBANG...';
         }
 
         const winDisplay = document.getElementById('slot-win-display');
-        if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.8rem; font-style:italic;">Mesin Gali Sedang Bekerja...</span>`;
+        if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.75rem; font-style:italic;">Mesin Gali Sedang Bekerja...</span>`;
 
         // Deduct bet
         financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Slot 6x3');
@@ -626,14 +771,14 @@ export class SlotEngine {
             // Print lines won inside slot display
             if (winDisplay) {
                 winDisplay.innerHTML = `
-                    <div style="font-weight:800; font-size:0.9rem; color:#34d399; animation:winPulse 1.2s ease-in-out infinite;">✅ MENANG +$${financeManager.formatCurrency(totalPayout)}</div>
-                    <div style="font-size:0.68rem; color:rgba(255,255,255,0.5); max-height:40px; overflow-y:auto; width:100%; margin-top:2px;">
+                    <div style="font-weight:800; font-size:0.85rem; color:#34d399; animation:winPulse 1.2s ease-in-out infinite;">✅ MENANG +$${financeManager.formatCurrency(totalPayout)}</div>
+                    <div style="font-size:0.65rem; color:rgba(255,255,255,0.5); max-height:30px; overflow-y:auto; width:100%; margin-top:2px;">
                         ${winsList.join(' | ')}
                     </div>
                 `;
             }
         } else {
-            if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.8rem; font-style:italic;">Tidak ada kombinasi baris. Gali terus!</span>`;
+            if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.75rem; font-style:italic;">Tidak ada kombinasi baris. Gali terus!</span>`;
             ui.toast({ type: 'warning', title: 'Tambang Kosong', message: 'Tidak ada baris yang cocok!' });
         }
     }
