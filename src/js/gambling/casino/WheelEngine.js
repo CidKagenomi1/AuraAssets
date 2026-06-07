@@ -12,13 +12,15 @@ import cryptoMarket from '../../trading/CryptoMarket.js';
 
 const SECTORS = [
     { label: '💎 50.0x', multiplier: 50.0, color: '#fbbf24', text: '#000', type: 'usd' }, // Gold
-    { label: '🎁 10 FREE', multiplier: 0, color: '#3b82f6', text: '#fff', type: 'freespin' }, // Blue
     { label: '⭐ 2.0x',  multiplier: 2.0,  color: '#a855f7', text: '#fff', type: 'usd' }, // Purple
+    { label: '🪙 1.2x',  multiplier: 1.2,  color: '#f97316', text: '#fff', type: 'usd' }, // Orange
     { label: 'Ξ 0.1 ETH', multiplier: 0, amount: 0.1, symbol: 'ETH', color: '#627eea', text: '#fff', type: 'crypto' }, // ETH Blue
-    { label: '⚡ 10.0x', multiplier: 10.0, color: '#06b6d4', text: '#000', type: 'usd' }, // Cyan
+    { label: '⭐ 2.0x',  multiplier: 2.0,  color: '#a855f7', text: '#fff', type: 'usd' }, // Purple (Duplicated)
+    { label: '🎁 10 FREE', multiplier: 0, color: '#3b82f6', text: '#fff', type: 'freespin' }, // Blue
+    { label: '🪙 1.2x',  multiplier: 1.2,  color: '#f97316', text: '#fff', type: 'usd' }, // Orange (Duplicated)
     { label: '◎ 1.5 SOL', multiplier: 0, amount: 1.5, symbol: 'SOL', color: '#14f195', text: '#000', type: 'crypto' }, // SOL Neon Green
-    { label: '🔥 50 BONUS (3x)', multiplier: 0, color: '#ec4899', text: '#fff', type: 'bonusspin' }, // Magenta
-    { label: '🪙 5.0x',  multiplier: 5.0,  color: '#f97316', text: '#fff', type: 'usd' }  // Orange
+    { label: '⭐ 2.0x',  multiplier: 2.0,  color: '#a855f7', text: '#fff', type: 'usd' }, // Purple (Duplicated)
+    { label: '🔥 50 BONUS (3x)', multiplier: 0, color: '#ec4899', text: '#fff', type: 'bonusspin' } // Magenta
 ];
 
 export class WheelEngine {
@@ -115,7 +117,7 @@ export class WheelEngine {
                 <div class="wheel-pointer"></div>
 
                 <!-- SVG Wheel Circle -->
-                <div id="wheel-svg-container" class="wheel-svg-box">
+                <div id="wheel-svg-container" class="wheel-svg-box" style="transform: rotate(${this.currentRotation}deg);">
                     <svg viewBox="0 0 300 300" style="width:100%; height:100%;">
                         ${paths}
                         <!-- Center pin/decor -->

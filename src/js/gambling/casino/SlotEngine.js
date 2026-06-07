@@ -67,6 +67,8 @@ export class SlotEngine {
         this.particleLoopActive = false;
         this.autoSpinCount = 0;
         this.isAutoSpinning = false;
+        this.isSpeedUp = false;
+        this.skipRequested = false;
         // Matrix 6x3
         this.grid = Array.from({length: 6}, () => ['🪨', '🪨', '🪨']);
     }
@@ -148,10 +150,14 @@ export class SlotEngine {
                 </div>
             </div>
 
-            <!-- Spin Button -->
-            <button id="btn-slot-spin" class="spin-btn-action">
-                ⛏️ GALI TAMBANG
-            </button>
+            <!-- Action buttons container -->
+            <div style="display:flex; gap:0.4rem; margin-top:0.5rem; justify-content:center; width:100%;">
+                <button id="btn-slot-speedup" class="bet-chip" style="flex:1; border-radius:10px; font-weight:800; font-size:0.9rem; height:46px; background:rgba(251,191,36,0.05); border-color:rgba(251,191,36,0.2); color:rgba(255,255,255,0.7); cursor:pointer; transition:all 0.2s;">⚡ CEPAT</button>
+                <button id="btn-slot-spin" class="spin-btn-action" style="flex:2.2; height:46px; padding:0; display:flex; align-items:center; justify-content:center; margin:0;">
+                    ⛏️ GALI TAMBANG
+                </button>
+                <button id="btn-slot-skip" class="bet-chip" style="flex:1; border-radius:10px; font-weight:800; font-size:0.9rem; height:46px; background:rgba(168,85,247,0.05); border-color:rgba(168,85,247,0.2); color:rgba(255,255,255,0.4); cursor:pointer; transition:all 0.2s;" disabled>⏭️ LEWATI</button>
+            </div>
 
             <!-- Paytable Info -->
             <div class="slot-paytable-container">
@@ -403,6 +409,40 @@ export class SlotEngine {
             this.spin();
         });
 
+        // Speed Up Button Toggle
+        const speedupBtn = document.getElementById('btn-slot-speedup');
+        if (speedupBtn) {
+            const updateSpeedupUI = () => {
+                if (this.isSpeedUp) {
+                    speedupBtn.style.background = '#fbbf24';
+                    speedupBtn.style.borderColor = '#fbbf24';
+                    speedupBtn.style.color = '#000';
+                } else {
+                    speedupBtn.style.background = 'rgba(251,191,36,0.05)';
+                    speedupBtn.style.borderColor = 'rgba(251,191,36,0.2)';
+                    speedupBtn.style.color = 'rgba(255,255,255,0.7)';
+                }
+            };
+            updateSpeedupUI();
+
+            speedupBtn.addEventListener('click', () => {
+                this.isSpeedUp = !this.isSpeedUp;
+                updateSpeedupUI();
+                ui.toast({ type: 'info', title: this.isSpeedUp ? 'Mode Cepat Aktif ⚡' : 'Mode Normal 🐢', message: this.isSpeedUp ? 'Putaran slot akan berlangsung lebih cepat!' : 'Putaran slot kembali ke kecepatan biasa.' });
+            });
+        }
+
+        // Skip Button Click
+        const skipBtn = document.getElementById('btn-slot-skip');
+        if (skipBtn) {
+            skipBtn.addEventListener('click', () => {
+                if (this.isSpinning) {
+                    this.skipRequested = true;
+                    skipBtn.disabled = true;
+                }
+            });
+        }
+
         // Auto Spin Buttons
         document.getElementById('btn-slot-auto-start')?.addEventListener('click', () => {
             const countInput = document.getElementById('slot-autospin-count');
@@ -565,9 +605,37 @@ export class SlotEngine {
 
     async _animateReel(colIdx, finalEmojis, delay) {
         return new Promise(resolve => {
+            if (this.skipRequested) {
+                for (let r = 0; r < 3; r++) {
+                    const el = document.getElementById(`slot-reel-${colIdx}-${r}`);
+                    if (el) {
+                        el.textContent = finalEmojis[r];
+                        el.style.filter = 'none';
+                    }
+                }
+                resolve();
+                return;
+            }
+
             let ticks = 0;
-            const maxTicks = 10 + delay * 3;
+            const baseTicks = 10 + delay * 3;
+            const maxTicks = this.isSpeedUp ? Math.max(3, Math.floor(baseTicks / 2)) : baseTicks;
+            const intervalDuration = this.isSpeedUp ? 20 : 70;
+
             const interval = setInterval(() => {
+                if (this.skipRequested) {
+                    clearInterval(interval);
+                    for (let r = 0; r < 3; r++) {
+                        const el = document.getElementById(`slot-reel-${colIdx}-${r}`);
+                        if (el) {
+                            el.textContent = finalEmojis[r];
+                            el.style.filter = 'none';
+                        }
+                    }
+                    resolve();
+                    return;
+                }
+
                 for (let r = 0; r < 3; r++) {
                     const el = document.getElementById(`slot-reel-${colIdx}-${r}`);
                     if (el) {
@@ -584,12 +652,12 @@ export class SlotEngine {
                             el.textContent = finalEmojis[r];
                             el.style.filter = 'none';
                             el.style.transform = 'scale(1.08)';
-                            setTimeout(() => { el.style.transform = 'scale(1)'; }, 150);
+                            setTimeout(() => { el.style.transform = 'scale(1)'; }, this.isSpeedUp ? 50 : 150);
                         }
                     }
                     resolve();
                 }
-            }, 70);
+            }, intervalDuration);
         });
     }
 
@@ -615,6 +683,17 @@ export class SlotEngine {
         }
 
         this.isSpinning = true;
+        this.skipRequested = false;
+
+        // Enable skip button and style it active
+        const skipBtn = document.getElementById('btn-slot-skip');
+        if (skipBtn) {
+            skipBtn.disabled = false;
+            skipBtn.style.color = '#a855f7';
+            skipBtn.style.borderColor = 'rgba(168,85,247,0.6)';
+            skipBtn.style.background = 'rgba(168,85,247,0.15)';
+        }
+
         const spinBtn = document.getElementById('btn-slot-spin');
         if (spinBtn) {
             spinBtn.disabled = true;
@@ -644,8 +723,23 @@ export class SlotEngine {
 
         // Animate reels sequentially
         for (let col = 0; col < 6; col++) {
+            if (this.skipRequested) {
+                // Instantly resolve remaining reels
+                for (let c = col; c < 6; c++) {
+                    for (let r = 0; r < 3; r++) {
+                        const el = document.getElementById(`slot-reel-${c}-${r}`);
+                        if (el) {
+                            el.textContent = resultMatrix[c][r];
+                            el.style.filter = 'none';
+                        }
+                    }
+                }
+                break;
+            }
             await this._animateReel(col, resultMatrix[col], col);
-            await new Promise(r => setTimeout(r, 100));
+            if (!this.skipRequested) {
+                await new Promise(r => setTimeout(r, this.isSpeedUp ? 25 : 100));
+            }
         }
 
         // Evaluate result
@@ -657,6 +751,15 @@ export class SlotEngine {
             spinBtn.innerHTML = '⛏️ GALI TAMBANG';
         }
 
+        // Disable skip button and reset style
+        const skipBtnEnd = document.getElementById('btn-slot-skip');
+        if (skipBtnEnd) {
+            skipBtnEnd.disabled = true;
+            skipBtnEnd.style.color = 'rgba(255,255,255,0.4)';
+            skipBtnEnd.style.borderColor = 'rgba(168,85,247,0.2)';
+            skipBtnEnd.style.background = 'rgba(168,85,247,0.05)';
+        }
+
         // Handle Auto Spin cycle
         if (this.isAutoSpinning) {
             if (this.autoSpinCount > 1) {
@@ -666,7 +769,7 @@ export class SlotEngine {
                 
                 setTimeout(() => {
                     if (this.isAutoSpinning) this.spin();
-                }, 1800);
+                }, this.isSpeedUp ? 800 : 1800);
             } else {
                 this.stopAutoSpin();
             }
