@@ -73,6 +73,14 @@ export class SlotEngine {
         this.grid = Array.from({length: 6}, () => ['🪨', '🪨', '🪨']);
     }
 
+    getRateStatusHTML() {
+        const plays = gameState.get('casino.ratePlays') || 0;
+        const rateOn = plays >= 250;
+        return rateOn 
+            ? `<div class="rate-badge rate-on-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff; font-weight:900; font-size:0.75rem; padding:0.25rem 0.6rem; border-radius:999px; box-shadow:0 0 10px rgba(239,68,68,0.5); animation: rateGlow 1s ease-in-out infinite alternate; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 0.5rem; border: 1.5px solid #fff;">⚡ RATE ON (JACKPOT UP!)</div>`
+            : `<div class="rate-badge rate-off-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.6); font-weight:800; font-size:0.7rem; padding:0.2rem 0.5rem; border-radius:999px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 0.5rem;">Rate: OFF (${plays}/250 Spins)</div>`;
+    }
+
     getHTML() {
         // Render 6 columns, each having 3 rows
         let colsHTML = '';
@@ -92,6 +100,7 @@ export class SlotEngine {
                 🎰 <span style="background: linear-gradient(90deg,#fbbf24,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">GOLDY CRUSH</span> SLOT
             </h3>
             <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">6 Kolom, 3 Baris &amp; 5 Garis Payout (Kemenangan Ganda!)</p>
+            ${this.getRateStatusHTML()}
 
             <!-- Slot Machine Cabinet -->
             <div class="slot-cabinet">
@@ -283,6 +292,10 @@ export class SlotEngine {
             @keyframes jackpotFlash {
                 0%, 100% { background: linear-gradient(135deg,#fbbf24 0%,#d97706 100%); }
                 50% { background: linear-gradient(135deg,#f43f5e 0%,#e11d48 100%); }
+            }
+            @keyframes rateGlow {
+                from { box-shadow: 0 0 4px rgba(239,68,68,0.4), 0 0 10px rgba(251,191,36,0.2); transform: scale(1); }
+                to { box-shadow: 0 0 12px rgba(239,68,68,0.8), 0 0 20px rgba(251,191,36,0.6); transform: scale(1.03); }
             }
             .spin-btn-action:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(251,191,36,0.45) !important; }
             .spin-btn-action:active:not(:disabled) { transform: translateY(0); }
@@ -707,8 +720,17 @@ export class SlotEngine {
         financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Slot 6x3');
         this.onBalanceRefresh?.();
 
+        // Increment rate plays
+        let plays = gameState.get('casino.ratePlays') || 0;
+        plays++;
+        gameState.set('casino.ratePlays', plays);
+        const rateOn = plays >= 250;
+
         const donations = gameState.get('donations') || { luckMultiplier: 1.0 };
-        const luck = donations.luckMultiplier || 1.0;
+        let luck = donations.luckMultiplier || 1.0;
+        if (rateOn) {
+            luck = Math.max(luck, 3.5);
+        }
 
         // Generate final matrix 6x3
         const resultMatrix = [];
@@ -774,6 +796,22 @@ export class SlotEngine {
                 this.stopAutoSpin();
             }
         }
+
+        // Re-render the slot container to update the Rate badge and balance displays
+        const gamePanel = document.getElementById('casino-game-panel');
+        if (gamePanel) {
+            const activeInputVal = document.getElementById('slot-bet-input')?.value || '100,000';
+            const autoVal = document.getElementById('slot-autospin-count')?.value || '10';
+
+            gamePanel.innerHTML = this.getHTML();
+            this.bindEvents(gamePanel, this.onBalanceRefresh);
+
+            // Retain input values
+            const newInput = document.getElementById('slot-bet-input');
+            if (newInput) newInput.value = activeInputVal;
+            const newAuto = document.getElementById('slot-autospin-count');
+            if (newAuto) newAuto.value = autoVal;
+        }
     }
 
     _evaluate(bet) {
@@ -784,52 +822,89 @@ export class SlotEngine {
         let hasDynamite = false;
         const symbolsToHighlight = []; // list of DOM element IDs to highlight
 
-        // Check each payline
-        PAYLINES.forEach((line, lineIdx) => {
+        // Check each payline (horizontal and V-shapes)
+        PAYLINES.forEach((line) => {
             const lineSymbols = [];
             for (let col = 0; col < 6; col++) {
                 const row = line.coordinates[col];
                 lineSymbols.push(this.grid[col][row]);
             }
 
-            // Check adjacent matches from left-to-right
-            const firstEmoji = lineSymbols[0];
-            let matches = 1;
-            for (let col = 1; col < 6; col++) {
-                if (lineSymbols[col] === firstEmoji) {
-                    matches++;
-                } else {
-                    break;
+            // Find all contiguous matching segments in this line
+            let start = 0;
+            while (start < lineSymbols.length) {
+                let end = start + 1;
+                while (end < lineSymbols.length && lineSymbols[end] === lineSymbols[start]) {
+                    end++;
                 }
-            }
+                const length = end - start;
+                const emoji = lineSymbols[start];
+                const spec = SYMBOLS.find(s => s.emoji === emoji);
+                if (spec) {
+                    let lineMultiplier = 0;
+                    if (length >= 3) {
+                        if (length === 3) lineMultiplier = spec.multiplier3x;
+                        else if (length === 4) lineMultiplier = Math.round(spec.multiplier3x * 2.5);
+                        else if (length === 5) lineMultiplier = Math.round(spec.multiplier3x * 6);
+                        else if (length >= 6) lineMultiplier = Math.round(spec.multiplier3x * 15);
+                    } else if (length === 2 && spec.multiplier2x > 0) {
+                        lineMultiplier = spec.multiplier2x;
+                    }
 
-            // Find matching symbol stats
-            const spec = SYMBOLS.find(s => s.emoji === firstEmoji);
-            if (!spec) return;
+                    if (lineMultiplier > 0) {
+                        const lineWin = Math.round(lineBet * lineMultiplier);
+                        totalPayout += lineWin;
+                        winsList.push(`${line.name} (${start + 1}-${end}): ${length}x ${emoji} (+$${lineWin.toLocaleString()})`);
 
-            let lineMultiplier = 0;
-            // Check win conditions
-            if (matches >= 3) {
-                if (matches === 3) lineMultiplier = spec.multiplier3x;
-                else if (matches === 4) lineMultiplier = Math.round(spec.multiplier3x * 2.5);
-                else if (matches === 5) lineMultiplier = Math.round(spec.multiplier3x * 6);
-                else if (matches === 6) lineMultiplier = Math.round(spec.multiplier3x * 15);
-            } else if (matches === 2 && spec.multiplier2x > 0) {
-                lineMultiplier = spec.multiplier2x;
-            }
-
-            if (lineMultiplier > 0) {
-                const lineWin = Math.round(lineBet * lineMultiplier);
-                totalPayout += lineWin;
-                winsList.push(`${line.name}: ${matches}x ${firstEmoji} (+$${lineWin.toLocaleString()})`);
-
-                // Mark coordinates for visual highlight
-                for (let col = 0; col < matches; col++) {
-                    const row = line.coordinates[col];
-                    symbolsToHighlight.push(`slot-reel-${col}-${row}`);
+                        // Mark coordinates for visual highlight
+                        for (let col = start; col < end; col++) {
+                            const row = line.coordinates[col];
+                            symbolsToHighlight.push(`slot-reel-${col}-${row}`);
+                        }
+                    }
                 }
+                start = end;
             }
         });
+
+        // Check each column (vertical - up & down)
+        for (let col = 0; col < 6; col++) {
+            const colSymbols = [];
+            for (let row = 0; row < 3; row++) {
+                colSymbols.push(this.grid[col][row]);
+            }
+
+            let start = 0;
+            while (start < colSymbols.length) {
+                let end = start + 1;
+                while (end < colSymbols.length && colSymbols[end] === colSymbols[start]) {
+                    end++;
+                }
+                const length = end - start;
+                const emoji = colSymbols[start];
+                const spec = SYMBOLS.find(s => s.emoji === emoji);
+                if (spec) {
+                    let colMultiplier = 0;
+                    if (length === 3) {
+                        colMultiplier = spec.multiplier3x;
+                    } else if (length === 2 && spec.multiplier2x > 0) {
+                        colMultiplier = spec.multiplier2x;
+                    }
+
+                    if (colMultiplier > 0) {
+                        const colWin = Math.round(lineBet * colMultiplier);
+                        totalPayout += colWin;
+                        winsList.push(`Kolom ${col + 1} Vertikal: ${length}x ${emoji} (+$${colWin.toLocaleString()})`);
+
+                        // Mark coordinates for visual highlight
+                        for (let row = start; row < end; row++) {
+                            symbolsToHighlight.push(`slot-reel-${col}-${row}`);
+                        }
+                    }
+                }
+                start = end;
+            }
+        }
 
         // Check if dynamite is anywhere on the screen
         for (let col = 0; col < 6; col++) {
@@ -858,6 +933,9 @@ export class SlotEngine {
             this.onBalanceRefresh?.();
 
             const isJackpot = totalPayout >= bet * 5;
+            if (isJackpot) {
+                gameState.set('casino.ratePlays', 0);
+            }
 
             // Spawn floating text and particles
             if (isJackpot) {
@@ -875,7 +953,7 @@ export class SlotEngine {
             if (winDisplay) {
                 winDisplay.innerHTML = `
                     <div style="font-weight:800; font-size:0.85rem; color:#34d399; animation:winPulse 1.2s ease-in-out infinite;">✅ MENANG +$${financeManager.formatCurrency(totalPayout)}</div>
-                    <div style="font-size:0.65rem; color:rgba(255,255,255,0.5); max-height:30px; overflow-y:auto; width:100%; margin-top:2px;">
+                    <div style="font-size:0.65rem; color:rgba(255,255,255,0.5); max-height:60px; overflow-y:auto; width:100%; margin-top:2px;">
                         ${winsList.join(' | ')}
                     </div>
                 `;

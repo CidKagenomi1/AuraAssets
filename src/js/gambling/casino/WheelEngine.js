@@ -12,13 +12,15 @@ import cryptoMarket from '../../trading/CryptoMarket.js';
 
 const SECTORS = [
     { label: '💎 50.0x', multiplier: 50.0, color: '#fbbf24', text: '#000', type: 'usd' }, // Gold
+    { label: '🪙 0.3x',  multiplier: 0.3,  color: '#475569', text: '#fff', type: 'usd' }, // Slate
     { label: '⭐ 2.0x',  multiplier: 2.0,  color: '#a855f7', text: '#fff', type: 'usd' }, // Purple
-    { label: '🪙 1.2x',  multiplier: 1.2,  color: '#f97316', text: '#fff', type: 'usd' }, // Orange
-    { label: 'Ξ 0.1 ETH', multiplier: 0, amount: 0.1, symbol: 'ETH', color: '#627eea', text: '#fff', type: 'crypto' }, // ETH Blue
-    { label: '⭐ 2.0x',  multiplier: 2.0,  color: '#a855f7', text: '#fff', type: 'usd' }, // Purple (Duplicated)
+    { label: '🪙 0.8x',  multiplier: 0.8,  color: '#94a3b8', text: '#fff', type: 'usd' }, // Light Slate
+    { label: 'Ξ ETH',    multiplier: 0, amount: 0.1, symbol: 'ETH', color: '#627eea', text: '#fff', type: 'crypto' }, // ETH Blue
+    { label: '🪙 1.5x',  multiplier: 1.5,  color: '#10b981', text: '#fff', type: 'usd' }, // Emerald
     { label: '🎁 10 FREE', multiplier: 0, color: '#3b82f6', text: '#fff', type: 'freespin' }, // Blue
-    { label: '🪙 1.2x',  multiplier: 1.2,  color: '#f97316', text: '#fff', type: 'usd' }, // Orange (Duplicated)
-    { label: '◎ 1.5 SOL', multiplier: 0, amount: 1.5, symbol: 'SOL', color: '#14f195', text: '#000', type: 'crypto' }, // SOL Neon Green
+    { label: '🪙 0.5x',  multiplier: 0.5,  color: '#64748b', text: '#fff', type: 'usd' }, // Medium Slate
+    { label: '🪙 1.2x',  multiplier: 1.2,  color: '#f97316', text: '#fff', type: 'usd' }, // Orange
+    { label: '◎ SOL',    multiplier: 0, amount: 1.5, symbol: 'SOL', color: '#14f195', text: '#000', type: 'crypto' }, // SOL Neon Green
     { label: '⭐ 2.0x',  multiplier: 2.0,  color: '#a855f7', text: '#fff', type: 'usd' }, // Purple (Duplicated)
     { label: '🔥 50 BONUS (3x)', multiplier: 0, color: '#ec4899', text: '#fff', type: 'bonusspin' } // Magenta
 ];
@@ -31,6 +33,14 @@ export class WheelEngine {
         this.autoSpinCount = 0;
         this.isAutoSpinning = false;
         this.skipRequested = false;
+    }
+
+    getRateStatusHTML() {
+        const plays = gameState.get('casino.ratePlays') || 0;
+        const rateOn = plays >= 250;
+        return rateOn 
+            ? `<div class="rate-badge rate-on-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff; font-weight:900; font-size:0.75rem; padding:0.25rem 0.6rem; border-radius:999px; box-shadow:0 0 10px rgba(239,68,68,0.5); animation: rateGlow 1s ease-in-out infinite alternate; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 0.5rem; border: 1.5px solid #fff;">⚡ RATE ON (JACKPOT UP!)</div>`
+            : `<div class="rate-badge rate-off-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.6); font-weight:800; font-size:0.7rem; padding:0.2rem 0.5rem; border-radius:999px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 0.5rem;">Rate: OFF (${plays}/250 Spins)</div>`;
     }
 
     get freeSpinsRemaining() {
@@ -130,6 +140,7 @@ export class WheelEngine {
                 🎡 <span style="background: linear-gradient(90deg,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">SPINNING WHEEL</span>
             </h3>
             <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">Dapatkan Multiplier, Putaran Gratis, &amp; Saldo Kripto ETH/SOL!</p>
+            ${this.getRateStatusHTML()}
 
             ${statusIndicators}
 
@@ -300,6 +311,10 @@ export class WheelEngine {
             }
             .bet-chip:hover:not(:disabled) { background: rgba(236,72,153,0.15); border-color: rgba(236,72,153,0.4); color: #ec4899; }
             .bet-chip-max { background: rgba(236,72,153,0.1); border-color: rgba(236,72,153,0.3); color: #ec4899; }
+            @keyframes rateGlow {
+                from { box-shadow: 0 0 4px rgba(239,68,68,0.4), 0 0 10px rgba(251,191,36,0.2); transform: scale(1); }
+                to { box-shadow: 0 0 12px rgba(239,68,68,0.8), 0 0 20px rgba(251,191,36,0.6); transform: scale(1.03); }
+            }
             .spin-btn-action-wheel:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
             .spin-btn-action-wheel:active:not(:disabled) { transform: translateY(0); }
             .spin-btn-action-wheel:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -504,8 +519,17 @@ export class WheelEngine {
             }
         }
 
+        // Increment rate plays
+        let plays = gameState.get('casino.ratePlays') || 0;
+        plays++;
+        gameState.set('casino.ratePlays', plays);
+        const rateOn = plays >= 250;
+
         const donations = gameState.get('donations') || { luckMultiplier: 1.0 };
-        const luck = donations.luckMultiplier || 1.0;
+        let luck = donations.luckMultiplier || 1.0;
+        if (rateOn) {
+            luck = Math.max(luck, 3.5);
+        }
 
         // Determine winning sector clockwise weights
         const weights = SECTORS.map((s) => {
@@ -562,17 +586,24 @@ export class WheelEngine {
             if (payout > 0) {
                 financeManager.addIncome(payout, 'Investasi', `Hasil Roda: ${sector.label} (${payoutMultiplier}x multiplier)`);
                 rewardLabel = `+$${financeManager.formatCurrency(payout)}`;
+                if (sector.multiplier >= 50.0) {
+                    gameState.set('casino.ratePlays', 0);
+                }
             } else {
                 rewardLabel = 'ZONK';
             }
         } 
         else if (sector.type === 'crypto') {
-            const finalAmt = sector.amount * payoutMultiplier;
+            const baseBet = 100000;
+            const betRatio = betAmount / baseBet;
+            const finalAmt = sector.amount * betRatio * payoutMultiplier;
             const cryptoData = cryptoMarket.getCrypto(sector.symbol);
             const price = cryptoData ? cryptoData.price : 1.0;
             
             cryptoMarket.addToWallet(sector.symbol, finalAmt, price);
-            rewardLabel = `+${finalAmt.toFixed(2)} ${sector.symbol} (wallet updated!)`;
+            rewardLabel = `+${finalAmt.toFixed(4)} ${sector.symbol} (wallet updated!)`;
+
+            gameState.set('casino.ratePlays', 0);
         } 
         else if (sector.type === 'freespin') {
             this.freeSpinsRemaining += 10; // 10 Free Spins awarded!
@@ -581,6 +612,8 @@ export class WheelEngine {
         else if (sector.type === 'bonusspin') {
             this.bonusSpinsRemaining += 50; // 50 Bonus Spins (3x) awarded!
             rewardLabel = `🔥 +50 BONUS SPINS (3X Multiplier)!`;
+            
+            gameState.set('casino.ratePlays', 0);
         }
 
         // Win Toast & Displays

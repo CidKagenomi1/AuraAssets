@@ -9,6 +9,14 @@ import gameState from '../../core/GameState.js';
 import ui from '../../ui/UIManager.js';
 
 export class LotteryEngine {
+    getRateStatusHTML() {
+        const plays = gameState.get('casino.ratePlays') || 0;
+        const rateOn = plays >= 250;
+        return rateOn 
+            ? `<div class="rate-badge rate-on-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff; font-weight:900; font-size:0.75rem; padding:0.25rem 0.6rem; border-radius:999px; box-shadow:0 0 10px rgba(239,68,68,0.5); animation: rateGlow 1s ease-in-out infinite alternate; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 0.5rem; border: 1.5px solid #fff;">⚡ RATE ON (JACKPOT UP!)</div>`
+            : `<div class="rate-badge rate-off-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.6); font-weight:800; font-size:0.7rem; padding:0.2rem 0.5rem; border-radius:999px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 0.5rem;">Rate: OFF (${plays}/250 Spins)</div>`;
+    }
+
     constructor(onBalanceRefresh) {
         this.onBalanceRefresh = onBalanceRefresh;
         this.selectedNumbers = [];
@@ -82,6 +90,7 @@ export class LotteryEngine {
                 🎫 <span style="background: linear-gradient(90deg,#f59e0b,#fbbf24); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">MEGA LOTTERY</span>
             </h3>
             <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">Pilih 4 Nomor Keberuntungan Anda &amp; Raih Jackpot Progresif!</p>
+            ${this.getRateStatusHTML()}
 
             <!-- Progressive Jackpot Display -->
             <div class="lottery-jackpot-banner">
@@ -283,6 +292,10 @@ export class LotteryEngine {
                 60% { transform: scale(1.2) rotate(10deg); opacity: 1; }
                 100% { transform: scale(1) rotate(0deg); }
             }
+            @keyframes rateGlow {
+                from { box-shadow: 0 0 4px rgba(239,68,68,0.4), 0 0 10px rgba(251,191,36,0.2); transform: scale(1); }
+                to { box-shadow: 0 0 12px rgba(239,68,68,0.8), 0 0 20px rgba(251,191,36,0.6); transform: scale(1.03); }
+            }
             @keyframes ballSpin {
                 to { transform: rotate(360deg); }
             }
@@ -467,17 +480,44 @@ export class LotteryEngine {
 
         this.onBalanceRefresh?.();
 
+        // Increment rate plays
+        let plays = gameState.get('casino.ratePlays') || 0;
+        plays++;
+        gameState.set('casino.ratePlays', plays);
+        const rateOn = plays >= 250;
+
         // Start drawing animation
         const ballsContainer = document.getElementById('lottery-balls-container');
         if (ballsContainer) ballsContainer.innerHTML = '';
 
         // Draw 4 random numbers from 1 to 20
-        const drawnNums = [];
+        let drawnNums = [];
         while (drawnNums.length < 4) {
             const r = Math.floor(Math.random() * 20) + 1;
             if (!drawnNums.includes(r)) drawnNums.push(r);
         }
         drawnNums.sort((a, b) => a - b);
+
+        if (rateOn) {
+            const forceMatchRoll = Math.random();
+            let targetMatches = 0;
+            if (forceMatchRoll < 0.10) targetMatches = 4; // 10% chance for Grand Jackpot!
+            else if (forceMatchRoll < 0.35) targetMatches = 3; // 25% chance for 3 matches!
+            else if (forceMatchRoll < 0.80) targetMatches = 2; // 45% chance for 2 matches!
+
+            if (targetMatches > 0) {
+                const matchedNumbers = this.selectedNumbers.slice(0, targetMatches);
+                const remainingCount = 4 - targetMatches;
+                const extraNumbers = [];
+                while (extraNumbers.length < remainingCount) {
+                    const r = Math.floor(Math.random() * 20) + 1;
+                    if (!this.selectedNumbers.includes(r) && !extraNumbers.includes(r)) {
+                        extraNumbers.push(r);
+                    }
+                }
+                drawnNums = [...matchedNumbers, ...extraNumbers].sort((a, b) => a - b);
+            }
+        }
 
         const ballColors = [
             'linear-gradient(135deg, #ef4444, #b91c1c)', // red
@@ -517,8 +557,10 @@ export class LotteryEngine {
             wonJackpot = true;
             payout = jackpot;
             this.setJackpot(10000000); // reset progressive jackpot to $10,000,000
+            gameState.set('casino.ratePlays', 0);
         } else if (matches === 3) {
             multiplier = 100;
+            gameState.set('casino.ratePlays', 0);
         } else if (matches === 2) {
             multiplier = 10;
         } else if (matches === 1) {
@@ -583,6 +625,16 @@ export class LotteryEngine {
 
         // Reset button states
         this.isDrawing = false;
+
+        // Update rate badge
+        const root = document.getElementById('casino-game-panel');
+        if (root) {
+            const badge = root.querySelector('.rate-badge');
+            if (badge) {
+                badge.outerHTML = this.getRateStatusHTML();
+            }
+        }
+
         if (drawBtn) {
             drawBtn.disabled = false;
             drawBtn.innerHTML = '🎫 BELI &amp; UNDI SEKARANG';
