@@ -24,21 +24,18 @@ class AuraSound {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      const baseFreq = this.randomRange(600, 750);
-      const duration = this.randomRange(0.015, 0.025);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.015);
 
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + duration);
-
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      gain.gain.setValueAtTime(0.03, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.015);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start();
-      osc.stop(ctx.currentTime + duration);
+      osc.stop(ctx.currentTime + 0.015);
     } catch (e) {
       console.warn("Audio tap play failed:", e);
     }
@@ -51,22 +48,18 @@ class AuraSound {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      const baseFreq = this.randomRange(1100, 1300); 
-      const duration = this.randomRange(0.035, 0.045);
-
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + duration);
+      osc.frequency.setValueAtTime(1200, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.02);
 
-      const volume = this.randomRange(0.06, 0.09);
-      gain.gain.setValueAtTime(volume, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      gain.gain.setValueAtTime(0.04, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.02);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start();
-      osc.stop(ctx.currentTime + duration);
+      osc.stop(ctx.currentTime + 0.02);
     } catch (e) {
       console.warn("Audio click play failed:", e);
     }
@@ -81,27 +74,22 @@ class AuraSound {
     try {
       const ctx = this.getContext();
       const now = ctx.currentTime;
-      const pitchMultiplier = this.randomRange(0.95, 1.15); 
-      const freqs = [880 * pitchMultiplier, 1320 * pitchMultiplier]; 
-      const duration = this.randomRange(0.25, 0.35);
-
-      freqs.forEach((freq) => {
+      
+      const playTone = (freq, delay, dur) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq - 200, now);
-        osc.frequency.exponentialRampToValueAtTime(freq, now + 0.08);
-
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + delay);
+        gain.gain.setValueAtTime(0.06, now + delay);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + dur);
         osc.connect(gain);
         gain.connect(ctx.destination);
+        osc.start(now + delay);
+        osc.stop(now + delay + dur);
+      };
 
-        osc.start(now);
-        osc.stop(now + duration);
-      });
+      playTone(1046.50, 0, 0.15); // C6
+      playTone(1318.51, 0.06, 0.20); // E6
     } catch (e) {
       console.warn("Audio claim play failed:", e);
     }
@@ -112,31 +100,22 @@ class AuraSound {
     try {
       const ctx = this.getContext();
       const now = ctx.currentTime;
-      const baseFreq = 987.77; // Nada B5
-      
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const gain = ctx.createGain();
 
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(baseFreq, now);
-      osc1.frequency.setValueAtTime(1318.51, now + 0.08); // Naik ke E6
+      const playTone = (freq, delay, dur) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + delay);
+        gain.gain.setValueAtTime(0.05, now + delay);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + dur);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + delay);
+        osc.stop(now + delay + dur);
+      };
 
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(baseFreq * 0.5, now);
-      osc2.frequency.setValueAtTime(1318.51 * 0.5, now + 0.08);
-
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-
-      osc1.connect(gain);
-      osc2.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc1.start(now);
-      osc2.start(now);
-      osc1.stop(now + 0.25);
-      osc2.stop(now + 0.25);
+      playTone(880, 0, 0.08); // A5
+      playTone(1174.66, 0.04, 0.12); // D6
     } catch (e) {
       console.warn("Audio purchase play failed:", e);
     }
@@ -151,23 +130,19 @@ class AuraSound {
     try {
       const ctx = this.getContext();
       const now = ctx.currentTime;
-      const chord = [523.25, 659.25, 783.99]; // C5, E5, G5 (C Major)
-
-      chord.forEach((freq, idx) => {
+      
+      const notes = [659.25, 987.77]; // E5, B5 (Perfect Fifth, warm and professional)
+      notes.forEach((freq, idx) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.04); // Efek Arpeggio
-
-        gain.gain.setValueAtTime(0.06, now + idx * 0.04);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-
+        osc.frequency.setValueAtTime(freq, now + idx * 0.03);
+        gain.gain.setValueAtTime(0.04, now + idx * 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
         osc.connect(gain);
         gain.connect(ctx.destination);
-
-        osc.start(now + idx * 0.04);
-        osc.stop(now + 0.35);
+        osc.start(now + idx * 0.03);
+        osc.stop(now + 0.3);
       });
     } catch (e) {
       console.warn("Audio success alert failed:", e);
@@ -178,23 +153,20 @@ class AuraSound {
   static playInfoAlert() {
     try {
       const ctx = this.getContext();
-      const now = ctx.currentTime;
-
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(600, now);
-      osc.frequency.setValueAtTime(900, now + 0.07);
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
 
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      gain.gain.setValueAtTime(0.04, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
-      osc.start(now);
-      osc.stop(now + 0.25);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
     } catch (e) {
       console.warn("Audio info alert failed:", e);
     }
@@ -204,24 +176,23 @@ class AuraSound {
   static playWarningAlert() {
     try {
       const ctx = this.getContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      const now = ctx.currentTime;
 
-      const baseFreq = this.randomRange(260, 300);
+      const playTone = (freq, delay, dur) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + delay);
+        gain.gain.setValueAtTime(0.04, now + delay);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + dur);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + delay);
+        osc.stop(now + delay + dur);
+      };
 
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
-      osc.frequency.linearRampToValueAtTime(baseFreq + 50, ctx.currentTime + 0.08);
-      osc.frequency.linearRampToValueAtTime(baseFreq - 20, ctx.currentTime + 0.16);
-
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.25);
+      playTone(554.37, 0, 0.08); // C#5
+      playTone(554.37, 0.1, 0.08); // C#5
     } catch (e) {
       console.warn("Audio warning alert failed:", e);
     }
@@ -232,27 +203,102 @@ class AuraSound {
     try {
       const ctx = this.getContext();
       const now = ctx.currentTime;
-      const freqs = [110, 115]; // Disonansi berat nada rendah
+      const notes = [293.66, 349.23]; // D4 and F4 (solid and professional minor third)
 
-      freqs.forEach((freq) => {
+      notes.forEach((freq) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      });
+    } catch (e) {
+      console.warn("Audio error alert failed:", e);
+    }
+  }
+
+  // 9. Casino Reel Spin (Rising sweep or repeating mechanical ticks)
+  static playCasinoSpin() {
+    try {
+      const ctx = this.getContext();
+      const now = ctx.currentTime;
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.exponentialRampToValueAtTime(800, now + 0.5);
+
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.5);
+    } catch (e) {
+      console.warn("Casino spin sound failed:", e);
+    }
+  }
+
+  // 10. Casino Win Jackpot Fanfare (A fast, retro arpeggio of chimes)
+  static playCasinoWin() {
+    try {
+      const ctx = this.getContext();
+      const now = ctx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98]; // C5, E5, G5, C6, E6, G6 (Jackpot Arpeggio)
+
+      notes.forEach((freq, idx) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(freq, now);
-        osc.frequency.linearRampToValueAtTime(freq - 15, now + 0.3);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
 
-        gain.gain.setValueAtTime(0.08, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        gain.gain.setValueAtTime(0.06, now + idx * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.3);
 
         osc.connect(gain);
         gain.connect(ctx.destination);
 
-        osc.start(now);
-        osc.stop(now + 0.35);
+        osc.start(now + idx * 0.08);
+        osc.stop(now + idx * 0.08 + 0.3);
       });
     } catch (e) {
-      console.warn("Audio error alert failed:", e);
+      console.warn("Casino win sound failed:", e);
+    }
+  }
+
+  // 11. Casino Lose (Dissonant sliding pitch down)
+  static playCasinoLose() {
+    try {
+      const ctx = this.getContext();
+      const now = ctx.currentTime;
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.linearRampToValueAtTime(100, now + 0.6);
+
+      gain.gain.setValueAtTime(0.07, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.6);
+    } catch (e) {
+      console.warn("Casino lose sound failed:", e);
     }
   }
 }

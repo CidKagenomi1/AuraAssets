@@ -697,6 +697,7 @@ export class SlotEngine {
 
         this.isSpinning = true;
         this.skipRequested = false;
+        import('../../ui/AuraSound.js').then(m => m.default.playCasinoSpin());
 
         // Enable skip button and style it active
         const skipBtn = document.getElementById('btn-slot-skip');
@@ -944,9 +945,11 @@ export class SlotEngine {
                 this.spawnParticles(40, 'gold');
                 this.spawnParticles(35, 'diamond');
                 ui.success(`MEGA WIN 6x3! Total menang +$ ${totalPayout.toLocaleString()}`, '🎰 Mega Goldy Crush!');
+                import('../../ui/AuraSound.js').then(m => m.default.playCasinoWin());
             } else {
                 this.spawnPraiseText('STRIKE! 🪙');
                 this.spawnParticles(20, 'gold');
+                import('../../ui/AuraSound.js').then(m => m.default.playClaimMoney());
             }
 
             // Print lines won inside slot display
@@ -961,6 +964,7 @@ export class SlotEngine {
         } else {
             if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.75rem; font-style:italic;">Tidak ada kombinasi baris. Gali terus!</span>`;
             ui.toast({ type: 'warning', title: 'Tambang Kosong', message: 'Tidak ada baris yang cocok!' });
+            import('../../ui/AuraSound.js').then(m => m.default.playCasinoLose());
         }
     }
 }

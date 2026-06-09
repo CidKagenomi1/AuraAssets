@@ -234,7 +234,7 @@ export class ParlayEngine {
             <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">Gabungkan Taruhan Bola &amp; Pacuan Kuda Untuk Multiplier Raksasa!</p>
             ${this.getRateStatusHTML()}
 
-            <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap:0.75rem; text-align:left; margin-bottom:0.75rem;">
+            <div class="parlay-grid-layout" style="display:grid; grid-template-columns: 1.3fr 1fr; gap:0.75rem; text-align:left; margin-bottom:0.75rem;">
                 
                 <!-- Left Column: Bets Selection -->
                 <div style="display:flex; flex-direction:column; gap:0.75rem;">
@@ -386,6 +386,26 @@ export class ParlayEngine {
                 from { box-shadow: 0 0 4px rgba(239,68,68,0.4), 0 0 10px rgba(251,191,36,0.2); transform: scale(1); }
                 to { box-shadow: 0 0 12px rgba(239,68,68,0.8), 0 0 20px rgba(251,191,36,0.6); transform: scale(1.03); }
             }
+            @media (max-width: 600px) {
+                .parlay-grid-layout {
+                    grid-template-columns: 1fr !important;
+                    gap: 0.5rem !important;
+                }
+                .parlay-section-box {
+                    padding: 0.5rem !important;
+                }
+                .parlay-bet-btn {
+                    font-size: 0.68rem !important;
+                    padding: 0.25rem 0.15rem !important;
+                }
+                .parlay-card-item {
+                    padding: 0.4rem !important;
+                }
+                #btn-add-random-bet {
+                    font-size: 0.72rem !important;
+                    padding: 0.4rem 0.75rem !important;
+                }
+            }
         </style>
         `;
     }
@@ -402,6 +422,7 @@ export class ParlayEngine {
         container.querySelectorAll('.parlay-preset').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (this.isSimulating) return;
+                import('../../ui/AuraSound.js').then(m => m.default.playTap());
                 const balance = gameState.getBalance();
                 const input = document.getElementById('parlay-bet-input');
                 if (!input) return;
@@ -418,6 +439,7 @@ export class ParlayEngine {
         container.querySelectorAll('[data-match-id]').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (this.isSimulating) return;
+                import('../../ui/AuraSound.js').then(m => m.default.playClick());
                 const matchId = btn.dataset.matchId;
                 const pick = btn.dataset.pick;
                 const odds = parseFloat(btn.dataset.odds);
@@ -433,6 +455,7 @@ export class ParlayEngine {
         container.querySelectorAll('[data-horse-name]').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (this.isSimulating) return;
+                import('../../ui/AuraSound.js').then(m => m.default.playClick());
                 const name = btn.dataset.horseName;
                 const odds = parseFloat(btn.dataset.odds);
                 const label = `Baby Derby Pacuan Kuda: ${name}`;
@@ -449,6 +472,7 @@ export class ParlayEngine {
                 ui.toast({ type: 'warning', title: 'Limit Parlay', message: 'Maksimal taruhan parlay adalah 5 leg!' });
                 return;
             }
+            import('../../ui/AuraSound.js').then(m => m.default.playClick());
 
             // Generate random odds 2x to 90x
             const randomOdds = parseFloat((Math.random() * 88 + 2).toFixed(2));
@@ -469,6 +493,7 @@ export class ParlayEngine {
         container.querySelectorAll('.btn-remove-leg').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (this.isSimulating) return;
+                import('../../ui/AuraSound.js').then(m => m.default.playTap());
                 const idx = parseInt(btn.dataset.legIndex, 10);
                 this.selectedLegs.splice(idx, 1);
                 this.refreshUI(container);
@@ -525,6 +550,8 @@ export class ParlayEngine {
         this.simLogs = [];
         this.currentSimulationLegIdx = 0;
 
+        import('../../ui/AuraSound.js').then(m => m.default.playCasinoSpin());
+
         // Deduct bet
         financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Parlay');
         this.onBalanceRefresh?.();
@@ -579,9 +606,11 @@ export class ParlayEngine {
             if (!legSuccess) {
                 parlayWon = false;
                 appendLog(`❌ LEG ${i + 1} GAGAL! Tiket Parlay Anda Gugur.`);
+                import('../../ui/AuraSound.js').then(m => m.default.playCasinoLose());
                 break;
             } else {
                 appendLog(`✅ LEG ${i + 1} TEMBUS!`);
+                import('../../ui/AuraSound.js').then(m => m.default.playClaimMoney());
             }
             appendLog(`-------------------------------------------------`);
         }
@@ -601,9 +630,11 @@ export class ParlayEngine {
 
             appendLog(`🎉 <span style="color:#34d399; font-weight:900; font-size:1.1em;">PARLAY TEMBUS! Anda menang +$${financeManager.formatCurrency(winAmount)}!</span>`);
             ui.success(`MEGA PARLAY TEMBUS! Total menang +$ ${winAmount.toLocaleString()}`, '🎰 Parlay Win!');
+            import('../../ui/AuraSound.js').then(m => m.default.playCasinoWin());
         } else {
             appendLog(`😞 <span style="color:#ef4444; font-weight:800;">Tiket Parlay Kalah. Seluruh taruhan hangus!</span>`);
             ui.toast({ type: 'warning', title: 'Parlay Kalah', message: 'Ada taruhan yang tidak cocok!' });
+            import('../../ui/AuraSound.js').then(m => m.default.playCasinoLose());
         }
 
         // Generate new matches for the next round

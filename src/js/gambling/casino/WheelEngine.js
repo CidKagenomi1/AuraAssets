@@ -495,6 +495,7 @@ export class WheelEngine {
 
         this.isSpinning = true;
         this.skipRequested = false;
+        import('../../ui/AuraSound.js').then(m => m.default.playCasinoSpin());
         const spinBtn = document.getElementById('btn-wheel-spin');
         if (spinBtn) {
             spinBtn.disabled = false;
@@ -614,6 +615,16 @@ export class WheelEngine {
             rewardLabel = `🔥 +50 BONUS SPINS (3X Multiplier)!`;
             
             gameState.set('casino.ratePlays', 0);
+        }
+
+        // Play sounds based on sector type
+        const isJackpot = sector.type === 'bonusspin' || (sector.type === 'usd' && sector.multiplier >= 50.0);
+        if (isJackpot) {
+            import('../../ui/AuraSound.js').then(m => m.default.playCasinoWin());
+        } else if (rewardLabel !== 'ZONK' && (sector.type === 'usd' || sector.type === 'crypto' || sector.type === 'freespin')) {
+            import('../../ui/AuraSound.js').then(m => m.default.playClaimMoney());
+        } else {
+            import('../../ui/AuraSound.js').then(m => m.default.playCasinoLose());
         }
 
         // Win Toast & Displays

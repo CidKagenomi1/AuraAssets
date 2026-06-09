@@ -450,6 +450,7 @@ export class LotteryEngine {
         }
 
         this.isDrawing = true;
+        import('../../ui/AuraSound.js').then(m => m.default.playCasinoSpin());
         const drawBtn = document.getElementById('btn-lottery-buy-draw');
         const tokenDrawBtn = document.getElementById('btn-lottery-token-draw');
         if (drawBtn) {
@@ -539,6 +540,7 @@ export class LotteryEngine {
 
                 await new Promise(r => setTimeout(r, 650));
                 
+                import('../../ui/AuraSound.js').then(m => m.default.playTap());
                 placeholder.style.background = ballColors[i];
                 placeholder.style.border = 'none';
                 placeholder.style.color = '#000';
@@ -592,10 +594,13 @@ export class LotteryEngine {
 
         // Toast feedback
         if (wonJackpot) {
+            import('../../ui/AuraSound.js').then(m => m.default.playCasinoWin());
             ui.success(`🏆 JACKPOT PROGRESIF! Anda berhasil mencocokkan seluruh 4 nomor keberuntungan dan memenangkan $ ${payout.toLocaleString()}!`, 'Mega Jackpot Lotre');
         } else if (payout > 0) {
+            import('../../ui/AuraSound.js').then(m => m.default.playCasinoWin());
             ui.success(`Menang $ ${payout.toLocaleString()}! Anda mencocokkan ${matches} nomor keberuntungan.`, 'Hadiah Lotre');
         } else {
+            import('../../ui/AuraSound.js').then(m => m.default.playCasinoLose());
             ui.toast({ type: 'warning', title: 'Lotre Kalah', message: 'Tidak ada nomor yang cocok. Semoga beruntung di undian berikutnya!' });
         }
 
