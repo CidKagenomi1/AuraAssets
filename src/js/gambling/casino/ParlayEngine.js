@@ -287,10 +287,10 @@ export class ParlayEngine {
         } else {
             this.selectedLegs.forEach((leg, index) => {
                 legsListHTML += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); padding:0.4rem 0.6rem; border-radius:8px; font-size:0.75rem; margin-bottom:0.35rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); padding:0.4rem 0.6rem; border-radius:8px; font-size:0.75rem; margin-bottom:0.35rem; width:100%; box-sizing:border-box;">
                         <div style="text-align:left; flex: 1; min-width: 0; padding-right: 5px;">
                             <div style="font-weight:800; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${leg.label}</div>
-                            <div style="font-size:0.65rem; color:rgba(255,255,255,0.5);">Pilihan: <span style="color:#10b981; font-weight:700;">${leg.prediction.toUpperCase()}</span></div>
+                            <div style="font-size:0.65rem; color:rgba(255,255,255,0.5); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Pilihan: <span style="color:#10b981; font-weight:700;">${leg.prediction.toUpperCase()}</span></div>
                         </div>
                         <div style="display:flex; align-items:center; gap:0.5rem; flex-shrink: 0;">
                             <span style="color:#fbbf24; font-weight:900;">${leg.odds.toFixed(2)}x</span>
@@ -302,14 +302,14 @@ export class ParlayEngine {
         }
 
         return `
-        <div style="max-width: 760px; margin: 0 auto; text-align: center; animation: fade-up 0.3s ease;">
+        <div style="width: 100%; max-width: 760px; margin: 0 auto; text-align: center; animation: fade-up 0.3s ease; box-sizing: border-box; overflow-x: hidden;">
             <h3 style="font-weight: 950; color: #fff; margin-bottom: 0.35rem; font-size: 1.5rem; letter-spacing: -0.02em;">
                 🎰 <span style="background: linear-gradient(90deg,#10b981,#fbbf24); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">PARLAY BET TERMINAL</span>
             </h3>
             <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">Gabungkan Taruhan Bola &amp; Pacuan Kuda Untuk Multiplier Raksasa!</p>
             ${this.getRateStatusHTML()}
 
-            <div class="parlay-grid-layout" style="display:grid; grid-template-columns: 1.3fr 1fr; gap:0.75rem; text-align:left; margin-bottom:0.75rem;">
+            <div class="parlay-grid-layout" style="display:grid; grid-template-columns: 1.3fr 1fr; gap:0.75rem; text-align:left; margin-bottom:0.75rem; width:100%; box-sizing:border-box;">
                 
                 <!-- Left Column: Bets Selection -->
                 <div style="display:flex; flex-direction:column; gap:0.75rem;">
@@ -344,7 +344,7 @@ export class ParlayEngine {
                     <div class="parlay-section-box" style="flex:1; display:flex; flex-direction:column;">
                         <h4 style="font-size:0.8rem; font-weight:900; color:#fff; margin:0 0 0.5rem 0; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:3px;">🎫 TIKET PARLAY ANDA</h4>
                         
-                        <div style="flex:1; overflow-y:auto; max-height:220px; margin-bottom:0.5rem;">
+                        <div style="flex:1; overflow-y:auto; overflow-x:hidden; max-height:220px; margin-bottom:0.5rem; width:100%; box-sizing:border-box;">
                             ${legsListHTML}
                         </div>
 
