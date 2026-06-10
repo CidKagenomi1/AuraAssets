@@ -283,6 +283,7 @@ class BusinessTycoonGame {
         timeManager.onDay(() => {
             globalEconomy.naturalFluctuation();
             businessManager.tickAuctions();
+            businessManager.processDailyUpdate();
 
             // Process presidential politics daily effects
             politicsManager.tickDailyEffects();

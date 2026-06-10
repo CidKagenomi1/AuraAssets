@@ -249,6 +249,17 @@ class BusinessManager {
     }
 
     /**
+     * Process Daily Business Cycle
+     */
+    processDailyUpdate() {
+        const biz = gameState.get('business');
+        if (!biz || !biz.active) return;
+        if (biz.industry === 'infrastructure') {
+            InfrastructureSector.processDailyUpdate(this, biz);
+        }
+    }
+
+    /**
      * Process Monthly Business Cycle
      */
     processMonthlyUpdate(economyIndex) {
@@ -1625,6 +1636,18 @@ class BusinessManager {
         return InfrastructureSector.refreshAvailableProjects(this);
     }
 
+    setInfrastructureCrewSalary(salary) {
+        return InfrastructureSector.setCrewSalary(salary, this);
+    }
+
+    setInfrastructureCrewAllocationMode(mode) {
+        return InfrastructureSector.setCrewAllocationMode(mode, this);
+    }
+
+    generateInfrastructureQuickTender() {
+        return InfrastructureSector.generateQuickTender(this);
+    }
+
     lobbyBoardMember(boardId, source) {
         return CorporateGovernance.lobbyBoardMember(boardId, source, this);
     }
@@ -1673,6 +1696,36 @@ class BusinessManager {
         this.recalculateValuation();
 
         ui.success(`Berhasil menyuntikkan investasi sebesar $ ${financeManager.formatCurrency(cost)} ke ${sub.name}!`, '💼 Investasi Sukses');
+        return true;
+    }
+
+    ipoSubsidiary(subId) {
+        const biz = gameState.get('business');
+        if (!biz || !biz.active) throw new Error('Perusahaan tidak aktif');
+
+        const index = (biz.subsidiaries || []).findIndex(s => s.id === subId);
+        if (index === -1) throw new Error('Anak perusahaan/mitra tidak ditemukan!');
+
+        const sub = biz.subsidiaries[index];
+        let subVal = sub.valuation || 0;
+        if (sub.isPremium) subVal *= 1.35;
+        subVal = Math.round(subVal);
+
+        // Add 100% of valuation to corporate treasury cash
+        biz.cash += subVal;
+
+        // Remove from subsidiaries
+        biz.subsidiaries.splice(index, 1);
+
+        gameState.update('business', b => ({
+            ...b,
+            cash: biz.cash,
+            subsidiaries: biz.subsidiaries
+        }));
+
+        this.recalculateValuation();
+
+        ui.success(`Sukses melakukan IPO Spinoff untuk "${sub.name}"! Memperoleh suntikan dana tunai sebesar $ ${financeManager.formatCurrency(subVal)} ke kas Treasury.`, '🚀 Spinoff Sukses');
         return true;
     }
 }

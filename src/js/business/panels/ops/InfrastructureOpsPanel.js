@@ -1,6 +1,6 @@
 /**
  * InfrastructureOpsPanel.js - Custom High-Fidelity Management Dashboard for Infrastructure/Contracting Sector
- * Manage heavy equipment purchases (Excavators, Bulldozers, Cranes) and bid on civil construction projects.
+ * Manage heavy equipment purchases, crew wages, and bid on civil construction projects.
  */
 
 import gameState from '../../../core/GameState.js';
@@ -27,33 +27,61 @@ export const InfrastructureOpsPanel = {
         const availableProjects = infra.availableProjects || [];
         const demand = infra.demandFluctuation || 1.0;
         const demandPercent = Math.round(demand * 100);
+        
+        const crewBaseSalary = infra.crewBaseSalary || 800;
+        const crewMode = infra.crewAllocationMode || 'normal';
 
         // Count owned equipment types for UI reference
-        const ownedCounts = { excavator: 0, bulldozer: 0, tower_crane: 0 };
+        const ownedCounts = {};
+        EQUIPMENT_CATALOG.forEach(cat => { ownedCounts[cat.id] = 0; });
         ownedEquipment.forEach(eq => {
-            if (eq.id === 'excavator' || eq.id === 'bulldozer' || eq.id === 'tower_crane') {
-                ownedCounts[eq.id]++;
-            } else if (eq.name.toLowerCase().includes('excavator')) {
-                ownedCounts.excavator++;
-            } else if (eq.name.toLowerCase().includes('bulldozer')) {
-                ownedCounts.bulldozer++;
-            } else if (eq.name.toLowerCase().includes('crane')) {
-                ownedCounts.tower_crane++;
-            }
+            const cid = eq.catalogId || eq.id;
+            if (ownedCounts[cid] !== undefined) ownedCounts[cid]++;
         });
+
+        // Calculate crew metrics
+        let standardCrewNeeded = 0;
+        ownedEquipment.forEach(eq => {
+            standardCrewNeeded += eq.crewReq || 1;
+        });
+
+        let activeCrew = standardCrewNeeded;
+        let wageMultiplier = 1.0;
+        if (crewMode === 'overstaffed') {
+            activeCrew = Math.round(standardCrewNeeded * 1.3);
+        } else if (crewMode === 'efficient') {
+            activeCrew = Math.round(standardCrewNeeded * 0.7);
+            wageMultiplier = 1.5; // Overtime rate
+        }
+
+        const crewWagesPerMonth = activeCrew * (crewBaseSalary * wageMultiplier);
 
         // 1. Calculate active totals
         let activeBridgesCount = activeProjects.length;
         let totalActiveBudget = activeProjects.reduce((acc, curr) => acc + curr.budget, 0);
         let monthlyEquipMaint = ownedEquipment.reduce((acc, curr) => acc + curr.maintenance, 0);
 
+        // Payment method mapping
+        const paymentLabel = {
+            upfront: 'Bayar Di Depan',
+            weekly: 'Cicil Mingguan',
+            daily: 'Cicil Harian',
+            monthly: 'Cicil Bulanan'
+        };
+
+        const paymentColor = {
+            upfront: '#10b981',
+            weekly: '#3b82f6',
+            daily: '#f59e0b',
+            monthly: '#ec4899'
+        };
+
         // 2. Available projects HTML
         const availableHtml = availableProjects.length === 0 ? `
             <div style="grid-column: 1 / -1; padding: 2.5rem; text-align: center; color: var(--text-dim); border: 1px dashed var(--border-color); border-radius: 8px; background: rgba(0,0,0,0.15);">
-                🏢 Tidak ada tender proyek aktif saat ini. Tunggu bulan depan untuk pembukaan proyek baru!
+                🏢 Tidak ada tender proyek aktif saat ini. Klik Tender Cepat untuk membuka proyek instan!
             </div>
         ` : availableProjects.map(proj => {
-            // Check requirements
             const reqTexts = [];
             let meetsAllReqs = true;
 
@@ -62,8 +90,8 @@ export const InfrastructureOpsPanel = {
                 const matches = ownedQty >= reqQty;
                 if (!matches) meetsAllReqs = false;
 
-                const nameMapping = { excavator: 'Excavator', bulldozer: 'Bulldozer', tower_crane: 'Tower Crane' };
-                const label = nameMapping[reqKey] || reqKey;
+                const spec = EQUIPMENT_CATALOG.find(e => e.id === reqKey);
+                const label = spec ? spec.name : reqKey;
                 reqTexts.push(`
                     <div style="display:flex; justify-content:space-between; align-items:center; color:${matches ? '#10b981' : '#f87171'}; font-weight:700;">
                         <span>⚙️ ${label} (Butuh ${reqQty})</span>
@@ -72,11 +100,17 @@ export const InfrastructureOpsPanel = {
                 `);
             }
 
+            const methodLabel = paymentLabel[proj.paymentMethod] || proj.paymentMethod;
+            const methodColor = paymentColor[proj.paymentMethod] || '#fff';
+
             return `
                 <div class="card tender-card" data-id="${proj.id}" style="padding: 1.25rem; border: 1px solid var(--border-color); background: rgba(255,255,255,0.01); display: flex; flex-direction: column; gap: 0.75rem; position: relative;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
                         <div>
-                            <div style="font-size: 0.65rem; color: #a855f7; font-weight: 800; text-transform: uppercase;">Tender ${proj.source}</div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                                <span style="font-size: 0.65rem; color: #a855f7; font-weight: 800; text-transform: uppercase;">Tender ${proj.source}</span>
+                                ${proj.isQuickTender ? `<span style="font-size: 0.6rem; background: #ef4444; color: #fff; padding: 1px 4px; border-radius: 3px; font-weight: 800;">⚡ CEPAT</span>` : ''}
+                            </div>
                             <div style="font-size: 0.95rem; font-weight: 900; color: #fff; line-height: 1.3;">${proj.name}</div>
                         </div>
                     </div>
@@ -84,6 +118,7 @@ export const InfrastructureOpsPanel = {
                     <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.75rem; color: var(--text-muted); background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 6px;">
                         <div style="display: flex; justify-content: space-between;"><span>Nilai Kontrak:</span> <strong style="color: #fbbf24;">$ ${proj.budget.toLocaleString()}</strong></div>
                         <div style="display: flex; justify-content: space-between;"><span>Durasi Proyek:</span> <strong style="color: #fff;">${proj.duration} Bulan</strong></div>
+                        <div style="display: flex; justify-content: space-between;"><span>Metode Bayar:</span> <strong style="color: ${methodColor}; font-weight: 800;">${methodLabel}</strong></div>
                     </div>
 
                     <div style="font-size: 0.72rem; color: var(--text-dim); background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 0.6rem 0.75rem; border-radius: 6px; display: flex; flex-direction: column; gap: 0.35rem;">
@@ -103,12 +138,14 @@ export const InfrastructureOpsPanel = {
         // 3. Active projects table HTML
         const activeProjectsHtml = activeProjects.length === 0 ? `
             <tr>
-                <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 2.5rem; font-size: 0.85rem;">
+                <td colspan="6" style="text-align: center; color: var(--text-dim); padding: 2.5rem; font-size: 0.85rem;">
                     📭 Belum ada proyek sipil yang sedang berjalan. Ajukan penawaran tender di atas!
                 </td>
             </tr>
         ` : activeProjects.map(proj => {
             const progress = proj.progress || 0;
+            const methodLabel = paymentLabel[proj.paymentMethod] || proj.paymentMethod;
+            const methodColor = paymentColor[proj.paymentMethod] || '#fff';
             return `
                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                     <td style="padding: 0.85rem 0.5rem; font-weight: 850; color: #fff;">
@@ -121,6 +158,9 @@ export const InfrastructureOpsPanel = {
                     </td>
                     <td style="padding: 0.85rem 0.5rem; font-family: monospace; color: #ccc;">
                         $ ${proj.budget.toLocaleString()}
+                    </td>
+                    <td style="padding: 0.85rem 0.5rem;">
+                        <span style="color: ${methodColor}; font-weight: 800; font-size: 0.75rem;">${methodLabel}</span>
                     </td>
                     <td style="padding: 0.85rem 0.5rem;">
                         <div style="font-weight: 800; color: #fbbf24;">${proj.monthsLeft} bln tersisa</div>
@@ -140,13 +180,12 @@ export const InfrastructureOpsPanel = {
 
         // 4. Equipment Catalog HTML
         const equipmentCatalogHtml = EQUIPMENT_CATALOG.map(eq => {
-            const canAfford = biz.cash >= eq.price;
             return `
                 <div class="card" style="padding: 1rem; border: 1px solid var(--border-color); background: rgba(0,0,0,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
                     <div>
                         <div style="font-weight: 800; color: #fff; font-size: 0.88rem;">🚜 ${eq.name}</div>
                         <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
-                            Maint: <strong style="color: #ef4444;">$ ${eq.maintenance.toLocaleString()}/bln</strong> | Progres: <strong style="color: #10b981;">+${eq.speedBoost * 100}% speed</strong>
+                            Maint: <strong style="color: #ef4444;">$ ${eq.maintenance.toLocaleString()}/bln</strong> | Kru: <strong style="color: #3b82f6;">${eq.crewReq} Orang</strong>
                         </div>
                     </div>
                     <button class="btn btn-primary btn-sm btn-buy-machinery" data-id="${eq.id}" style="font-weight: 850; font-size: 0.7rem; padding: 6px 12px; border-radius: 6px; white-space: nowrap;">
@@ -168,7 +207,7 @@ export const InfrastructureOpsPanel = {
                     <div>
                         <div style="font-weight: 800; color: #fff; font-size: 0.85rem;">🚜 ${eq.name}</div>
                         <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">
-                            Biaya Pemeliharaan: <span style="color: #ef4444;">$ ${eq.maintenance.toLocaleString()}/bln</span>
+                            Biaya Pemeliharaan: <span style="color: #ef4444;">$ ${eq.maintenance.toLocaleString()}/bln</span> | Kru: <span style="color: #3b82f6;">${eq.crewReq} Orang</span>
                         </div>
                     </div>
                     <button class="btn btn-sm btn-sell-machinery" data-id="${eq.id}" data-name="${eq.name}" data-resale="${resale}" style="font-weight: 900; font-size: 0.65rem; padding: 4px 10px; border-radius: 4px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: #f87171; transition: all 0.2s;">
@@ -186,7 +225,7 @@ export const InfrastructureOpsPanel = {
                     <div class="card" style="border-left: 4px solid #a855f7; padding: 1.25rem; background: rgba(255,255,255,0.015);">
                         <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Alat Berat Aktif</div>
                         <div style="font-size: 1.65rem; font-weight: 900; color: #a855f7;">${ownedEquipment.length} Unit Alat</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Exca: ${ownedCounts.excavator} | Bulldozer: ${ownedCounts.bulldozer} | Crane: ${ownedCounts.tower_crane}</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Total kebutuhan kru standar: ${standardCrewNeeded} orang</div>
                     </div>
                     
                     <div class="card" style="border-left: 4px solid #10b981; padding: 1.25rem; background: rgba(255,255,255,0.015);">
@@ -196,25 +235,90 @@ export const InfrastructureOpsPanel = {
                     </div>
                     
                     <div class="card" style="border-left: 4px solid #f59e0b; padding: 1.25rem; background: rgba(255,255,255,0.015);">
-                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Beban Maint. Alat Berat</div>
-                        <div style="font-size: 1.65rem; font-weight: 900; color: #ef4444;">-$ ${monthlyEquipMaint.toLocaleString()} / bln</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Biaya perawatan armada aktif</div>
+                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Gaji Kru & Pemeliharaan Alat</div>
+                        <div style="font-size: 1.4rem; font-weight: 900; color: #ef4444;">-$ ${(crewWagesPerMonth + monthlyEquipMaint).toLocaleString()} / bln</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Gaji: $ ${crewWagesPerMonth.toLocaleString()} (${activeCrew} kru) | Maint: $ ${monthlyEquipMaint.toLocaleString()}</div>
                     </div>
  
                     <div class="card" style="border-left: 4px solid #ec4899; padding: 1.25rem; background: rgba(255,255,255,0.015);">
                         <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Tingkat Suku Bunga & Demand</div>
                         <div style="font-size: 1.65rem; font-weight: 900; color: ${demandPercent > 100 ? '#10b981' : '#ec4899'};">${demandPercent}%</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Siklus ekonomi mempengaruhi nilai pembayaran bulanan</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Siklus ekonomi mempengaruhi nilai pembayaran</div>
+                    </div>
+                </div>
+
+                <!-- Crew Management Panel -->
+                <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1.25rem;">
+                    <h3 style="margin-top: 0; font-size: 1.05rem; font-weight: 900; color: #fff; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span>🧑‍🔧</span> Manajemen Kru & Gaji Proyek
+                    </h3>
+                    <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 0.5rem;">
+                        Kelola gaji bulanan kru dan alokasi jumlah pekerja untuk setiap proyek. Aturan kepegawaian mempengaruhi moral, kecepatan, dan beban operasional.
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 2rem;">
+                        <!-- Left: Salary Slider -->
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem; background: rgba(0,0,0,0.15); padding: 1rem; border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.8rem; font-weight: 800; color: #fff;">Gaji Pokok Kru</span>
+                                <strong style="color: #fbbf24; font-family: monospace; font-size: 0.9rem;">$ ${crewBaseSalary.toLocaleString()}/bln</strong>
+                            </div>
+                            <input type="range" id="crew-salary-slider" min="500" max="1500" step="50" value="${crewBaseSalary}" style="width: 100%; accent-color: #a855f7;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-dim);">
+                                <span>Minimal ($500)</span>
+                                <span>Standar ($800)</span>
+                                <span>Maximal ($1500)</span>
+                            </div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
+                                💡 Kecepatan pengerjaan proyek saat ini: <strong style="color: #10b981;">${Math.round(crewBaseSalary / 8 * 10)}%</strong>
+                            </div>
+                        </div>
+
+                        <!-- Right: Crew Allocation Mode -->
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem; background: rgba(0,0,0,0.15); padding: 1rem; border-radius: 8px;">
+                            <span style="font-size: 0.8rem; font-weight: 800; color: #fff;">Alokasi & Manajemen Kru</span>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-size: 0.75rem; color: #fff; padding: 4px 0;">
+                                    <input type="radio" name="crew-alloc" value="overstaffed" ${crewMode === 'overstaffed' ? 'checked' : ''} style="accent-color: #a855f7;">
+                                    <div>
+                                        <strong>Lebih dari Biasa (130% Kru)</strong>
+                                        <div style="font-size: 0.65rem; color: var(--text-muted);">Proyek dipercepat (+20% progres), gaji per kru normal.</div>
+                                    </div>
+                                </label>
+
+                                <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-size: 0.75rem; color: #fff; padding: 4px 0;">
+                                    <input type="radio" name="crew-alloc" value="normal" ${crewMode === 'normal' ? 'checked' : ''} style="accent-color: #a855f7;">
+                                    <div>
+                                        <strong>Wajar (100% Kru)</strong>
+                                        <div style="font-size: 0.65rem; color: var(--text-muted);">Kinerja standar. Jumlah kru & pengeluaran wajar.</div>
+                                    </div>
+                                </label>
+
+                                <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-size: 0.75rem; color: #fff; padding: 4px 0;">
+                                    <input type="radio" name="crew-alloc" value="efficient" ${crewMode === 'efficient' ? 'checked' : ''} style="accent-color: #a855f7;">
+                                    <div>
+                                        <strong>Efisien / Mode Lembur (70% Kru)</strong>
+                                        <div style="font-size: 0.65rem; color: var(--text-muted);">Otomatis Kerja Lembur. Gaji per kru 1.5x, total biaya kru lebih hemat. Kecepatan stabil (90%).</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
  
                 <!-- Tender Projects Bursa (Bursa Tender Kontrak) -->
                 <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color);">
-                    <h3 style="margin-top: 0; font-size: 1.05rem; font-weight: 900; color: #fff; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <span>🗺️</span> Bursa Tender Proyek Sipil & Infrastruktur Nasional
-                    </h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 900; color: #fff; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>🗺️</span> Bursa Tender Proyek Sipil & Infrastruktur Nasional
+                        </h3>
+                        <button id="btn-quick-tender" class="btn btn-primary btn-sm" style="font-weight: 900; padding: 6px 14px; border-radius: 6px; background: linear-gradient(135deg, #ec4899, #8b5cf6); border: none;">
+                            ⚡ AMBIL TENDER CEPAT
+                        </button>
+                    </div>
                     <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 1.5rem;">
-                        Daftar tender proyek pemerintah dan swasta yang dibuka. Untuk mengajukan penawaran kontrak, perusahaan Anda wajib memiliki jenis alat berat yang disyaratkan dalam kondisi siap beroperasi.
+                        Daftar tender proyek yang dibuka. Tender cepat menawarkan durasi pendek dan modal rendah, sedangkan tender alami meningkat skalanya seiring bertambahnya portofolio proyek selesai Anda.
                     </p>
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
@@ -246,12 +350,12 @@ export const InfrastructureOpsPanel = {
                         <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 1.25rem;">
                             Beli alat berat modern untuk memperluas kapabilitas konstruksi Anda dan memenuhi spesifikasi tender proyek sipil yang lebih besar.
                         </p>
-                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 300px; overflow-y: auto; padding-right: 4px;" class="custom-scroll">
                             ${equipmentCatalogHtml}
                         </div>
                     </div>
                 </div>
- 
+  
                 <!-- Active Projects Portfolio (Kontrak Berjalan) -->
                 <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color);">
                     <h3 style="margin-top: 0; font-size: 1.05rem; font-weight: 900; color: #fff; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -264,6 +368,7 @@ export const InfrastructureOpsPanel = {
                                     <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Nama Kontrak / Proyek</th>
                                     <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Pemberi Tugas</th>
                                     <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Nilai Proyek</th>
+                                    <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Metode Pembayaran</th>
                                     <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Sisa Waktu Pengerjaan</th>
                                     <th style="padding: 0.6rem 0.5rem; text-align: right; font-weight: 800;">Milestone Konstruksi</th>
                                 </tr>
@@ -274,12 +379,52 @@ export const InfrastructureOpsPanel = {
                         </table>
                     </div>
                 </div>
- 
+  
             </div>
         `;
     },
 
     bindEvents(biz, container, parentPage) {
+        // Crew Salary Slider
+        const salarySlider = container.querySelector('#crew-salary-slider');
+        if (salarySlider) {
+            salarySlider.addEventListener('change', () => {
+                const val = parseInt(salarySlider.value);
+                try {
+                    businessManager.setInfrastructureCrewSalary(val);
+                    if (parentPage) parentPage.render();
+                } catch (e) {
+                    ui.error(e.message);
+                }
+            });
+        }
+
+        // Crew Allocation Mode Radio Change
+        container.querySelectorAll('input[name="crew-alloc"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const mode = radio.value;
+                try {
+                    businessManager.setInfrastructureCrewAllocationMode(mode);
+                    if (parentPage) parentPage.render();
+                } catch (e) {
+                    ui.error(e.message);
+                }
+            });
+        });
+
+        // Quick Tender Trigger Button
+        const btnQuickTender = container.querySelector('#btn-quick-tender');
+        if (btnQuickTender) {
+            btnQuickTender.addEventListener('click', () => {
+                try {
+                    businessManager.generateInfrastructureQuickTender();
+                    if (parentPage) parentPage.render();
+                } catch (e) {
+                    ui.error(e.message);
+                }
+            });
+        }
+
         // Buy heavy machinery
         container.querySelectorAll('.btn-buy-machinery').forEach(btn => {
             btn.addEventListener('click', async () => {

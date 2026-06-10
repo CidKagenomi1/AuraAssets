@@ -184,6 +184,11 @@ export const SubsidiaryPanel = {
                                     📈 Invest
                                 </button>
                             </div>
+                            <div style="margin-top: 0.5rem; display: flex;">
+                                <button class="btn btn-sm btn-ipo-sub" data-id="${s.id}" data-name="${s.name}" data-val="${sVal}" style="width: 100%; padding: 4px 8px; font-size: 0.65rem; font-weight: 850; border-radius: 4px; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.3); color: #c084fc; cursor: pointer; transition: all 0.2s;">
+                                    🚀 IPO Spinoff (+$ ${formatCompact(sVal)})
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -506,6 +511,32 @@ export const SubsidiaryPanel = {
                 if (confirmed) {
                     try {
                         businessManager.investInSubsidiary(subId, amount, source);
+                        if (parentPage) parentPage.render();
+                    } catch (e) {
+                        ui.error(e.message);
+                    }
+                }
+            });
+        });
+
+        // IPO Spinoff Listener
+        container.querySelectorAll('.btn-ipo-sub').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const subId = btn.dataset.id;
+                const name = btn.dataset.name;
+                const valStr = btn.dataset.val;
+                const val = parseInt(valStr, 10);
+
+                const confirmed = await ui.confirm({
+                    title: `Lakukan IPO Spinoff ${name}?`,
+                    message: `Apakah Anda yakin ingin meluncurkan IPO Spinoff untuk anak perusahaan/mitra "${name}"? Tindakan ini akan melepas kepemilikan Anda sepenuhnya dan menyuntikkan dana kas tunai sebesar $ ${val.toLocaleString()} (100% dari valuasinya) langsung ke kas Treasury perusahaan utama Anda.`,
+                    confirmText: 'Luncurkan IPO Spinoff',
+                    confirmClass: 'btn-success'
+                });
+
+                if (confirmed) {
+                    try {
+                        businessManager.ipoSubsidiary(subId);
                         if (parentPage) parentPage.render();
                     } catch (e) {
                         ui.error(e.message);

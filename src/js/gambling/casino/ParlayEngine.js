@@ -125,8 +125,10 @@ export class ParlayEngine {
         this.onBalanceRefresh = onBalanceRefresh;
         this.selectedLegs = []; // Array of { id, type, label, prediction, odds }
         this.isSimulating = false;
-        this.simLogs = [];
-        this.currentSimulationLegIdx = 0;
+        this.simLegStates = [];
+        this.simResult = null; // 'win' | 'lose' | null
+        this.simWinAmount = 0;
+        this.simBetAmount = 0;
         this.matches = [];
         this.generateMatches();
     }
@@ -157,6 +159,79 @@ export class ParlayEngine {
         return rateOn 
             ? `<div class="rate-badge rate-on-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:linear-gradient(135deg,#ef4444,#fbbf24); color:#fff; font-weight:900; font-size:0.75rem; padding:0.25rem 0.6rem; border-radius:999px; box-shadow:0 0 10px rgba(239,68,68,0.5); animation: rateGlow 1s ease-in-out infinite alternate; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 0.5rem; border: 1.5px solid #fff;">⚡ RATE ON (JACKPOT UP!)</div>`
             : `<div class="rate-badge rate-off-badge" style="display:inline-flex; align-items:center; gap:0.25rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:rgba(255,255,255,0.6); font-weight:800; font-size:0.7rem; padding:0.2rem 0.5rem; border-radius:999px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 0.5rem;">Rate: OFF (${plays}/250 Spins)</div>`;
+    }
+
+    renderScoreboardRows() {
+        if (!this.simLegStates || this.simLegStates.length === 0) return '';
+        return this.simLegStates.map((leg, index) => {
+            let statusIcon = '⏳';
+            let statusText = 'MENUNGGU';
+            let statusColor = 'rgba(255,255,255,0.3)';
+            
+            if (leg.status === 'simulating') {
+                statusIcon = '🔄';
+                statusText = 'LIVE';
+                statusColor = '#fbbf24';
+            } else if (leg.status === 'won') {
+                statusIcon = '🟢';
+                statusText = 'TEMBUS';
+                statusColor = '#10b981';
+            } else if (leg.status === 'lost') {
+                statusIcon = '🔴';
+                statusText = 'GAGAL';
+                statusColor = '#ef4444';
+            }
+
+            return `
+                <div style="display:flex; flex-direction:column; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.05); padding:0.75rem; border-radius:8px; gap:0.25rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.65rem; color:#a855f7; font-weight:800; text-transform:uppercase;">LEG ${index + 1} - ${leg.type.toUpperCase()}</span>
+                        <div style="display:flex; align-items:center; gap:0.25rem; font-size:0.65rem; font-weight:900; color:${statusColor}; background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:4px;">
+                            <span>${statusIcon}</span>
+                            <span>${statusText}</span>
+                        </div>
+                    </div>
+                    <div style="font-size:0.85rem; font-weight:800; color:#fff;">${leg.label}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:rgba(255,255,255,0.5); margin-top:2px;">
+                        <span>Pilihan: <strong style="color:#fbbf24;">${leg.prediction.toUpperCase()}</strong> (${leg.odds.toFixed(2)}x)</span>
+                        <span style="font-family:monospace; color:#10b981; font-weight:800;">${leg.details}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    renderSimulationSummary() {
+        if (this.simResult === null) {
+            return `
+                <div style="display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-top:0.75rem; color:#fbbf24; font-size:0.8rem; font-weight:800; background:rgba(251,191,36,0.08); padding:0.6rem; border-radius:6px; border:1px solid rgba(251,191,36,0.15);">
+                    <div class="spinner" style="border: 2px solid rgba(255,255,255,0.1); border-top: 2px solid #fbbf24; border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite;"></div>
+                    <span>Simulasi pertandingan sedang berjalan...</span>
+                </div>
+            `;
+        }
+
+        if (this.simResult === 'win') {
+            return `
+                <div style="margin-top:0.75rem; text-align:center; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); padding:1rem; border-radius:8px; animation: popIn 0.3s ease-out;">
+                    <div style="font-size:1.5rem; margin-bottom:0.25rem;">🎉</div>
+                    <h4 style="margin:0; font-size:1.1rem; font-weight:900; color:#10b981;">PARLAY TEMBUS!</h4>
+                    <p style="margin:4px 0 0 0; font-size:0.8rem; color:rgba(255,255,255,0.7);">
+                        Anda memenangkan hadiah total sebesar <strong style="color:#fbbf24; font-size:0.95rem;">+$ ${this.simWinAmount.toLocaleString()}</strong>!
+                    </p>
+                </div>
+            `;
+        }
+
+        return `
+            <div style="margin-top:0.75rem; text-align:center; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); padding:1rem; border-radius:8px; animation: popIn 0.3s ease-out;">
+                <div style="font-size:1.5rem; margin-bottom:0.25rem;">💥</div>
+                <h4 style="margin:0; font-size:1.1rem; font-weight:900; color:#ef4444;">TIKET PARLAY GUGUR</h4>
+                <p style="margin:4px 0 0 0; font-size:0.8rem; color:rgba(255,255,255,0.7);">
+                    Ada taruhan yang meleset. Seluruh nilai taruhan sebesar <span style="color:#fff;">$ ${this.simBetAmount.toLocaleString()}</span> hangus.
+                </p>
+            </div>
+        `;
     }
 
     getHTML() {
@@ -310,13 +385,17 @@ export class ParlayEngine {
 
             </div>
 
-            <!-- Simulation Console Area -->
-            <div id="parlay-sim-console" class="parlay-sim-box" style="display:${this.isSimulating || this.simLogs.length > 0 ? 'block' : 'none'};">
-                <div style="font-size:0.7rem; color:rgba(255,255,255,0.4); text-transform:uppercase; font-weight:800; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:4px; margin-bottom:6px; text-align:left;">
-                    💻 KONSOLE SIMULASI PARLAY LIVE
+            <!-- Simulation Scoreboard Area -->
+            <div id="parlay-sim-console" class="parlay-sim-box" style="display:${this.isSimulating || this.simLegStates.length > 0 ? 'block' : 'none'}; padding:1.25rem; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.08); text-align:left;">
+                <div style="font-size:0.85rem; color:#fff; text-transform:uppercase; font-weight:900; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:6px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📊 PAPAN SKOR SIMULASI LIVE</span>
+                    <span style="font-size:0.75rem; color:#a855f7;">Tiket: ${this.simLegStates.length} Leg</span>
                 </div>
-                <div id="parlay-logs-area" style="font-family:'Courier New', monospace; font-size:0.72rem; color:#10b981; max-height:160px; overflow-y:auto; text-align:left; display:flex; flex-direction:column; gap:0.2rem;">
-                    ${this.simLogs.map(log => `<div>${log}</div>`).join('')}
+                <div id="parlay-scoreboard-area" style="display:flex; flex-direction:column; gap:0.65rem;">
+                    ${this.renderScoreboardRows()}
+                </div>
+                <div id="parlay-summary-area">
+                    ${this.renderSimulationSummary()}
                 </div>
             </div>
 
@@ -532,6 +611,21 @@ export class ParlayEngine {
         this.bindEvents(container, this.onBalanceRefresh);
     }
 
+    refreshUIFromSimulation() {
+        const scoreboardArea = document.getElementById('parlay-scoreboard-area');
+        const summaryArea = document.getElementById('parlay-summary-area');
+        if (scoreboardArea && summaryArea) {
+            scoreboardArea.innerHTML = this.renderScoreboardRows();
+            summaryArea.innerHTML = this.renderSimulationSummary();
+        } else {
+            const root = document.getElementById('casino-game-panel');
+            if (root) {
+                root.innerHTML = this.getHTML();
+                this.bindEvents(root, this.onBalanceRefresh);
+            }
+        }
+    }
+
     async startSimulation() {
         if (this.isSimulating) return;
         if (this.selectedLegs.length < 2) {
@@ -547,8 +641,16 @@ export class ParlayEngine {
         if (betAmount > balance) { ui.error('Saldo tidak mencukupi!'); return; }
 
         this.isSimulating = true;
-        this.simLogs = [];
-        this.currentSimulationLegIdx = 0;
+        this.simResult = null;
+        this.simWinAmount = 0;
+        this.simBetAmount = betAmount;
+
+        // Initialize leg states
+        this.simLegStates = this.selectedLegs.map(leg => ({
+            ...leg,
+            status: 'pending',
+            details: 'Menunggu antrean...'
+        }));
 
         import('../../ui/AuraSound.js').then(m => m.default.playCasinoSpin());
 
@@ -562,57 +664,46 @@ export class ParlayEngine {
         gameState.set('casino.ratePlays', plays);
         const rateOn = plays >= 250;
 
-        // Update UI to disabled state and show simulator panel
-        const root = document.getElementById('casino-game-panel');
-        if (root) {
-            root.innerHTML = this.getHTML();
-            this.bindEvents(root, this.onBalanceRefresh);
-            document.getElementById('parlay-sim-console').style.display = 'block';
-        }
-
-        const logArea = document.getElementById('parlay-logs-area');
-        const appendLog = (msg) => {
-            this.simLogs.push(msg);
-            if (logArea) {
-                logArea.innerHTML += `<div>${msg}</div>`;
-                logArea.scrollTop = logArea.scrollHeight;
-            }
-        };
-
-        appendLog(`🚀 Memulai Parlay Slip: ${this.selectedLegs.length} Leg | Odds: ${this.calculateTotalMultiplier().toFixed(2)}x`);
-        appendLog(`💰 Nilai Taruhan: $${financeManager.formatCurrency(betAmount)}`);
-        if (rateOn) {
-            appendLog(`⚡ <span style="color:#fbbf24; font-weight:800;">RATE ON AKTIF! Faktor keberuntungan meningkat secara ekstrim!</span>`);
-        }
-        appendLog(`-------------------------------------------------`);
+        // Render simulation container
+        this.refreshUIFromSimulation();
 
         let parlayWon = true;
 
-        for (let i = 0; i < this.selectedLegs.length; i++) {
-            const leg = this.selectedLegs[i];
-            appendLog(`⏳ [Leg ${i + 1}/${this.selectedLegs.length}] Menyelesaikan: ${leg.label}...`);
-            await new Promise(r => setTimeout(r, 1000));
+        for (let i = 0; i < this.simLegStates.length; i++) {
+            const leg = this.simLegStates[i];
+            leg.status = 'simulating';
+            leg.details = 'Bertanding...';
+            this.refreshUIFromSimulation();
+            
+            await new Promise(r => setTimeout(r, 600));
 
             let legSuccess = false;
 
             if (leg.type === 'football') {
-                legSuccess = await this.simulateFootballLeg(leg, appendLog, rateOn);
+                legSuccess = await this.simulateFootballLeg(leg, rateOn);
             } else if (leg.type === 'horse') {
-                legSuccess = await this.simulateHorseLeg(leg, appendLog, rateOn);
+                legSuccess = await this.simulateHorseLeg(leg, rateOn);
             } else {
-                legSuccess = await this.simulateRandomLeg(leg, appendLog, rateOn);
+                legSuccess = await this.simulateRandomLeg(leg, rateOn);
             }
 
             if (!legSuccess) {
                 parlayWon = false;
-                appendLog(`❌ LEG ${i + 1} GAGAL! Tiket Parlay Anda Gugur.`);
+                leg.status = 'lost';
                 import('../../ui/AuraSound.js').then(m => m.default.playCasinoLose());
+                this.refreshUIFromSimulation();
+                
+                // Mark remaining legs as canceled or skipped
+                for (let j = i + 1; j < this.simLegStates.length; j++) {
+                    this.simLegStates[j].status = 'pending';
+                    this.simLegStates[j].details = 'Gugur otomatis';
+                }
                 break;
             } else {
-                appendLog(`✅ LEG ${i + 1} TEMBUS!`);
+                leg.status = 'won';
                 import('../../ui/AuraSound.js').then(m => m.default.playClaimMoney());
+                this.refreshUIFromSimulation();
             }
-            appendLog(`-------------------------------------------------`);
         }
 
         this.isSimulating = false;
@@ -621,59 +712,49 @@ export class ParlayEngine {
         if (parlayWon) {
             const totalOdds = this.calculateTotalMultiplier();
             const winAmount = Math.round(betAmount * totalOdds);
+            this.simWinAmount = winAmount;
+            this.simResult = 'win';
             
             financeManager.addIncome(winAmount, 'Investasi', `Parlay Tembus: ${this.selectedLegs.length} Legs`);
             this.onBalanceRefresh?.();
 
             // Reset Rate plays on parlay win
             gameState.set('casino.ratePlays', 0);
-
-            appendLog(`🎉 <span style="color:#34d399; font-weight:900; font-size:1.1em;">PARLAY TEMBUS! Anda menang +$${financeManager.formatCurrency(winAmount)}!</span>`);
             ui.success(`MEGA PARLAY TEMBUS! Total menang +$ ${winAmount.toLocaleString()}`, '🎰 Parlay Win!');
             import('../../ui/AuraSound.js').then(m => m.default.playCasinoWin());
         } else {
-            appendLog(`😞 <span style="color:#ef4444; font-weight:800;">Tiket Parlay Kalah. Seluruh taruhan hangus!</span>`);
+            this.simResult = 'lose';
             ui.toast({ type: 'warning', title: 'Parlay Kalah', message: 'Ada taruhan yang tidak cocok!' });
             import('../../ui/AuraSound.js').then(m => m.default.playCasinoLose());
         }
 
         // Generate new matches for the next round
         this.generateMatches();
-
-        // Refresh panel at the end of simulation
+        
+        const root = document.getElementById('casino-game-panel');
         if (root) {
-            // Keep the logs visible
-            const activeInputVal = document.getElementById('parlay-bet-input')?.value || '100,000';
-            root.innerHTML = this.getHTML();
-            this.bindEvents(root, this.onBalanceRefresh);
-            
-            const newInput = document.getElementById('parlay-bet-input');
-            if (newInput) newInput.value = activeInputVal;
-            
-            // Re-render logs
-            const freshLogArea = document.getElementById('parlay-logs-area');
-            if (freshLogArea) {
-                freshLogArea.innerHTML = this.simLogs.map(log => `<div>${log}</div>`).join('');
-                freshLogArea.scrollTop = freshLogArea.scrollHeight;
-            }
-            document.getElementById('parlay-sim-console').style.display = 'block';
+            this.refreshUI(root);
+            // Ensure scoreboard remains visible at the end of simulation
+            const consoleBox = document.getElementById('parlay-sim-console');
+            if (consoleBox) consoleBox.style.display = 'block';
         }
     }
 
-    async simulateFootballLeg(leg, logFn, rateOn) {
-        logFn(`⚽ Kick off...`);
+    async simulateFootballLeg(leg, rateOn) {
         const matches = this.matches.find(m => m.id === leg.id);
         
-        // Match simulation text details
-        const details = [
-            `Min 15: Laju penyerangan home team tersendat.`,
-            `Min 44: Kemelut di kotak penalti! Kartu kuning diberikan.`,
-            `Min 72: Tembakan keras membentur tiang gawang!`,
+        // Match simulation score steps
+        const steps = [
+            'Kick off!',
+            'Min 24: Serangan kandang',
+            'Min 65: Pelanggaran keras',
+            'Min 80: Penyerangan balik'
         ];
 
-        for (const detail of details) {
+        for (const step of steps) {
             await new Promise(r => setTimeout(r, 600));
-            logFn(`⚽ ${detail}`);
+            leg.details = step;
+            this.refreshUIFromSimulation();
         }
 
         // Determine outcome
@@ -695,22 +776,23 @@ export class ParlayEngine {
         else if (outcome === 'away') finalScore = '0-1';
         else finalScore = '1-1';
 
-        logFn(`⚽ Min 90: Pluit panjang berbunyi! Hasil akhir ${matches.home} ${finalScore} ${matches.away}`);
-        logFn(`⚽ Hasil Laga: ${outcome.toUpperCase()} (Pilihan Anda: ${leg.prediction.toUpperCase()})`);
-
-        return outcome === leg.prediction;
+        const isWon = outcome === leg.prediction;
+        leg.details = `Skor Akhir: ${finalScore}`;
+        return isWon;
     }
 
-    async simulateHorseLeg(leg, logFn, rateOn) {
-        logFn(`🏇 Kuda-kuda memasuki gerbang start...`);
-        await new Promise(r => setTimeout(r, 600));
-        logFn(`🏁 GERBANG DIBUKA! Pacuan Baby Derby Dimulai!`);
+    async simulateHorseLeg(leg, rateOn) {
+        const steps = [
+            '🏁 Gerbang dibuka!',
+            '🏇 Tikungan pertama...',
+            '🏇 Trek lurus...',
+            '🏁 Dekat garis finish!'
+        ];
 
-        // Perform dynamic race progression logs
-        for (let step = 1; step <= 3; step++) {
-            await new Promise(r => setTimeout(r, 650));
-            const leaderIdx = Math.floor(Math.random() * HORSES.length);
-            logFn(`🏇 Lintasan ${step}/3: Kuda ${HORSES[leaderIdx].name} memimpin di tikungan!`);
+        for (const step of steps) {
+            await new Promise(r => setTimeout(r, 600));
+            leg.details = step;
+            this.refreshUIFromSimulation();
         }
 
         // Determine winner
@@ -742,15 +824,12 @@ export class ParlayEngine {
             }
         }
 
-        await new Promise(r => setTimeout(r, 500));
-        logFn(`🏆 FINISH! Pemenang Pacuan Kuda: ${winner}`);
-        logFn(`🏇 Hasil Balapan: ${winner} (Pilihan Anda: ${leg.prediction})`);
-
-        return winner === leg.prediction;
+        const isWon = winner === leg.prediction;
+        leg.details = `Pemenang: ${winner.replace('🐎 ', '')}`;
+        return isWon;
     }
 
-    async simulateRandomLeg(leg, logFn, rateOn) {
-        logFn(`🎲 Memutar nasib Taruhan Acak... (Odds: ${leg.odds}x)`);
+    async simulateRandomLeg(leg, rateOn) {
         await new Promise(r => setTimeout(r, 800));
 
         const winChance = 1.35 / leg.odds; 
@@ -762,7 +841,8 @@ export class ParlayEngine {
             rolledSuccess = Math.random() < winChance;
         }
 
-        logFn(`🎲 Hasil Roll Taruhan Acak: ${rolledSuccess ? '⚡ BERHASIL!' : '💥 GAGAL'}`);
+        leg.details = rolledSuccess ? 'Roll: Berhasil!' : 'Roll: Gagal';
         return rolledSuccess;
     }
 }
+

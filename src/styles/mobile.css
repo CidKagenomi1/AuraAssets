@@ -1,0 +1,720 @@
+/* ========================================
+   MOBILE RESPONSIVE OVERRIDES
+   Comprehensive adaptive styles for phones & tablets
+   Target: max-width 768px (tablets) and 480px (phones)
+   ======================================== */
+
+/* ── GLOBAL MOBILE SAFE LAYOUT ─────────────────── */
+@media (max-width: 768px) {
+  /* Ensure nothing causes horizontal scroll */
+  body, html {
+    overflow-x: hidden;
+    /* Restore readable font size on mobile (compact.css reduces to 14px desktop) */
+    font-size: 13px;
+  }
+
+  /* All inline grid with hard-coded 1fr 1fr columns → collapse to 1fr */
+  [style*="grid-template-columns: 1fr 1fr"],
+  [style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Large minmax grids → reduce min to allow 1 col on phone */
+  [style*="minmax(220px"],
+  [style*="minmax(240px"],
+  [style*="minmax(260px"],
+  [style*="minmax(280px"],
+  [style*="minmax(300px"],
+  [style*="minmax(320px"],
+  [style*="minmax(400px"],
+  [style*="minmax(420px"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Two-column ratio grids collapse to single column */
+  [style*="grid-template-columns: 1.2fr 1fr"],
+  [style*="grid-template-columns: 2fr 1fr"],
+  [style*="grid-template-columns: 1.5fr 1fr"],
+  [style*="grid-template-columns: 1fr 1.2fr"],
+  [style*="grid-template-columns: 1.2fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Ensure all gap-based grids don't overflow */
+  [style*="display: grid"],
+  [style*="display:grid"] {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Tables: allow horizontal scroll instead of overflow */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    font-size: 0.78rem !important;
+  }
+
+  th, td {
+    padding: 0.4rem 0.5rem !important;
+    white-space: nowrap;
+  }
+
+  /* Touch-friendly inputs & buttons */
+  input, select, textarea, button {
+    min-height: 40px;
+    font-size: 0.875rem !important;
+  }
+
+  /* Toasts: full width on mobile */
+  .toast-container {
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    bottom: 5rem !important; /* Above bottom nav */
+    align-items: stretch !important;
+  }
+  .toast {
+    min-width: unset !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+
+/* ── BUSINESS PAGE - WIZARD & DASHBOARD ────────── */
+@media (max-width: 768px) {
+  /* Business dashboard: sidebar → horizontal tab bar */
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    padding: 0.75rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .dashboard-sidebar {
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 0.4rem !important;
+    padding: 0.5rem !important;
+    background: rgba(0,0,0,0.2) !important;
+    border-radius: var(--radius-md) !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .dashboard-sidebar::-webkit-scrollbar {
+    height: 3px;
+  }
+  .dashboard-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+  }
+
+  .dashboard-sidebar .nav-btn {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    padding: 0.5rem 0.875rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  .dashboard-main {
+    padding-right: 0 !important;
+  }
+
+  /* Stats grid: 2 columns on tablet */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Business type selection grid */
+  .business-types-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Wizard card padding reduction */
+  .wizard-card {
+    padding: 1rem !important;
+  }
+
+  /* ops panel reduced padding */
+  .ops-panel {
+    padding: 0.75rem !important;
+  }
+
+  /* ops-item stacks vertically */
+  .ops-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+  }
+
+  .ops-item .btn-action {
+    width: 100% !important;
+    text-align: center !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Stats grid: 1 column on phone */
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Three-column grids inline style → collapse */
+  [style*="grid-template-columns: 1fr 1fr 1fr"],
+  [style*="grid-template-columns:1fr 1fr 1fr"],
+  [style*="repeat(3, 1fr)"],
+  [style*="repeat(3,1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── BUSINESS PANEL - OPS INNER LAYOUTS ─────────── */
+@media (max-width: 768px) {
+  /* Business metrics in components.css */
+  .business-metrics {
+    grid-template-columns: 1fr 1fr 1fr !important; /* keep 3-col but small */
+    padding: 0.5rem !important;
+    gap: 0.4rem !important;
+  }
+
+  .metric-val {
+    font-size: 0.9rem !important;
+  }
+
+  .metric-lbl {
+    font-size: 0.62rem !important;
+  }
+
+  /* Biz page header stack on tablet */
+  .biz-page-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+    padding: 0.75rem 1rem !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+  }
+
+  .biz-tab-group {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    gap: 0.25rem !important;
+  }
+
+  .biz-tab-group .tab-btn {
+    padding: 6px 10px !important;
+    font-size: 0.72rem !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .business-metrics {
+    grid-template-columns: 1fr 1fr !important; /* 2-col on phones */
+  }
+}
+
+/* ── PANEL CARD INNER SECTIONS ──────────────────── */
+@media (max-width: 768px) {
+  .panel-card {
+    padding: 0.75rem !important;
+    border-radius: var(--radius-lg) !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  /* Panel header stacks */
+  .panel-header {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  /* View tabs scroll */
+  .view-tabs {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    gap: 0 !important;
+    padding-bottom: 2px !important;
+  }
+
+  .view-tabs::-webkit-scrollbar {
+    height: 3px;
+  }
+
+  .tab-btn {
+    flex-shrink: 0 !important;
+    padding: 0.6rem 0.875rem !important;
+    font-size: 0.78rem !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* ── MODALS ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  .modal-container {
+    padding: 0.5rem !important;
+    align-items: flex-end !important; /* Bottom sheet feel */
+  }
+
+  .modal-content {
+    max-width: 100% !important;
+    max-height: 92vh !important;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+  }
+}
+
+/* ── ENERGY OPS PANEL ───────────────────────────── */
+@media (max-width: 768px) {
+  /* Energy commodity sliders side-by-side layout collapse */
+  [style*="grid-template-columns: 1.2fr 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Powerplant mix sliders */
+  [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── FINANCE OPS PANEL PORTFOLIO TABLE ──────────── */
+@media (max-width: 768px) {
+  /* Holding portfolio table wrapper */
+  .finance-portfolio-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-md);
+  }
+
+  /* Stock search results */
+  #stock-search-results {
+    max-height: 200px !important;
+  }
+}
+
+/* ── PROPERTY OPS PANEL ─────────────────────────── */
+@media (max-width: 768px) {
+  /* Property land cards → auto responsive */
+  [style*="minmax(280px"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── WORK PAGE / FULL PAGE ──────────────────────── */
+@media (max-width: 768px) {
+  .fp-header {
+    padding: 0.75rem 1rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  .fp-header-center {
+    flex: 1 !important;
+    min-width: 0;
+  }
+
+  .fp-title {
+    font-size: 1rem !important;
+  }
+
+  .fp-balance-chip {
+    font-size: 0.8rem !important;
+    padding: 0.3rem 0.75rem !important;
+  }
+
+  .fp-main {
+    padding: 1rem !important;
+    gap: 1rem !important;
+  }
+
+  /* Task cards grid */
+  .wp-tasks-container {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .wp-active-task-card {
+    padding: 1.25rem !important;
+  }
+
+  .wp-stats-strip {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  .wp-stat {
+    padding: 0.6rem !important;
+  }
+
+  .wp-stat-val {
+    font-size: 0.95rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .wp-tasks-container {
+    grid-template-columns: 1fr !important;
+  }
+
+  .wp-stats-strip {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* ── TRADING PAGE ────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Trading page layout: stack columns */
+  .trading-page {
+    flex-direction: column !important;
+  }
+
+  .trading-header {
+    padding: 0.75rem 1rem !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .trading-icon {
+    font-size: 1.4rem !important;
+  }
+
+  .trading-symbol {
+    font-size: 1rem !important;
+  }
+
+  .trading-current-price {
+    font-size: 1.2rem !important;
+  }
+
+  .chart-stats {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  .position-details {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Market row on mobile */
+  .market-name {
+    display: none !important; /* Hide full company name, keep ticker */
+  }
+
+  .market-symbol {
+    min-width: 48px !important;
+  }
+
+  .market-price {
+    min-width: 60px !important;
+  }
+
+  /* Trade history stats */
+  .th-stats {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.35rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-stats {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .th-stats {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .candlestick-chart {
+    height: 200px !important;
+  }
+
+  /* Order form compact */
+  .order-form {
+    padding: 1rem !important;
+  }
+
+  .quick-amounts {
+    flex-wrap: wrap !important;
+  }
+
+  .quick-btn {
+    flex: 1 1 calc(25% - 0.5rem) !important;
+  }
+}
+
+/* ── HOME DASHBOARD ─────────────────────────────── */
+@media (max-width: 768px) {
+  .home-dashboard-layout {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Wealth distribution grid */
+  .wealth-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  .wealth-asset-item {
+    padding: 0.6rem !important;
+  }
+
+  .wealth-value {
+    font-size: 2rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .wealth-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .wealth-value {
+    font-size: 1.65rem !important;
+  }
+
+  .balance-main {
+    font-size: 1.75rem !important;
+  }
+}
+
+/* ── CAREER PAGE ─────────────────────────────────── */
+@media (max-width: 768px) {
+  .career-content {
+    max-width: 100% !important;
+    padding: 1rem !important;
+  }
+
+  .job-list {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── SPECIFIC INLINE GRID OVERRIDES (inline styles bypass CSS class selectors) ── */
+/* These use attribute selectors to catch inline style patterns in panel JS files */
+
+@media (max-width: 600px) {
+  /* Catch any fixed two column ratio grids */
+  [style*="grid-template-columns: 2fr 1fr"],
+  [style*="grid-template-columns: 1.5fr 1fr"],
+  [style*="grid-template-columns: 1.2fr 1fr"],
+  [style*="grid-template-columns: 1fr 1.5fr"],
+  [style*="grid-template-columns: 1fr 1.2fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Catch inline 3-column fixed grids */
+  [style*="grid-template-columns: repeat(3"],
+  [style*="grid-template-columns:repeat(3"] {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Large minmax → force 1 col */
+  [style*="minmax(220px"],
+  [style*="minmax(240px"],
+  [style*="minmax(260px"],
+  [style*="minmax(280px"],
+  [style*="minmax(300px"],
+  [style*="minmax(320px"],
+  [style*="minmax(400px"],
+  [style*="minmax(420px"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Flex rows with explicit column widths */
+  [style*="display: flex"] > [style*="width: 250px"],
+  [style*="display: flex"] > [style*="width: 280px"],
+  [style*="display: flex"] > [style*="width: 300px"],
+  [style*="display:flex"] > [style*="width: 250px"],
+  [style*="display:flex"] > [style*="width: 280px"] {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+/* ── PORTFOLIO / ASSET LIST ON MOBILE ─────────────── */
+@media (max-width: 768px) {
+  .asset-item {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .asset-left {
+    flex: 1 !important;
+    min-width: 0;
+  }
+
+  .asset-right {
+    text-align: right;
+    flex-shrink: 0;
+  }
+}
+
+/* ── BOTTOM NAV (MOBILE) ─────────────────────────── */
+@media (max-width: 992px) {
+  .app-bottom-nav {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Add extra padding to main content so bottom nav doesn't cover it */
+  .app-main {
+    padding-bottom: 70px !important;
+  }
+}
+
+/* ── TOPBAR ADJUSTMENTS ─────────────────────────── */
+@media (max-width: 768px) {
+  .app-topbar {
+    padding: 0 0.75rem !important;
+    height: 56px !important;
+  }
+
+  .topbar-left {
+    gap: 0.5rem !important;
+  }
+
+  .topbar-time {
+    padding: 0.3rem 0.5rem !important;
+    font-size: 0.78rem !important;
+  }
+
+  /* Hide secondary topbar elements on small screens */
+  .topbar-right .btn-icon:not(:last-child):not(:first-child) {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-topbar {
+    height: auto !important;
+    padding: 0.4rem 0.6rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  .topbar-right {
+    gap: 0.25rem !important;
+  }
+
+  .btn-icon {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 0.95rem !important;
+  }
+}
+
+/* ── ACQUIRE / SLIDER CONTROLS ───────────────────── */
+@media (max-width: 768px) {
+  /* Energy/Retail sliders */
+  input[type="range"] {
+    height: 6px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
+
+/* ── LOAN & TAX PAGES ────────────────────────────── */
+@media (max-width: 768px) {
+  .loan-layout-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .loan-sidebar-sticky {
+    position: static !important;
+  }
+
+  .tax-layout-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+}
+
+/* ── QUICK FIX FOR ACQUISITION TABLE IN SIDEBAR ─── */
+@media (max-width: 768px) {
+  /* Vendor/Subsidiary card compact */
+  [style*="display: grid; grid-template-columns: 250px"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  [style*="display: grid; grid-template-columns: 280px"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── SECTOR OPS: PREVENT OVERFLOW FROM CARDS ────── */
+@media (max-width: 768px) {
+  /* Sector stats summary bar → scroll */
+  .sector-stats-bar {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+  }
+
+  /* Inline progress / capacity indicators */
+  .capacity-bar,
+  .progress-bar-container {
+    min-width: 60px !important;
+  }
+}
+
+/* ── BOTTOM SAFE AREA (NOTCH DEVICES) ───────────── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .app-bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  @media (max-width: 992px) {
+    .app-main {
+      padding-bottom: calc(70px + env(safe-area-inset-bottom)) !important;
+    }
+  }
+}
+
+/* ── TOUCH HIGHLIGHT REMOVAL ─────────────────────── */
+button, a, [role="button"],
+.menu-card, .asset-item, .market-row, .job-item,
+.biz-type-card, .tab-btn, .nav-btn {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ── SCROLLABLE CONTAINERS SMOOTH ─────────────────── */
+.sidebar-nav,
+.dashboard-main,
+.fp-main,
+.dashboard-sidebar,
+.biz-tab-group,
+.view-tabs,
+.tab-group {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* ── HELPER UTILITY CLASSES ─────────────────────── */
+.mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: block !important;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+}

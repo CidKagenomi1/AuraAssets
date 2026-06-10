@@ -1,0 +1,817 @@
+/* ========================================
+   COMPACT DENSITY STYLESHEET
+   Philosophy: More info in less space.
+   Numbers are tight, grids are dense.
+   Charts are crisp & short, not tall.
+   No padding waste — every px matters.
+   ======================================== */
+
+/* ── ROOT OVERRIDES: smaller base unit ─────────── */
+:root {
+  /* Compact spacing scale */
+  --space-xs:   0.2rem;
+  --space-sm:   0.4rem;
+  --space-md:   0.75rem;
+  --space-lg:   1rem;
+  --space-xl:   1.4rem;
+
+  /* Compact radius */
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  16px;
+}
+
+/* ── BASE TYPOGRAPHY: tighter line height ──────── */
+html {
+  font-size: 14px; /* down from 15px — makes everything 6.7% smaller uniformly */
+}
+
+body {
+  line-height: 1.4; /* was 1.5 */
+}
+
+/* ── TOPBAR: slimmer ───────────────────────────── */
+.app-topbar {
+  height: 54px !important; /* was 70px */
+  padding: 0 1.25rem !important;
+}
+
+/* ── SIDEBAR LINKS: shorter row height ─────────── */
+.sidebar-link {
+  padding: 0.55rem 0.875rem !important; /* was 0.75rem 1rem */
+  font-size: 0.85rem !important;
+}
+.sidebar-header {
+  padding: 1rem 1.25rem 0.75rem !important;
+}
+.sidebar-nav {
+  padding: 1rem 0.75rem !important;
+  gap: 0.3rem !important;
+}
+
+/* ── VIEW CONTAINER: tighter outer padding ─────── */
+.view-container {
+  padding: 1.25rem !important; /* was 2rem */
+}
+
+/* ── PANEL CARD: compact padding ──────────────── */
+.panel-card {
+  padding: 1rem 1.25rem !important; /* was 2rem */
+  margin-bottom: 1rem !important;   /* was 2rem */
+  border-radius: var(--radius-lg) !important;
+}
+.panel-header {
+  margin-bottom: 0.875rem !important; /* was 1.25rem */
+}
+.section-title {
+  font-size: 1rem !important; /* was 1.25rem */
+}
+
+/* ── HERO BALANCE CARD: more compact ──────────── */
+.hero-balance-card {
+  padding: 1rem 1.25rem !important;
+}
+.balance-main {
+  font-size: 2.25rem !important; /* was 3rem */
+  margin-bottom: 0.35rem !important;
+}
+.balance-label {
+  font-size: 0.7rem !important;
+  margin-bottom: 0.35rem !important;
+}
+
+/* Sparkline chart: shorter, don't waste vertical space */
+#balance-sparkline {
+  height: 60px !important; /* was 95px */
+  margin-top: 0.25rem !important;
+}
+
+/* ── HOME DASHBOARD ────────────────────────────── */
+.home-dashboard-layout {
+  gap: 1rem !important;
+}
+.home-main-col,
+.home-side-col {
+  gap: 0.875rem !important;
+}
+.home-widgets-row {
+  gap: 0.875rem !important;
+}
+
+/* Fear & Greed / Earn widgets: compact */
+#market-pulse-widget,
+#earn-panel {
+  padding: 0.875rem !important;
+}
+#fear-greed-value,
+#earn-pending-value {
+  font-size: 1.75rem !important; /* was 2.25rem */
+}
+
+/* ── DASHBOARD GRID: tighter ───────────────────── */
+.dashboard-grid {
+  gap: 1rem !important;
+}
+
+/* ── QUICK MENU GRID: icon + text tight ─────────── */
+.quick-menu-grid {
+  gap: 0.5rem !important;
+}
+.menu-card {
+  padding: 0.5rem 0.75rem !important;
+  gap: 0.5rem !important;
+}
+.menu-icon-box {
+  width: 32px !important;
+  height: 32px !important;
+  font-size: 1.05rem !important;
+}
+.menu-card-title {
+  font-size: 0.8rem !important;
+}
+
+/* ── STAT CARDS: denser ────────────────────────── */
+.stat-card {
+  padding: 0.75rem !important;
+}
+.stat-label {
+  font-size: 0.65rem !important;
+  margin-bottom: 0.2rem !important;
+}
+.stat-value {
+  font-size: 1.15rem !important; /* was font-size-xl */
+}
+.stat-sub {
+  font-size: 0.65rem !important;
+  margin-top: 0.15rem !important;
+}
+
+/* ── BUSINESS METRICS STRIP ─────────────────────── */
+.business-metrics {
+  padding: 0.6rem !important;
+  gap: 0.5rem !important;
+  margin: 0.75rem 0 !important;
+}
+.metric-val {
+  font-size: 0.95rem !important;
+}
+.metric-lbl {
+  font-size: 0.62rem !important;
+}
+
+/* ── ASSET LIST ITEMS ───────────────────────────── */
+.asset-item {
+  padding: 0.6rem 0.875rem !important;
+}
+.asset-icon-box {
+  width: 34px !important;
+  height: 34px !important;
+  font-size: 1rem !important;
+}
+.asset-symbol {
+  font-size: 0.9rem !important;
+}
+.asset-name {
+  font-size: 0.72rem !important;
+}
+.asset-price-curr {
+  font-size: 0.9rem !important;
+}
+.asset-change {
+  font-size: 0.72rem !important;
+}
+
+/* ── TRANSACTION LIST ───────────────────────────── */
+.transaction-item {
+  padding: 0.55rem 0.875rem !important;
+}
+.transaction-title {
+  font-size: 0.78rem !important;
+}
+.transaction-meta {
+  font-size: 0.65rem !important;
+}
+.transaction-amount {
+  font-size: 0.78rem !important;
+}
+
+/* ── MARKET ROWS ────────────────────────────────── */
+.market-row {
+  padding: 7px 10px !important;
+  gap: 8px !important;
+}
+.market-symbol {
+  font-size: 0.8rem !important;
+  min-width: 46px !important;
+}
+.market-name {
+  font-size: 0.72rem !important;
+}
+.market-price {
+  font-size: 0.8rem !important;
+  min-width: 64px !important;
+}
+.market-change {
+  font-size: 0.72rem !important;
+  min-width: 52px !important;
+  padding: 2px 6px !important;
+}
+
+/* ── TAB GROUPS ─────────────────────────────────── */
+.tab-group {
+  padding: 4px !important;
+  gap: 4px !important;
+  margin-bottom: 1rem !important;
+}
+.tab-btn {
+  padding: 7px 14px !important;
+  font-size: 0.78rem !important;
+}
+.tab-btn .tab-icon {
+  font-size: 13px !important;
+}
+.tab-btn .tab-badge {
+  font-size: 9px !important;
+  padding: 1px 5px !important;
+}
+
+/* View tabs in panel */
+.view-tabs {
+  margin-bottom: 1rem !important;
+}
+.view-tabs .tab-btn {
+  padding: 0.55rem 1rem !important;
+  font-size: 0.82rem !important;
+}
+
+/* ── CHARTS & VISUALIZATIONS: shorter but crisp ─── */
+/* Trading candlestick chart */
+.candlestick-chart {
+  height: 220px !important; /* was 260px */
+}
+
+/* Chart stats below chart */
+.chart-stats {
+  gap: 0.6rem !important;
+  margin-top: 0.875rem !important;
+  padding-top: 0.875rem !important;
+}
+.chart-stats .stat-label {
+  font-size: 0.65rem !important;
+}
+.chart-stats .stat-value {
+  font-size: 0.85rem !important;
+}
+
+/* Trading chart container */
+#trading-chart-container {
+  height: 260px !important; /* shorter chart */
+}
+
+/* Finance chart */
+#finance-chart {
+  height: 200px !important; /* was taller */
+  min-height: 160px !important;
+}
+
+/* ECharts / general chart containers */
+.chart-container-biz {
+  min-height: 200px !important; /* was 300px */
+  padding: 0.875rem !important;
+}
+.placeholder-chart {
+  height: 150px !important;
+}
+
+/* ── BUTTONS: slightly more compact ─────────────── */
+.btn {
+  padding: 0.5rem 1rem !important;
+  font-size: 0.82rem !important;
+}
+.btn-icon {
+  width: 36px !important;
+  height: 36px !important;
+  font-size: 1rem !important;
+}
+
+/* ── FORMS ───────────────────────────────────────── */
+.form-group {
+  margin-bottom: 0.875rem !important;
+}
+.form-label {
+  font-size: 0.78rem !important;
+  margin-bottom: 0.35rem !important;
+}
+.form-input {
+  padding: 0.55rem 0.875rem !important;
+  font-size: 0.875rem !important;
+}
+
+/* ── MODALS: compact padding ────────────────────── */
+.modal-header {
+  padding: 1rem 1.25rem !important;
+}
+.modal-title {
+  font-size: 1.05rem !important;
+}
+.modal-body {
+  padding: 1rem 1.25rem !important;
+}
+.modal-footer {
+  padding: 0.875rem 1.25rem !important;
+  gap: 0.75rem !important;
+}
+
+/* ── WEALTH CARD (Portfolio) ────────────────────── */
+.portfolio-wealth-card {
+  padding: 1.25rem !important;
+  margin-bottom: 1rem !important;
+}
+.wealth-value {
+  font-size: 2rem !important; /* was 2.75rem */
+  margin-top: 0.15rem !important;
+}
+.wealth-divider {
+  margin: 1rem 0 !important;
+}
+.wealth-grid {
+  gap: 0.75rem !important;
+}
+.wealth-asset-item {
+  padding: 0.75rem !important;
+  gap: 0.65rem !important;
+}
+.asset-icon-wrapper {
+  width: 34px !important;
+  height: 34px !important;
+  font-size: 1rem !important;
+}
+.asset-label {
+  font-size: 0.68rem !important;
+}
+.asset-value {
+  font-size: 0.9rem !important;
+}
+
+/* ── WEALTH DISTRIBUTION ROWS ───────────────────── */
+.wealth-dist-row {
+  padding: 0.5rem 0.6rem !important;
+  margin-bottom: 0.5rem !important;
+}
+.wealth-dist-name {
+  font-size: 0.78rem !important;
+}
+.wealth-dist-stats {
+  font-size: 0.78rem !important;
+}
+.wealth-dist-bar-bg {
+  height: 5px !important;
+}
+
+/* ── BUSINESS PAGE: OPS PANELS ─────────────────── */
+.ops-panel {
+  padding: 0.875rem !important;
+}
+.ops-item {
+  padding: 0.6rem !important;
+}
+.ops-icon {
+  font-size: 1.5rem !important;
+}
+.ops-info h4 {
+  font-size: 0.9rem !important;
+}
+.ops-info p {
+  font-size: 0.75rem !important;
+}
+
+/* ── BUSINESS DASHBOARD LAYOUT ──────────────────── */
+.dashboard-sidebar .nav-btn {
+  padding: 0.5rem 0.75rem !important;
+  font-size: 0.82rem !important;
+}
+.dashboard-main {
+  padding-right: 0.5rem !important;
+}
+
+/* ── WORK PAGE ───────────────────────────────────── */
+.fp-header {
+  padding: 0.75rem 1.25rem !important;
+}
+.fp-title {
+  font-size: 1.05rem !important;
+}
+.fp-main {
+  padding: 1.25rem !important;
+  gap: 1rem !important;
+}
+.wp-task-card {
+  padding: 0.875rem !important;
+  gap: 0.5rem !important;
+}
+.wp-task-label {
+  font-size: 0.85rem !important;
+}
+.wp-task-desc {
+  font-size: 0.75rem !important;
+}
+.wp-task-btn {
+  padding: 0.5rem !important;
+  font-size: 0.82rem !important;
+}
+.wp-stat {
+  padding: 0.6rem !important;
+}
+.wp-stat-val {
+  font-size: 1rem !important;
+}
+.wp-stat-lbl {
+  font-size: 0.62rem !important;
+}
+.wp-active-task-card {
+  padding: 1.25rem !important;
+}
+.wp-tasks-container {
+  gap: 0.75rem !important;
+}
+.wp-stats-strip {
+  gap: 0.75rem !important;
+}
+
+/* ── POSITION DETAIL CARD (Trading) ────────────── */
+.pos-detail-card {
+  padding: 0.875rem !important;
+}
+.pos-metrics {
+  gap: 0.4rem 0.6rem !important;
+  margin-bottom: 0.6rem !important;
+}
+.pos-metric {
+  padding: 0.35rem 0.5rem !important;
+}
+.pos-metric__label {
+  font-size: 0.6rem !important;
+}
+.pos-metric__value {
+  font-size: 0.72rem !important;
+}
+.pos-actions {
+  gap: 0.4rem !important;
+}
+.pos-btn-sell,
+.pos-btn-card {
+  padding: 0.4rem 0.6rem !important;
+  font-size: 0.7rem !important;
+}
+
+/* ── TRADE HISTORY ───────────────────────────────── */
+.th-panel {
+  padding: 0.875rem !important;
+  margin-bottom: 1rem !important;
+}
+.th-stats {
+  gap: 0.35rem !important;
+  margin-bottom: 0.6rem !important;
+}
+.th-stat {
+  padding: 0.35rem 0.4rem !important;
+}
+.th-stat__label {
+  font-size: 0.55rem !important;
+}
+.th-stat__value {
+  font-size: 0.68rem !important;
+}
+.th-card {
+  padding: 0.45rem 0.6rem !important;
+  gap: 0.6rem !important;
+}
+
+/* ── ORDER FORM ──────────────────────────────────── */
+.order-form {
+  padding: 1.25rem !important;
+  margin-top: 0.75rem !important;
+}
+.order-tabs {
+  gap: 0.5rem !important;
+  margin-bottom: 0.875rem !important;
+}
+.order-tab-btn {
+  padding: 0.6rem !important;
+  font-size: 0.875rem !important;
+}
+.order-type-tabs {
+  margin-bottom: 1rem !important;
+}
+.form-row {
+  margin-bottom: 0.875rem !important;
+}
+.form-row label {
+  font-size: 0.75rem !important;
+  margin-bottom: 0.35rem !important;
+}
+.order-input {
+  padding: 0.6rem 0.875rem !important;
+  font-size: 1rem !important;
+}
+.order-summary {
+  padding: 0.75rem !important;
+}
+.summary-row {
+  font-size: 0.78rem !important;
+}
+.execute-btn {
+  padding: 0.75rem !important;
+  font-size: 0.95rem !important;
+}
+.quick-amounts {
+  gap: 0.35rem !important;
+  margin-bottom: 0.875rem !important;
+}
+.quick-btn {
+  padding: 0.4rem !important;
+  font-size: 0.72rem !important;
+}
+
+/* ── TOASTS: shorter ─────────────────────────────── */
+.toast {
+  padding: 0.75rem 1rem !important;
+  gap: 0.6rem !important;
+  min-width: 240px !important;
+}
+.toast-title {
+  font-size: 0.82rem !important;
+}
+.toast-message {
+  font-size: 0.75rem !important;
+}
+
+/* ── EMPTY STATE: less padding ──────────────────── */
+.empty-state {
+  padding: 1.75rem 1rem !important;
+}
+.empty-state-icon {
+  font-size: 2rem !important;
+  margin-bottom: 0.6rem !important;
+}
+
+/* ── BIZ TYPE CARDS ──────────────────────────────── */
+.biz-type-card {
+  padding: 0.875rem !important;
+}
+.biz-icon {
+  font-size: 2.25rem !important;
+  margin-bottom: 0.6rem !important;
+}
+.biz-cost {
+  font-size: 1rem !important;
+  margin: 0.6rem 0 !important;
+}
+.biz-pros {
+  font-size: 0.75rem !important;
+}
+
+/* ── BIZ PAGE HEADER ─────────────────────────────── */
+.biz-page-header {
+  padding: 0.875rem 1.25rem !important;
+}
+.biz-tab-group .tab-btn {
+  padding: 6px 14px !important;
+  font-size: 0.78rem !important;
+}
+
+/* ── INLINE STYLE OVERRIDES: finance/ops panels ─── */
+/* These target common inline-styled containers in JS panel renders */
+
+/* Compact the heading spacings in ops panels */
+[style*="font-size: 1.1rem"][style*="font-weight: 8"],
+[style*="font-size:1.1rem"][style*="font-weight:8"] {
+  font-size: 0.95rem !important;
+}
+
+[style*="font-size: 0.95rem"][style*="font-weight"],
+[style*="font-size:0.95rem"] {
+  font-size: 0.85rem !important;
+}
+
+[style*="font-size: 0.85rem"] {
+  font-size: 0.78rem !important;
+}
+
+[style*="padding: 1.25rem"],
+[style*="padding:1.25rem"] {
+  padding: 0.875rem !important;
+}
+
+[style*="padding: 1.5rem"],
+[style*="padding:1.5rem"] {
+  padding: 1rem !important;
+}
+
+[style*="margin-bottom: 1.5rem"],
+[style*="margin-bottom:1.5rem"] {
+  margin-bottom: 1rem !important;
+}
+
+[style*="margin-bottom: 2rem"],
+[style*="margin-bottom:2rem"] {
+  margin-bottom: 1.25rem !important;
+}
+
+/* ── PROGRESS BARS: slimmer ──────────────────────── */
+.wp-progress-track {
+  height: 10px !important;
+}
+.progress-bar-container {
+  height: 6px !important;
+}
+
+/* ── LEADERBOARD ─────────────────────────────────── */
+.leaderboard-item {
+  padding: 0.5rem 0.75rem !important;
+}
+.rank-badge {
+  width: 24px !important;
+  height: 24px !important;
+  font-size: 0.75rem !important;
+}
+
+/* ── SOURCE ITEMS ────────────────────────────────── */
+.source-item {
+  padding: 0.75rem !important;
+  gap: 0.75rem !important;
+}
+.source-icon {
+  width: 30px !important;
+  height: 30px !important;
+  font-size: 1rem !important;
+}
+.source-name {
+  font-size: 0.78rem !important;
+}
+.source-desc {
+  font-size: 0.68rem !important;
+}
+.source-amount {
+  font-size: 0.85rem !important;
+}
+
+/* ── PLAYER MINI CARD ────────────────────────────── */
+.player-mini-card {
+  padding: 0.6rem 0.75rem !important;
+}
+.player-mini-role {
+  font-size: 0.65rem !important;
+}
+.player-mini-name {
+  font-size: 0.82rem !important;
+}
+.player-mini-balance {
+  font-size: 0.95rem !important;
+}
+
+/* ── NEWS ITEMS ──────────────────────────────────── */
+.news-item {
+  padding: 0.6rem 0.875rem !important;
+}
+.news-item p {
+  font-size: 0.78rem !important;
+  line-height: 1.3 !important;
+}
+
+/* ── BADGE / TAG ─────────────────────────────────── */
+.badge {
+  padding: 0.15rem 0.5rem !important;
+  font-size: 0.65rem !important;
+}
+
+/* ── PROPERTY PORTFOLIO ──────────────────────────── */
+.portfolio-prop-item {
+  gap: 0.5rem !important;
+}
+
+/* ── PLANNING CARD ───────────────────────────────── */
+.planning-card {
+  padding: 1rem !important;
+  margin-bottom: 1rem !important;
+}
+
+/* ── SECTOR DOT ──────────────────────────────────── */
+.sector-dot {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+/* ── TPSL SECTION ────────────────────────────────── */
+.tpsl-section {
+  padding: 0.75rem !important;
+  margin-bottom: 1rem !important;
+}
+
+/* ── CHART TIMEFRAMES ────────────────────────────── */
+.chart-timeframes {
+  gap: 0.35rem !important;
+  margin-bottom: 0.75rem !important;
+}
+.timeframe-btn {
+  padding: 0.3rem 0.6rem !important;
+  font-size: 0.72rem !important;
+}
+
+/* ── POSITION CARD ───────────────────────────────── */
+.position-card {
+  margin-bottom: 0.75rem !important;
+  padding: 1rem !important;
+}
+.position-header {
+  margin-bottom: 0.75rem !important;
+  font-size: 0.85rem !important;
+}
+.position-details {
+  gap: 0.5rem !important;
+}
+.position-item span:first-child {
+  font-size: 0.65rem !important;
+}
+.position-item span:last-child {
+  font-size: 0.82rem !important;
+}
+
+/* ── HERO ACTIONS ROW ────────────────────────────── */
+.hero-actions {
+  gap: 0.5rem !important;
+}
+
+/* ── CAREER PAGE ─────────────────────────────────── */
+.job-card {
+  padding: 1rem !important;
+  gap: 0.6rem !important;
+}
+.job-title {
+  font-size: 0.95rem !important;
+}
+.job-salary {
+  font-size: 0.85rem !important;
+}
+.job-desc {
+  font-size: 0.78rem !important;
+}
+
+/* ── INLINE GLOBAL: tighten frequently-used inline paddding patterns ── */
+
+/* These hit the inner section headings in JS panels */
+h4[style*="margin: 0 0 1rem"] {
+  margin: 0 0 0.65rem 0 !important;
+  font-size: 0.9rem !important;
+}
+
+h4[style*="margin:0 0 1rem"] {
+  margin: 0 0 0.65rem 0 !important;
+}
+
+/* Reduce gap in inner sub-grids */
+[style*="gap: 1rem"] {
+  gap: 0.75rem !important;
+}
+
+[style*="gap: 1.5rem"] {
+  gap: 1rem !important;
+}
+
+[style*="gap: 2rem"] {
+  gap: 1.25rem !important;
+}
+
+/* Reduce padding in inner info blocks */
+[style*="padding: 1rem;"] {
+  padding: 0.65rem !important;
+}
+
+[style*="padding: 10px"] {
+  padding: 7px !important;
+}
+
+/* ── FINANCE OPS: portfolio table compact ─────────── */
+/* Table rows in finance portfolio */
+[id^="holding-portfolio"] table td,
+[id^="holding-portfolio"] table th,
+#biz-finance-holding-table td,
+#biz-finance-holding-table th {
+  padding: 0.4rem 0.6rem !important;
+  font-size: 0.75rem !important;
+}
+
+/* ── ENERGY/RETAIL SLIDERS: labels compact ──────── */
+/* Slider value labels */
+[style*="font-size: 1.5rem"][style*="font-weight: 800"],
+[style*="font-size:1.5rem"][style*="font-weight:800"] {
+  font-size: 1.2rem !important;
+}
+
+/* ── PRINT: disable compact on print ─────────────── */
+@media print {
+  html {
+    font-size: 12px;
+  }
+}
