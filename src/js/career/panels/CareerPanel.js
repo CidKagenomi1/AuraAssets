@@ -7,6 +7,7 @@ import gameState from '../../core/GameState.js';
 import financeManager from '../../finance/FinanceManager.js';
 import workTaskManager from '../../core/databases/WorkTaskManager.js';
 import ui from '../../ui/UIManager.js';
+import politicsManager from '../../core/PoliticsManager.js';
 
 class CareerPanel {
     show() {
@@ -145,6 +146,8 @@ class CareerPanel {
                     🚪 Resign
                 </button>
             </div>
+
+            ${this._renderPresidentialSection(state)}
         `;
     }
 
@@ -210,6 +213,85 @@ class CareerPanel {
                 }
             });
         }
+
+        // Presidential buttons
+        const btnOpenPolitics = document.getElementById('btn-open-politics');
+        if (btnOpenPolitics) {
+            btnOpenPolitics.addEventListener('click', () => {
+                import('./PoliticsPanel.js').then(m => m.default.show());
+            });
+        }
+    }
+
+    _renderPresidentialSection(state) {
+        const isGovMax = state.careerPath === 'government' && state.careerLevel >= 8;
+        const polState = politicsManager.getState();
+        const isPresident = polState.isPresident;
+
+        // Only show for government max-level or current presidents
+        if (!isGovMax && !isPresident) return '';
+
+        if (isPresident) {
+            return `
+                <div class="card" style="
+                    background: linear-gradient(135deg, rgba(220,38,38,0.12), rgba(251,191,36,0.06));
+                    border: 1px solid rgba(220,38,38,0.3);
+                    border-radius: var(--radius-lg);
+                    padding: 1.25rem;
+                    margin-top: 1.5rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 1rem;
+                ">
+                    <div style="display:flex; align-items:center; gap:0.875rem;">
+                        <span style="font-size:2rem;">🇮🇩</span>
+                        <div>
+                            <div style="font-size:0.65rem; color:rgba(220,38,38,0.8); font-weight:900; text-transform:uppercase; letter-spacing:0.1em;">JABATAN AKTIF</div>
+                            <div style="font-size:1rem; font-weight:900; color:white;">Presiden Republik</div>
+                            <div style="font-size:0.72rem; color:#fbbf24; font-weight:700;">
+                                ${polState.candidateName} · Approval ${polState.approvalRating.toFixed(0)}%
+                            </div>
+                        </div>
+                    </div>
+                    <button id="btn-open-politics" style="
+                        background: linear-gradient(135deg,#dc2626,#b91c1c);
+                        border:none; border-radius:10px; padding:0.75rem 1.25rem;
+                        color:white; font-size:0.85rem; font-weight:900;
+                        cursor:pointer; white-space:nowrap;
+                        box-shadow:0 4px 12px rgba(220,38,38,0.3);
+                    ">🏛️ Istana Presiden</button>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="card" style="
+                background: linear-gradient(135deg, rgba(220,38,38,0.08), transparent);
+                border: 1px dashed rgba(220,38,38,0.35);
+                border-radius: var(--radius-lg);
+                padding: 1.5rem;
+                margin-top: 1.5rem;
+                text-align: center;
+            ">
+                <div style="font-size:2.5rem; margin-bottom:0.5rem;">🗳️</div>
+                <h4 style="font-size:1.1rem; font-weight:900; color:white; margin:0 0 0.5rem 0;">
+                    Jalur Politik Terbuka!
+                </h4>
+                <p style="font-size:0.8rem; color:rgba(255,255,255,0.5); margin:0 0 1.25rem 0; line-height:1.5; max-width:440px; margin-left:auto; margin-right:auto;">
+                    Sebagai <strong style="color:#fbbf24;">Cabinet Minister</strong>, Anda memenuhi syarat untuk mencalonkan diri sebagai
+                    Presiden Republik. Kampanye, raih suara, dan pimpin bangsa!
+                </p>
+                <button id="btn-open-politics" style="
+                    background: linear-gradient(135deg,#dc2626,#b91c1c);
+                    border:none; border-radius:10px; padding:0.875rem 2rem;
+                    color:white; font-size:0.95rem; font-weight:900;
+                    cursor:pointer; letter-spacing:0.05em;
+                    box-shadow:0 4px 14px rgba(220,38,38,0.35);
+                    transition:all 0.2s;
+                ">🏛️ Daftar Calon Presiden</button>
+            </div>
+        `;
     }
 }
 

@@ -183,8 +183,16 @@ class GlobalEconomy {
             totalMultiplier = Math.max(0.82, totalMultiplier);
         }
 
-        return parseFloat(Math.max(0.55, Math.min(1.80, totalMultiplier)).toFixed(2));
+        // Presidential Policy Boost: if a president has set sector policies,
+        // apply them as a direct multiplier offset on top of the base.
+        const politicsEffects = gameState.get('politics.sectorEffects');
+        if (politicsEffects && politicsEffects[sector] !== undefined) {
+            totalMultiplier += politicsEffects[sector];
+        }
+
+        return parseFloat(Math.max(0.55, Math.min(2.20, totalMultiplier)).toFixed(2));
     }
+
 
     // -------------------------------------------------------------------------
     // Broadcast phase change bulletin

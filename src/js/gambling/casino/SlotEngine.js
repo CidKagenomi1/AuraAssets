@@ -100,7 +100,7 @@ export class SlotEngine {
                 🎰 <span style="background: linear-gradient(90deg,#fbbf24,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">GOLDY CRUSH</span> SLOT
             </h3>
             <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">6 Kolom, 3 Baris &amp; 5 Garis Payout (Kemenangan Ganda!)</p>
-            ${this.getRateStatusHTML()}
+            <div id="slot-rate-badge-container">${this.getRateStatusHTML()}</div>
 
             <!-- Slot Machine Cabinet -->
             <div class="slot-cabinet">
@@ -798,20 +798,10 @@ export class SlotEngine {
             }
         }
 
-        // Re-render the slot container to update the Rate badge and balance displays
-        const gamePanel = document.getElementById('casino-game-panel');
-        if (gamePanel) {
-            const activeInputVal = document.getElementById('slot-bet-input')?.value || '100,000';
-            const autoVal = document.getElementById('slot-autospin-count')?.value || '10';
-
-            gamePanel.innerHTML = this.getHTML();
-            this.bindEvents(gamePanel, this.onBalanceRefresh);
-
-            // Retain input values
-            const newInput = document.getElementById('slot-bet-input');
-            if (newInput) newInput.value = activeInputVal;
-            const newAuto = document.getElementById('slot-autospin-count');
-            if (newAuto) newAuto.value = autoVal;
+        // Update the Rate badge display
+        const rateContainer = document.getElementById('slot-rate-badge-container');
+        if (rateContainer) {
+            rateContainer.innerHTML = this.getRateStatusHTML();
         }
     }
 

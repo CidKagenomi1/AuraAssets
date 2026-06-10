@@ -30,6 +30,7 @@ import { fadeIn, staggerFadeUp } from './ui/Animations.js';
 import workTaskManager from './core/databases/WorkTaskManager.js';
 import loginPortal from './ui/LoginPortal.js';
 import keyboardNavigation from './ui/KeyboardNavigation.js';
+import politicsManager from './core/PoliticsManager.js';
 
 class BusinessTycoonGame {
     constructor() {
@@ -282,6 +283,9 @@ class BusinessTycoonGame {
         timeManager.onDay(() => {
             globalEconomy.naturalFluctuation();
             businessManager.tickAuctions();
+
+            // Process presidential politics daily effects
+            politicsManager.tickDailyEffects();
 
             // Process assistant work for the day
             const assistantResult = workTaskManager.tickAssistant();
