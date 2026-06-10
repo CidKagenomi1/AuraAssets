@@ -534,8 +534,9 @@ export class WheelEngine {
 
         // Determine winning sector clockwise weights
         const weights = SECTORS.map((s) => {
-            if (s.type === 'bonusspin') return 0.05 * luck; // 50 bonus spins (3x) is super rare!
-            if (s.multiplier >= 25.0) return 0.1 * luck;    // 50x multiplier is rare!
+            if (s.type === 'freespin') return 0.2;          // Lowered weight to prevent infinite loop (expected free spins < 1)
+            if (s.type === 'bonusspin') return 0.02 * luck; // 50 bonus spins (3x) is super rare!
+            if (s.multiplier >= 25.0) return 0.05 * luck;    // 50x multiplier is rare!
             return 1.0;
         });
 
