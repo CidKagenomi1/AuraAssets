@@ -192,9 +192,9 @@ export class ParlayEngine {
                         </div>
                     </div>
                     <div style="font-size:0.85rem; font-weight:800; color:#fff;">${leg.label}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:rgba(255,255,255,0.5); margin-top:2px;">
-                        <span>Pilihan: <strong style="color:#fbbf24;">${leg.prediction.toUpperCase()}</strong> (${leg.odds.toFixed(2)}x)</span>
-                        <span style="font-family:monospace; color:#10b981; font-weight:800;">${leg.details}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                        <span style="font-size:0.72rem; color:rgba(255,255,255,0.5);">Pilihan: <strong style="color:#fbbf24;">${leg.prediction.toUpperCase()}</strong> (${leg.odds.toFixed(2)}x)</span>
+                        <span style="font-family:monospace; color:#fff; font-weight:900; font-size:0.95rem;">${leg.details}</span>
                     </div>
                 </div>
             `;
@@ -215,9 +215,9 @@ export class ParlayEngine {
             return `
                 <div style="margin-top:0.75rem; text-align:center; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); padding:1rem; border-radius:8px; animation: popIn 0.3s ease-out;">
                     <div style="font-size:1.5rem; margin-bottom:0.25rem;">🎉</div>
-                    <h4 style="margin:0; font-size:1.1rem; font-weight:900; color:#10b981;">PARLAY TEMBUS!</h4>
+                    <h4 style="margin:0; font-size:1.1rem; font-weight:900; color:#10b981;">HASIL MULTI-BET</h4>
                     <p style="margin:4px 0 0 0; font-size:0.8rem; color:rgba(255,255,255,0.7);">
-                        Anda memenangkan hadiah total sebesar <strong style="color:#fbbf24; font-size:0.95rem;">+$ ${this.simWinAmount.toLocaleString()}</strong>!
+                        Anda memenangkan hadiah sebesar <strong style="color:#fbbf24; font-size:0.95rem;">+$ ${this.simWinAmount.toLocaleString()}</strong>!
                     </p>
                 </div>
             `;
@@ -226,9 +226,9 @@ export class ParlayEngine {
         return `
             <div style="margin-top:0.75rem; text-align:center; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); padding:1rem; border-radius:8px; animation: popIn 0.3s ease-out;">
                 <div style="font-size:1.5rem; margin-bottom:0.25rem;">💥</div>
-                <h4 style="margin:0; font-size:1.1rem; font-weight:900; color:#ef4444;">TIKET PARLAY GUGUR</h4>
+                <h4 style="margin:0; font-size:1.1rem; font-weight:900; color:#ef4444;">TARUHAN GAGAL TOTAL</h4>
                 <p style="margin:4px 0 0 0; font-size:0.8rem; color:rgba(255,255,255,0.7);">
-                    Ada taruhan yang meleset. Seluruh nilai taruhan sebesar <span style="color:#fff;">$ ${this.simBetAmount.toLocaleString()}</span> hangus.
+                    Tidak ada satupun tebakan yang tembus. Taruhan <span style="color:#fff;">$ ${this.simBetAmount.toLocaleString()}</span> hangus.
                 </p>
             </div>
         `;
@@ -355,7 +355,7 @@ export class ParlayEngine {
                                 <span style="font-weight:800; color:#fff;">${this.selectedLegs.length} Pilihan</span>
                             </div>
                             <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:rgba(255,255,255,0.8); margin-bottom:0.5rem;">
-                                <span>Total Multiplier:</span>
+                                <span>Max Potential Win:</span>
                                 <span style="font-weight:900; color:#fbbf24; font-size:1rem;">${totalMultiplier.toFixed(2)}x</span>
                             </div>
                         </div>
@@ -602,8 +602,9 @@ export class ParlayEngine {
     }
 
     calculateTotalMultiplier() {
-        if (this.selectedLegs.length === 0) return 1.0;
-        return this.selectedLegs.reduce((prod, leg) => prod * leg.odds, 1.0);
+        if (this.selectedLegs.length === 0) return 0.0;
+        const sumOdds = this.selectedLegs.reduce((sum, leg) => sum + leg.odds, 0.0);
+        return sumOdds / this.selectedLegs.length;
     }
 
     refreshUI(container) {
@@ -645,17 +646,20 @@ export class ParlayEngine {
         this.simWinAmount = 0;
         this.simBetAmount = betAmount;
 
+        // Calculate stake per leg
+        const stakePerLeg = betAmount / this.selectedLegs.length;
+
         // Initialize leg states
         this.simLegStates = this.selectedLegs.map(leg => ({
             ...leg,
             status: 'pending',
-            details: 'Menunggu antrean...'
+            details: '- : -'
         }));
 
         import('../../ui/AuraSound.js').then(m => m.default.playCasinoSpin());
 
         // Deduct bet
-        financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Parlay');
+        financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Parlay / Multi-Bet');
         this.onBalanceRefresh?.();
 
         // Increment rate plays
@@ -667,12 +671,12 @@ export class ParlayEngine {
         // Render simulation container
         this.refreshUIFromSimulation();
 
-        let parlayWon = true;
+        let wonLegsCount = 0;
 
         for (let i = 0; i < this.simLegStates.length; i++) {
             const leg = this.simLegStates[i];
             leg.status = 'simulating';
-            leg.details = 'Bertanding...';
+            leg.details = 'LIVE';
             this.refreshUIFromSimulation();
             
             await new Promise(r => setTimeout(r, 600));
@@ -688,19 +692,13 @@ export class ParlayEngine {
             }
 
             if (!legSuccess) {
-                parlayWon = false;
                 leg.status = 'lost';
                 import('../../ui/AuraSound.js').then(m => m.default.playCasinoLose());
                 this.refreshUIFromSimulation();
-                
-                // Mark remaining legs as canceled or skipped
-                for (let j = i + 1; j < this.simLegStates.length; j++) {
-                    this.simLegStates[j].status = 'pending';
-                    this.simLegStates[j].details = 'Gugur otomatis';
-                }
-                break;
             } else {
                 leg.status = 'won';
+                wonLegsCount++;
+                this.simWinAmount += (stakePerLeg * leg.odds);
                 import('../../ui/AuraSound.js').then(m => m.default.playClaimMoney());
                 this.refreshUIFromSimulation();
             }
@@ -709,24 +707,25 @@ export class ParlayEngine {
         this.isSimulating = false;
 
         // Process outcomes
-        if (parlayWon) {
-            const totalOdds = this.calculateTotalMultiplier();
-            const winAmount = Math.round(betAmount * totalOdds);
-            this.simWinAmount = winAmount;
+        if (this.simWinAmount > 0) {
+            this.simWinAmount = Math.round(this.simWinAmount);
             this.simResult = 'win';
             
-            financeManager.addIncome(winAmount, 'Investasi', `Parlay Tembus: ${this.selectedLegs.length} Legs`);
+            financeManager.addIncome(this.simWinAmount, 'Investasi', `Tiket Multi-Bet: ${wonLegsCount}/${this.selectedLegs.length} Tembus`);
             this.onBalanceRefresh?.();
 
-            // Reset Rate plays on parlay win
+            // Reset Rate plays on win
             gameState.set('casino.ratePlays', 0);
-            ui.success(`MEGA PARLAY TEMBUS! Total menang +$ ${winAmount.toLocaleString()}`, '🎰 Parlay Win!');
+            ui.success(`MULTI-BET SELESAI! ${wonLegsCount} tembus, menang +$ ${this.simWinAmount.toLocaleString()}`, '🎰 Win!');
             import('../../ui/AuraSound.js').then(m => m.default.playCasinoWin());
         } else {
             this.simResult = 'lose';
-            ui.toast({ type: 'warning', title: 'Parlay Kalah', message: 'Ada taruhan yang tidak cocok!' });
+            ui.toast({ type: 'warning', title: 'Taruhan Kalah', message: 'Semua taruhan di tiket gagal!' });
             import('../../ui/AuraSound.js').then(m => m.default.playCasinoLose());
         }
+
+        // Clean up ticket
+        this.selectedLegs = [];
 
         // Generate new matches for the next round
         this.generateMatches();
@@ -741,21 +740,13 @@ export class ParlayEngine {
     }
 
     async simulateFootballLeg(leg, rateOn) {
-        const matches = this.matches.find(m => m.id === leg.id);
-        
         // Match simulation score steps
-        const steps = [
-            'Kick off!',
-            'Min 24: Serangan kandang',
-            'Min 65: Pelanggaran keras',
-            'Min 80: Penyerangan balik'
+        const scoreSteps = [
+            "10' | 0 - 0",
+            "34' | 0 - 0",
+            "65' | 0 - 0",
+            "88' | 0 - 0"
         ];
-
-        for (const step of steps) {
-            await new Promise(r => setTimeout(r, 600));
-            leg.details = step;
-            this.refreshUIFromSimulation();
-        }
 
         // Determine outcome
         let outcome = 'draw';
@@ -771,22 +762,29 @@ export class ParlayEngine {
             outcome = roll < 0.4 ? 'home' : (roll < 0.7 ? 'away' : 'draw');
         }
 
-        let finalScore = '0-0';
-        if (outcome === 'home') finalScore = '2-1';
-        else if (outcome === 'away') finalScore = '0-1';
-        else finalScore = '1-1';
+        let finalScore = '0 - 0';
+        if (outcome === 'home') finalScore = '2 - 1';
+        else if (outcome === 'away') finalScore = '0 - 1';
+        else finalScore = '1 - 1';
+
+        // Animate scoreboard
+        for (const step of scoreSteps) {
+            await new Promise(r => setTimeout(r, 600));
+            leg.details = step;
+            this.refreshUIFromSimulation();
+        }
 
         const isWon = outcome === leg.prediction;
-        leg.details = `Skor Akhir: ${finalScore}`;
+        leg.details = `FT | ${finalScore}`;
         return isWon;
     }
 
     async simulateHorseLeg(leg, rateOn) {
         const steps = [
-            '🏁 Gerbang dibuka!',
-            '🏇 Tikungan pertama...',
-            '🏇 Trek lurus...',
-            '🏁 Dekat garis finish!'
+            '🐎 100m...',
+            '🐎 300m...',
+            '🐎 500m...',
+            '🐎 Garis Finish!'
         ];
 
         for (const step of steps) {

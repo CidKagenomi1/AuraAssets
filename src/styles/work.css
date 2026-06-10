@@ -2,6 +2,70 @@
    WORK PAGE & FULL-PAGE OVERLAY — Premium CSS
    =================================================== */
 
+/* ── Shared animations ────────────────────────────── */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-8px); }
+  40%       { transform: translateX(8px); }
+  60%       { transform: translateX(-5px); }
+  80%       { transform: translateX(5px); }
+}
+
+/* ── Work Simulation: Swipe Card ─────────────────── */
+.swipe-card {
+  transition: transform 0.3s ease, box-shadow 0.2s;
+}
+.swipe-card:active { cursor: grabbing; }
+.swipe-card-wrapper { user-select: none; }
+
+/* ── Work Simulation: Sortable List ─────────────── */
+.sort-item[draggable="true"]:hover {
+  border-color: rgba(255,255,255,0.25) !important;
+  background: rgba(255,255,255,0.09) !important;
+}
+.sort-item.drag-over {
+  border-color: var(--accent-primary) !important;
+  background: rgba(16,185,129,0.08) !important;
+}
+
+/* ── Work Simulation: Slider ─────────────────────── */
+input[type="range"].equity-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 99px;
+  background: linear-gradient(to right, var(--accent-primary) 0%, var(--accent-primary) var(--val, 50%), rgba(255,255,255,0.1) var(--val, 50%));
+  outline: none;
+}
+input[type="range"].equity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(16,185,129,0.2), 0 2px 8px rgba(0,0,0,0.4);
+  transition: box-shadow 0.2s;
+}
+input[type="range"].equity-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 8px rgba(16,185,129,0.2), 0 2px 8px rgba(0,0,0,0.4);
+}
+input[type="range"].equity-slider::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 0 4px rgba(16,185,129,0.2);
+}
+
+/* ── Work Simulation: Swipe Stack ───────────────── */
+.swipe-sort-card {
+  transition: box-shadow 0.2s;
+}
+.swipe-sort-card:active { cursor: grabbing; }
+
 /* ── Full-page shell ─────────────────────────────── */
 .full-page {
   position: fixed;
@@ -491,4 +555,117 @@
   margin-top: 1.5rem; padding: 1rem;
   background: rgba(14,165,233,0.08); border: 1px solid rgba(14,165,233,0.2);
   border-radius: var(--radius-md); font-size: 0.85rem; color: var(--text-muted);
+}
+
+/* ── WORK OFFICE LAYOUT (WorkPage.js inline HTML) ─── */
+
+/* Desktop: side-by-side — task area left, sidebar right (320px) */
+.work-office-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 0;
+  min-height: calc(100vh - 60px);
+  align-items: start;
+}
+
+.work-task-area {
+  padding: 1.5rem;
+  border-right: 1px solid var(--border-color);
+  min-height: 100%;
+}
+
+.work-sidebar-panel {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: sticky;
+  top: 60px;
+}
+
+/* Task grids inside work area */
+.work-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.work-tertiary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.875rem;
+}
+
+/* ── WORK OFFICE: TABLET (768px) ─────────────────── */
+@media (max-width: 768px) {
+  /* Stack: sidebar top, tasks bottom */
+  .work-office-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: auto !important;
+  }
+
+  .work-task-area {
+    padding: 1rem !important;
+    border-right: none !important;
+    border-top: 1px solid var(--border-color);
+    border-bottom: none !important;
+  }
+
+  /* Sidebar: show as a 2-column row of compact cards, moved to top */
+  .work-sidebar-panel {
+    order: -1 !important; /* Move above task area */
+    position: static !important;
+    top: auto !important;
+    padding: 0.875rem 1rem !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Each card inside sidebar takes half width on tablet */
+  .work-sidebar-panel > div {
+    flex: 1 1 calc(50% - 0.375rem) !important;
+    min-width: 240px !important;
+  }
+
+  /* Secondary task grid: 1 col on tablet if only 1 item, else 2 col */
+  .work-secondary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Tertiary grid: 2 col on tablet */
+  .work-tertiary-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* ── WORK OFFICE: PHONE (480px) ──────────────────── */
+@media (max-width: 480px) {
+  .work-task-area {
+    padding: 0.75rem !important;
+  }
+
+  /* Sidebar: single column on phone */
+  .work-sidebar-panel {
+    flex-direction: column !important;
+    padding: 0.75rem !important;
+  }
+
+  .work-sidebar-panel > div {
+    flex: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Tertiary grid: 1 col on phone */
+  .work-tertiary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Compact primary card header on phone */
+  .work-task-area [style*="padding:1rem 1.25rem"],
+  .work-task-area [style*="padding: 1rem 1.25rem"] {
+    padding: 0.75rem !important;
+  }
 }

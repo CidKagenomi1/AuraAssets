@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WorkPage.js - Hybrid Full-Screen Employee Work Dashboard
  * Premium "Office Software" layout with task hierarchy, sidebar, and assistant system.
  */
@@ -214,10 +214,10 @@ class WorkPage {
         const tertiaryTasks = sorted.filter(t => t.priority === 'tertiary');
 
         return `
-            <div style="display:grid; grid-template-columns:1fr 320px; gap:0; min-height: calc(100vh - 60px); align-items: start;">
+            <div class="work-office-layout">
                 
                 <!-- ══ LEFT: Task Workspace ══ -->
-                <div style="padding: 1.5rem; border-right: 1px solid var(--border-color); min-height:100%;">
+                <div class="work-task-area">
                     
                     <!-- Day Limit Banner if reached -->
                     ${isLimitReached ? `
@@ -250,7 +250,7 @@ class WorkPage {
                                 <div style="width:3px; height:14px; background:#f59e0b; border-radius:2px;"></div>
                                 <span style="font-size:0.65rem; font-weight:900; color:#f59e0b; text-transform:uppercase; letter-spacing:0.12em;">Priority Tasks</span>
                             </div>
-                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1rem;">
+                            <div class="work-secondary-grid">
                                 ${secondaryTasks.map(task => this._renderSecondaryCard(task, isLimitReached)).join('')}
                             </div>
                         </div>
@@ -263,7 +263,7 @@ class WorkPage {
                                 <div style="width:3px; height:14px; background:#6366f1; border-radius:2px;"></div>
                                 <span style="font-size:0.65rem; font-weight:900; color:#818cf8; text-transform:uppercase; letter-spacing:0.12em;">Routine Tasks</span>
                             </div>
-                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:0.875rem;">
+                            <div class="work-tertiary-grid">
                                 ${tertiaryTasks.map(task => this._renderTertiaryCard(task, isLimitReached)).join('')}
                             </div>
                         </div>
@@ -271,7 +271,7 @@ class WorkPage {
                 </div>
 
                 <!-- ══ RIGHT: Sidebar ══ -->
-                <div style="padding:1.5rem; display:flex; flex-direction:column; gap:1.25rem; position:sticky; top:60px;">
+                <div class="work-sidebar-panel">
                     ${this._renderSidebarCareerStatus(state, lvlData, xpProg)}
                     ${this._renderSidebarAssistant(lvlData)}
                 </div>

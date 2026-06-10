@@ -9,25 +9,12 @@
   /* Ensure nothing causes horizontal scroll */
   body, html {
     overflow-x: hidden;
-    /* Restore readable font size on mobile (compact.css reduces to 14px desktop) */
     font-size: 13px;
   }
 
   /* All inline grid with hard-coded 1fr 1fr columns → collapse to 1fr */
   [style*="grid-template-columns: 1fr 1fr"],
   [style*="grid-template-columns:1fr 1fr"] {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Large minmax grids → reduce min to allow 1 col on phone */
-  [style*="minmax(220px"],
-  [style*="minmax(240px"],
-  [style*="minmax(260px"],
-  [style*="minmax(280px"],
-  [style*="minmax(300px"],
-  [style*="minmax(320px"],
-  [style*="minmax(400px"],
-  [style*="minmax(420px"] {
     grid-template-columns: 1fr !important;
   }
 
@@ -71,7 +58,7 @@
   .toast-container {
     left: 0.75rem !important;
     right: 0.75rem !important;
-    bottom: 5rem !important; /* Above bottom nav */
+    bottom: 5rem !important;
     align-items: stretch !important;
   }
   .toast {
@@ -81,7 +68,159 @@
   }
 }
 
-/* ── BUSINESS PAGE - WIZARD & DASHBOARD ────────── */
+/* ── BUSINESS PAGE HEADER ─────────────────────── */
+@media (max-width: 768px) {
+  /* Business page header: stack company name above tab pills */
+  .biz-page-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.5rem !important;
+    padding: 0.75rem 0.875rem !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+  }
+
+  /* Tab pills: scrollable horizontal strip, NOT stacked */
+  .biz-tab-group {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    gap: 0.25rem !important;
+    padding-bottom: 2px !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* hide scrollbar on Firefox */
+  }
+  .biz-tab-group::-webkit-scrollbar {
+    display: none; /* hide scrollbar on Chrome */
+  }
+
+  .biz-tab-group .tab-btn {
+    padding: 5px 10px !important;
+    font-size: 0.72rem !important;
+    flex-shrink: 0 !important;
+    display: inline-block !important;
+  }
+}
+
+/* ── BUSINESS DASHBOARD: OVERVIEW STATS CARDS ─── */
+@media (max-width: 768px) {
+  /* 3 stat/KPI cards in overview: horizontal scroll row instead of stacking */
+  .corporate-overview > [style*="minmax(280px"],
+  .corporate-overview > [style*="minmax(260px"],
+  .corporate-overview > [style*="minmax(240px"] {
+    /* override to 3 fixed compact columns — keeps them side by side */
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.625rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .corporate-overview > [style*="minmax(280px"] > .card,
+  .corporate-overview > [style*="minmax(260px"] > .card,
+  .corporate-overview > [style*="minmax(240px"] > .card {
+    min-width: 145px !important;
+    flex: 0 0 145px !important;
+    padding: 0.875rem !important;
+  }
+
+  /* The 3 main KPI cards font sizes compact */
+  .corporate-overview .val-text-value,
+  .corporate-overview [style*="font-size: 2.1rem"] {
+    font-size: 1.1rem !important;
+  }
+
+  /* Cashflow ledger 2-col → single col stacked */
+  .corporate-overview [style*="minmax(320px"] {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .corporate-overview > [style*="minmax(280px"] > .card,
+  .corporate-overview > [style*="minmax(260px"] > .card,
+  .corporate-overview > [style*="minmax(240px"] > .card {
+    min-width: 130px !important;
+    flex: 0 0 130px !important;
+    padding: 0.75rem !important;
+  }
+
+  .corporate-overview .val-text-value,
+  .corporate-overview [style*="font-size: 2.1rem"] {
+    font-size: 1rem !important;
+  }
+}
+
+/* ── GENERAL minmax GRID: horizontal scroll on small screens ── */
+@media (max-width: 768px) {
+  /* Turn small/medium minmax grids into horizontal scroll rows on tablet & phone */
+  /* This prevents KPI cards and small items from stacking into a super tall single column */
+  .dashboard-main [style*="minmax(220px"],
+  .dashboard-main [style*="minmax(240px"],
+  .dashboard-main [style*="minmax(250px"],
+  .dashboard-main [style*="minmax(260px"],
+  .dashboard-main [style*="minmax(280px"],
+  .dashboard-main [style*="minmax(300px"],
+  .dashboard-main [style*="minmax(320px"] {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none;
+    padding-bottom: 0.5rem !important; /* give space for scrollbar/shadows */
+  }
+  
+  .dashboard-main [style*="minmax(220px"]::-webkit-scrollbar,
+  .dashboard-main [style*="minmax(240px"]::-webkit-scrollbar,
+  .dashboard-main [style*="minmax(250px"]::-webkit-scrollbar,
+  .dashboard-main [style*="minmax(260px"]::-webkit-scrollbar,
+  .dashboard-main [style*="minmax(280px"]::-webkit-scrollbar,
+  .dashboard-main [style*="minmax(300px"]::-webkit-scrollbar,
+  .dashboard-main [style*="minmax(320px"]::-webkit-scrollbar { 
+    display: none; 
+  }
+
+  /* Set minimum widths for the items so they don't shrink too much */
+  .dashboard-main [style*="minmax(220px"] > *,
+  .dashboard-main [style*="minmax(240px"] > * {
+    flex: 0 0 160px !important;
+    min-width: 160px !important;
+  }
+  
+  .dashboard-main [style*="minmax(250px"] > *,
+  .dashboard-main [style*="minmax(260px"] > *,
+  .dashboard-main [style*="minmax(280px"] > * {
+    flex: 0 0 200px !important;
+    min-width: 200px !important;
+  }
+  
+  .dashboard-main [style*="minmax(300px"] > *,
+  .dashboard-main [style*="minmax(320px"] > * {
+    flex: 0 0 240px !important;
+    min-width: 240px !important;
+  }
+
+  /* Large minmax grids (panels/forms) → reduce min to allow 1 col stack */
+  [style*="minmax(400px"],
+  [style*="minmax(420px"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* On phones, large grids still collapse to 1 column */
+  [style*="minmax(400px"],
+  [style*="minmax(420px"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── BUSINESS PANEL - SIDEBAR LAYOUT ────────────── */
 @media (max-width: 768px) {
   /* Business dashboard: sidebar → horizontal tab bar */
   .dashboard-grid {
@@ -144,16 +283,16 @@
     padding: 0.75rem !important;
   }
 
-  /* ops-item stacks vertically */
+  /* ops-item stays inline (horizontal) but wraps neatly */
   .ops-item {
-    flex-direction: column !important;
-    align-items: flex-start !important;
+    flex-wrap: wrap !important;
     gap: 0.5rem !important;
   }
 
   .ops-item .btn-action {
-    width: 100% !important;
+    flex: 1 1 auto !important;
     text-align: center !important;
+    min-width: 80px !important;
   }
 }
 
@@ -163,20 +302,19 @@
     grid-template-columns: 1fr !important;
   }
 
-  /* Three-column grids inline style → collapse */
+  /* Three-column grids inline style → 2 col on phone */
   [style*="grid-template-columns: 1fr 1fr 1fr"],
   [style*="grid-template-columns:1fr 1fr 1fr"],
   [style*="repeat(3, 1fr)"],
   [style*="repeat(3,1fr)"] {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr 1fr !important;
   }
 }
 
 /* ── BUSINESS PANEL - OPS INNER LAYOUTS ─────────── */
 @media (max-width: 768px) {
-  /* Business metrics in components.css */
   .business-metrics {
-    grid-template-columns: 1fr 1fr 1fr !important; /* keep 3-col but small */
+    grid-template-columns: 1fr 1fr 1fr !important;
     padding: 0.5rem !important;
     gap: 0.4rem !important;
   }
@@ -188,36 +326,11 @@
   .metric-lbl {
     font-size: 0.62rem !important;
   }
-
-  /* Biz page header stack on tablet */
-  .biz-page-header {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 0.75rem !important;
-    padding: 0.75rem 1rem !important;
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 10 !important;
-  }
-
-  .biz-tab-group {
-    overflow-x: auto !important;
-    white-space: nowrap !important;
-    flex-wrap: nowrap !important;
-    width: 100% !important;
-    gap: 0.25rem !important;
-  }
-
-  .biz-tab-group .tab-btn {
-    padding: 6px 10px !important;
-    font-size: 0.72rem !important;
-    flex-shrink: 0 !important;
-  }
 }
 
 @media (max-width: 480px) {
   .business-metrics {
-    grid-template-columns: 1fr 1fr !important; /* 2-col on phones */
+    grid-template-columns: 1fr 1fr !important;
   }
 }
 
@@ -229,7 +342,6 @@
     margin-bottom: 0.75rem !important;
   }
 
-  /* Panel header stacks */
   .panel-header {
     flex-wrap: wrap !important;
     gap: 0.5rem !important;
@@ -260,7 +372,7 @@
 @media (max-width: 768px) {
   .modal-container {
     padding: 0.5rem !important;
-    align-items: flex-end !important; /* Bottom sheet feel */
+    align-items: flex-end !important;
   }
 
   .modal-content {
@@ -272,42 +384,26 @@
 
 /* ── ENERGY OPS PANEL ───────────────────────────── */
 @media (max-width: 768px) {
-  /* Energy commodity sliders side-by-side layout collapse */
   [style*="grid-template-columns: 1.2fr 1fr"] {
     grid-template-columns: 1fr !important;
     gap: 1rem !important;
-  }
-
-  /* Powerplant mix sliders */
-  [style*="grid-template-columns: 1fr 1fr"] {
-    grid-template-columns: 1fr !important;
   }
 }
 
 /* ── FINANCE OPS PANEL PORTFOLIO TABLE ──────────── */
 @media (max-width: 768px) {
-  /* Holding portfolio table wrapper */
   .finance-portfolio-table-wrap {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     border-radius: var(--radius-md);
   }
 
-  /* Stock search results */
   #stock-search-results {
     max-height: 200px !important;
   }
 }
 
-/* ── PROPERTY OPS PANEL ─────────────────────────── */
-@media (max-width: 768px) {
-  /* Property land cards → auto responsive */
-  [style*="minmax(280px"] {
-    grid-template-columns: 1fr !important;
-  }
-}
-
-/* ── WORK PAGE / FULL PAGE ──────────────────────── */
+/* ── WORK PAGE / EMPLOYEE DASHBOARD ─────────────── */
 @media (max-width: 768px) {
   .fp-header {
     padding: 0.75rem 1rem !important;
@@ -333,6 +429,20 @@
     gap: 1rem !important;
   }
 
+  /* Work page: two-column layout (1fr 320px) → single column stacked */
+  /* Target the inline grid in WorkPage._renderOfficeLayout */
+  #work-page [style*="grid-template-columns:1fr 320px"],
+  #work-page [style*="grid-template-columns: 1fr 320px"] {
+    grid-template-columns: 1fr !important;
+    min-height: auto !important;
+  }
+
+  /* Sidebar on work page: show horizontally below tasks */
+  #work-page [style*="position:sticky"],
+  #work-page [style*="position: sticky"] {
+    position: static !important;
+  }
+
   /* Task cards grid */
   .wp-tasks-container {
     grid-template-columns: 1fr 1fr !important;
@@ -355,6 +465,15 @@
   .wp-stat-val {
     font-size: 0.95rem !important;
   }
+
+  /* Career status + assistant cards: 2-col compact grid side-by-side on tablet */
+  #work-page > div > div:last-child {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem !important;
+    align-items: start !important;
+    padding: 1rem !important;
+  }
 }
 
 @media (max-width: 480px) {
@@ -365,11 +484,15 @@
   .wp-stats-strip {
     grid-template-columns: 1fr 1fr !important;
   }
+
+  /* On phone: sidebar cards go full width single col */
+  #work-page > div > div:last-child {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* ── TRADING PAGE ────────────────────────────────── */
 @media (max-width: 768px) {
-  /* Trading page layout: stack columns */
   .trading-page {
     flex-direction: column !important;
   }
@@ -401,9 +524,8 @@
     grid-template-columns: 1fr 1fr !important;
   }
 
-  /* Market row on mobile */
   .market-name {
-    display: none !important; /* Hide full company name, keep ticker */
+    display: none !important;
   }
 
   .market-symbol {
@@ -414,7 +536,6 @@
     min-width: 60px !important;
   }
 
-  /* Trade history stats */
   .th-stats {
     grid-template-columns: 1fr 1fr !important;
     gap: 0.35rem !important;
@@ -434,7 +555,6 @@
     height: 200px !important;
   }
 
-  /* Order form compact */
   .order-form {
     padding: 1rem !important;
   }
@@ -455,7 +575,6 @@
     gap: 1rem !important;
   }
 
-  /* Wealth distribution grid */
   .wealth-grid {
     grid-template-columns: 1fr 1fr !important;
     gap: 0.5rem !important;
@@ -496,11 +615,8 @@
   }
 }
 
-/* ── SPECIFIC INLINE GRID OVERRIDES (inline styles bypass CSS class selectors) ── */
-/* These use attribute selectors to catch inline style patterns in panel JS files */
-
+/* ── INLINE STYLE OVERRIDES (catch 2-col ratio grids) ── */
 @media (max-width: 600px) {
-  /* Catch any fixed two column ratio grids */
   [style*="grid-template-columns: 2fr 1fr"],
   [style*="grid-template-columns: 1.5fr 1fr"],
   [style*="grid-template-columns: 1.2fr 1fr"],
@@ -510,23 +626,11 @@
     gap: 0.75rem !important;
   }
 
-  /* Catch inline 3-column fixed grids */
+  /* Catch inline 3-column fixed grids → 2 cols on small screens */
   [style*="grid-template-columns: repeat(3"],
   [style*="grid-template-columns:repeat(3"] {
     grid-template-columns: 1fr 1fr !important;
     gap: 0.5rem !important;
-  }
-
-  /* Large minmax → force 1 col */
-  [style*="minmax(220px"],
-  [style*="minmax(240px"],
-  [style*="minmax(260px"],
-  [style*="minmax(280px"],
-  [style*="minmax(300px"],
-  [style*="minmax(320px"],
-  [style*="minmax(400px"],
-  [style*="minmax(420px"] {
-    grid-template-columns: 1fr !important;
   }
 
   /* Flex rows with explicit column widths */
@@ -565,7 +669,6 @@
     flex-direction: column;
   }
 
-  /* Add extra padding to main content so bottom nav doesn't cover it */
   .app-main {
     padding-bottom: 70px !important;
   }
@@ -587,7 +690,6 @@
     font-size: 0.78rem !important;
   }
 
-  /* Hide secondary topbar elements on small screens */
   .topbar-right .btn-icon:not(:last-child):not(:first-child) {
     display: none !important;
   }
@@ -613,7 +715,6 @@
 
 /* ── ACQUIRE / SLIDER CONTROLS ───────────────────── */
 @media (max-width: 768px) {
-  /* Energy/Retail sliders */
   input[type="range"] {
     height: 6px;
     cursor: pointer;
@@ -643,9 +744,8 @@
   }
 }
 
-/* ── QUICK FIX FOR ACQUISITION TABLE IN SIDEBAR ─── */
+/* ── SUBSIDIARY / VENDOR SIDEBAR CARD ─────────────── */
 @media (max-width: 768px) {
-  /* Vendor/Subsidiary card compact */
   [style*="display: grid; grid-template-columns: 250px"] {
     grid-template-columns: 1fr !important;
   }
@@ -657,14 +757,12 @@
 
 /* ── SECTOR OPS: PREVENT OVERFLOW FROM CARDS ────── */
 @media (max-width: 768px) {
-  /* Sector stats summary bar → scroll */
   .sector-stats-bar {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     flex-wrap: nowrap !important;
   }
 
-  /* Inline progress / capacity indicators */
   .capacity-bar,
   .progress-bar-container {
     min-width: 60px !important;
