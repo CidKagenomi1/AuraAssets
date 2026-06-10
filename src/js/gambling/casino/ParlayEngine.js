@@ -245,11 +245,11 @@ export class ParlayEngine {
             const isAwaySelected = this.isLegSelected(match.id, 'away');
 
             footballHTML += `
-                <div class="parlay-card-item">
-                    <div style="font-weight: 800; font-size: 0.82rem; color:#fff; margin-bottom:0.5rem; text-align:left; line-height:1.2;">
+                <div class="parlay-card-item" style="min-width:0;">
+                    <div style="font-weight: 800; font-size: 0.82rem; color:#fff; margin-bottom:0.5rem; text-align:left; line-height:1.2; word-wrap: break-word;">
                         ⚽ Match: ${match.home} vs ${match.away}
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.35rem;">
+                    <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:0.35rem;">
                         <button class="parlay-bet-btn ${isHomeSelected ? 'active' : ''}" data-match-id="${match.id}" data-pick="home" data-odds="${match.odds.home}">
                             1 (Home)<br><span style="color:#fbbf24; font-weight:800;">${match.odds.home.toFixed(2)}x</span>
                         </button>
@@ -312,7 +312,7 @@ export class ParlayEngine {
             <div class="parlay-grid-layout" style="display:grid; grid-template-columns: 1.3fr 1fr; gap:0.75rem; text-align:left; margin-bottom:0.75rem; width:100%; box-sizing:border-box;">
                 
                 <!-- Left Column: Bets Selection -->
-                <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                <div style="display:flex; flex-direction:column; gap:0.75rem; min-width:0;">
                     
                     <!-- Mega Football Section -->
                     <div class="parlay-section-box">
@@ -338,7 +338,7 @@ export class ParlayEngine {
                 </div>
 
                 <!-- Right Column: Ticket Info & Simulation Output -->
-                <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                <div style="display:flex; flex-direction:column; gap:0.75rem; min-width:0;">
                     
                     <!-- Current Parlay Card Ticket -->
                     <div class="parlay-section-box" style="flex:1; display:flex; flex-direction:column;">
@@ -474,8 +474,10 @@ export class ParlayEngine {
                     padding: 0.5rem !important;
                 }
                 .parlay-bet-btn {
-                    font-size: 0.68rem !important;
+                    font-size: 0.65rem !important;
                     padding: 0.25rem 0.15rem !important;
+                    word-wrap: break-word;
+                    white-space: normal;
                 }
                 .parlay-card-item {
                     padding: 0.4rem !important;
