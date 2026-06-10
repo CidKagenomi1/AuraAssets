@@ -39,18 +39,19 @@ export const PropertyOpsPanel = {
                 📡 Tidak ada prospek lahan aktif. Tekan tombol "CARI PROSPEK LAHAN" untuk menyurvei wilayah baru!
             </div>
         ` : lands.map(land => {
+            const pSqm = land.pricePerSqm || Math.round(land.price / 1000) || 90;
             const canAffordLand = biz.cash >= land.price;
             
-            // Preview stats for different zones based on land multiplier
+            // Preview stats for different zones based on land multiplier for 1000 m² (default)
             const m = land.multiplier;
             const preview = {
-                commercial: { buildCost: Math.round(120000 * m), rev: Math.round(15000 * m), maint: Math.round(2500 * m) },
-                residential: { buildCost: Math.round(80000 * m), rev: Math.round(9000 * m), maint: Math.round(1200 * m) },
-                industrial: { buildCost: Math.round(200000 * m), rev: Math.round(28000 * m), maint: Math.round(5500 * m) }
+                commercial: { buildCost: Math.round(120 * 1000 * m), rev: Math.round(15 * 1000 * m), maint: Math.round(2.5 * 1000 * m) },
+                residential: { buildCost: Math.round(80 * 1000 * m), rev: Math.round(9 * 1000 * m), maint: Math.round(1.2 * 1000 * m) },
+                industrial: { buildCost: Math.round(200 * 1000 * m), rev: Math.round(28 * 1000 * m), maint: Math.round(5.5 * 1000 * m) }
             };
 
             return `
-                <div class="card land-card" data-land-id="${land.id}" data-multiplier="${m}" data-price="${land.price}" style="padding: 1.25rem; border: 1px solid var(--border-color); background: rgba(255,255,255,0.01); display: flex; flex-direction: column; gap: 0.75rem; position: relative;">
+                <div class="card land-card" data-land-id="${land.id}" data-multiplier="${m}" data-price-per-sqm="${pSqm}" style="padding: 1.25rem; border: 1px solid var(--border-color); background: rgba(255,255,255,0.01); display: flex; flex-direction: column; gap: 0.75rem; position: relative;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
                             <div style="font-size: 0.7rem; color: #a855f7; font-weight: 800; text-transform: uppercase;">Prospek Lahan</div>
@@ -60,7 +61,11 @@ export const PropertyOpsPanel = {
                     </div>
                     
                     <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.75rem; color: var(--text-muted); background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 6px;">
-                        <div style="display: flex; justify-content: space-between;"><span>Harga Lahan:</span> <strong style="color: #fbbf24;">$ ${land.price.toLocaleString()}</strong></div>
+                        <div style="display: flex; justify-content: space-between;"><span>Harga per m²:</span> <strong style="color: #fbbf24;">$ ${pSqm.toLocaleString()}</strong></div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 4px;">
+                            <span>Luas Lahan (m²):</span>
+                            <input type="number" class="sqm-input" data-land-id="${land.id}" value="1000" min="100" step="100" style="width: 80px; padding: 2px 6px; font-size: 0.72rem; border-radius: 4px; background: #111; color: #fff; border: 1px solid var(--border-color); font-weight: 700; text-align: right;">
+                        </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 4px;">
                             <span>Pilih Rencana Zona:</span>
                             <select class="zone-select" data-land-id="${land.id}" style="padding: 2px 6px; font-size: 0.72rem; border-radius: 4px; background: #111; color: #fff; border: 1px solid var(--border-color); font-weight: 700;">
@@ -74,7 +79,7 @@ export const PropertyOpsPanel = {
                     <!-- Dynamic Zone Stats Preview Box -->
                     <div class="zone-preview-box" data-land-id="${land.id}" style="font-size: 0.72rem; color: var(--text-dim); background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 0.6rem 0.75rem; border-radius: 6px; display: flex; flex-direction: column; gap: 0.25rem;">
                         <div style="display: flex; justify-content: space-between;"><span>Biaya Bangun Zona:</span> <strong style="color: #fff;" class="lbl-build-cost">$ ${preview.commercial.buildCost.toLocaleString()}</strong></div>
-                        <div style="display: flex; justify-content: space-between;"><span>Total Investasi:</span> <strong style="color: #fbbf24;" class="lbl-total-cost">$ ${(land.price + preview.commercial.buildCost).toLocaleString()}</strong></div>
+                        <div style="display: flex; justify-content: space-between;"><span>Total Investasi:</span> <strong style="color: #fbbf24;" class="lbl-total-cost">$ ${(Math.round(pSqm * 1000) + preview.commercial.buildCost).toLocaleString()}</strong></div>
                         <div style="display: flex; justify-content: space-between;"><span>Est. Sewa / Bln:</span> <strong style="color: #10b981;" class="lbl-rev-est">$ ${preview.commercial.rev.toLocaleString()}</strong></div>
                         <div style="display: flex; justify-content: space-between;"><span>Pemeliharaan / Bln:</span> <strong style="color: #ef4444;" class="lbl-maint-est">$ ${preview.commercial.maint.toLocaleString()}</strong></div>
                     </div>
@@ -97,10 +102,11 @@ export const PropertyOpsPanel = {
             </tr>
         ` : developments.map(dev => {
             const resale = Math.round(dev.buildCost * 0.60);
+            const sqmText = dev.sqm ? ` (${dev.sqm.toLocaleString()} m²)` : '';
             return `
                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                     <td style="padding: 0.85rem 0.5rem; font-weight: 850; color: #fff;">
-                        🏢 ${dev.name}
+                        🏢 ${dev.name}${sqmText}
                     </td>
                     <td style="padding: 0.85rem 0.5rem;">
                         <span style="background: rgba(168,85,247,0.12); color: #c084fc; font-weight: 800; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(168,85,247,0.25);">
@@ -174,7 +180,7 @@ export const PropertyOpsPanel = {
                         <span>🗺️</span> Kavling Lahan Prospektif (Belum Dikembangkan)
                     </h3>
                     <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 1.5rem;">
-                        Daftar kavling tanah kosong hasil survei geologis. Sebelum membeli, Anda dapat menentukan jenis zona pembangunan (Komersil, Residensial, atau Industri) untuk melihat rancangan biaya & proyeksi hasil sewa bulanan.
+                        Daftar kavling tanah kosong hasil survei geologis. Sebelum membeli, Anda dapat menentukan jenis zona pembangunan (Komersil, Residensial, atau Industri) dan luasnya untuk melihat rancangan biaya & proyeksi hasil sewa bulanan.
                     </p>
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
@@ -210,44 +216,52 @@ export const PropertyOpsPanel = {
     },
 
     bindEvents(biz, container, parentPage) {
-        // Dynamic stats update when changing zone selection
-        container.querySelectorAll('.zone-select').forEach(select => {
-            select.addEventListener('change', () => {
-                const landId = select.dataset.landId;
-                const selectedZone = select.value;
-                
-                const card = container.querySelector(`.land-card[data-land-id="${landId}"]`);
-                if (!card) return;
+        // Dynamic stats updates when changing zone or sqm
+        const updateCardStats = (landId) => {
+            const card = container.querySelector(`.land-card[data-land-id="${landId}"]`);
+            if (!card) return;
 
-                const m = parseFloat(card.dataset.multiplier);
-                const price = parseInt(card.dataset.price);
+            const select = card.querySelector('.zone-select');
+            const sqmInput = card.querySelector('.sqm-input');
+            if (!select || !sqmInput) return;
 
-                let buildCost = 0;
-                let rev = 0;
-                let maint = 0;
+            const selectedZone = select.value;
+            const sqm = parseFloat(sqmInput.value) || 0;
+            const m = parseFloat(card.dataset.multiplier);
+            const pSqm = parseInt(card.dataset.pricePerSqm) || 90;
 
-                if (selectedZone === 'commercial') {
-                    buildCost = Math.round(120000 * m);
-                    rev = Math.round(15000 * m);
-                    maint = Math.round(2500 * m);
-                } else if (selectedZone === 'residential') {
-                    buildCost = Math.round(80000 * m);
-                    rev = Math.round(9000 * m);
-                    maint = Math.round(1200 * m);
-                } else if (selectedZone === 'industrial') {
-                    buildCost = Math.round(200000 * m);
-                    rev = Math.round(28000 * m);
-                    maint = Math.round(5500 * m);
-                }
+            const landPrice = Math.round(pSqm * sqm);
+            let buildCost = 0;
+            let rev = 0;
+            let maint = 0;
 
-                // Update labels inside the preview box
-                const previewBox = container.querySelector(`.zone-preview-box[data-land-id="${landId}"]`);
-                if (previewBox) {
-                    previewBox.querySelector('.lbl-build-cost').innerText = `$ ${buildCost.toLocaleString()}`;
-                    previewBox.querySelector('.lbl-total-cost').innerText = `$ ${(price + buildCost).toLocaleString()}`;
-                    previewBox.querySelector('.lbl-rev-est').innerText = `$ ${rev.toLocaleString()}`;
-                    previewBox.querySelector('.lbl-maint-est').innerText = `$ ${maint.toLocaleString()}`;
-                }
+            if (selectedZone === 'commercial') {
+                buildCost = Math.round(120 * sqm * m);
+                rev = Math.round(15 * sqm * m);
+                maint = Math.round(2.5 * sqm * m);
+            } else if (selectedZone === 'residential') {
+                buildCost = Math.round(80 * sqm * m);
+                rev = Math.round(9 * sqm * m);
+                maint = Math.round(1.2 * sqm * m);
+            } else if (selectedZone === 'industrial') {
+                buildCost = Math.round(200 * sqm * m);
+                rev = Math.round(28 * sqm * m);
+                maint = Math.round(5.5 * sqm * m);
+            }
+
+            const previewBox = card.querySelector(`.zone-preview-box`);
+            if (previewBox) {
+                previewBox.querySelector('.lbl-build-cost').innerText = `$ ${buildCost.toLocaleString()}`;
+                previewBox.querySelector('.lbl-total-cost').innerText = `$ ${(landPrice + buildCost).toLocaleString()}`;
+                previewBox.querySelector('.lbl-rev-est').innerText = `$ ${rev.toLocaleString()}`;
+                previewBox.querySelector('.lbl-maint-est').innerText = `$ ${maint.toLocaleString()}`;
+            }
+        };
+
+        container.querySelectorAll('.zone-select, .sqm-input').forEach(el => {
+            el.addEventListener('input', () => {
+                const landId = el.dataset.landId;
+                updateCardStats(landId);
             });
         });
 
@@ -269,9 +283,16 @@ export const PropertyOpsPanel = {
             btn.addEventListener('click', async () => {
                 const landId = btn.dataset.landId;
                 const select = container.querySelector(`.zone-select[data-land-id="${landId}"]`);
-                if (!select) return;
+                const sqmInput = container.querySelector(`.sqm-input[data-land-id="${landId}"]`);
+                if (!select || !sqmInput) return;
 
                 const zoneType = select.value;
+                const sqm = parseFloat(sqmInput.value) || 0;
+                if (isNaN(sqm) || sqm <= 0) {
+                    ui.error('Harap masukkan luas lahan yang valid!');
+                    return;
+                }
+
                 let zoneName = '';
                 if (zoneType === 'commercial') zoneName = 'Area Komersial (Mall / Ruko)';
                 else if (zoneType === 'residential') zoneName = 'Pemukiman (Residensial)';
@@ -279,13 +300,13 @@ export const PropertyOpsPanel = {
 
                 const confirmed = await ui.confirm({
                     title: `Kembangkan Lahan Properti?`,
-                    message: `Apakah Anda yakin ingin mengakuisisi lahan ini dan membangun zona "${zoneName}"? Dana treasury perusahaan akan terpotong untuk pembelian lahan dan biaya pembangunan.`,
+                    message: `Apakah Anda yakin ingin mengakuisisi lahan ini dan membangun zona "${zoneName}" seluas ${sqm.toLocaleString()} m²? Dana treasury perusahaan akan terpotong untuk pembelian lahan dan biaya pembangunan.`,
                     confirmText: 'Mulai Konstruksi'
                 });
 
                 if (confirmed) {
                     try {
-                        PropertySector.developLand(landId, zoneType);
+                        PropertySector.developLand(landId, zoneType, sqm);
                         if (parentPage) parentPage.render();
                     } catch (e) {
                         ui.error(e.message);

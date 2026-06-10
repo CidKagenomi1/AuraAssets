@@ -619,6 +619,11 @@ class BusinessManager {
         let subsidiariesProfit = 0;
         const subsidiariesList = biz.subsidiaries || [];
         subsidiariesList.forEach(sub => {
+            // Valuation fluctuations: upward bias, average +1.5% to +2% growth monthly
+            const drift = 0.98 + (Math.random() * 0.07); // 0.98x - 1.05x
+            sub.valuation = Math.round((sub.valuation || 10000) * drift);
+            sub.monthlyProfit = Math.round((sub.monthlyProfit || 500) * drift);
+
             subsidiariesProfit += sub.monthlyProfit || 0;
             let subVal = sub.valuation || 0;
             if (sub.isPremium) subVal *= 1.35;
@@ -776,7 +781,9 @@ class BusinessManager {
                 month: gameState.get('gameTime.month'),
                 year: gameState.get('gameTime.year'),
                 revenue: finalRevenue,
-                valuation: totalValuation
+                valuation: totalValuation,
+                expenses: monthlyExpense,
+                netProfit: finalRevenue + finalSubsidiariesProfit - monthlyExpense
             }].slice(-24);
 
             let newIPO = b.ipo;
@@ -1397,12 +1404,12 @@ class BusinessManager {
         return FinanceSector.accelerateDeal(this);
     }
 
-    buyBlueChipEquity(sharesCount) {
-        return FinanceSector.buyBlueChipEquity(sharesCount, this);
+    buyCorporateStock(symbol, sharesCount) {
+        return FinanceSector.buyCorporateStock(symbol, sharesCount, this);
     }
 
-    sellBlueChipEquity(sharesCount) {
-        return FinanceSector.sellBlueChipEquity(sharesCount, this);
+    sellCorporateStock(symbol, sharesCount) {
+        return FinanceSector.sellCorporateStock(symbol, sharesCount, this);
     }
 
     injectPersonalReserve(amount) {
@@ -1416,16 +1423,18 @@ class BusinessManager {
         return EnergySector.getEnergyState(this);
     }
 
-    surveyEnergyExploration() {
-        return EnergySector.surveyExploration(this);
+    upgradeEnergyCapacity(type) {
+        const res = EnergySector.upgradeCapacity(type, this);
+        this.recalculateValuation();
+        return res;
     }
 
-    developEnergyDiscovery(discoveryId) {
-        return EnergySector.developDiscovery(discoveryId, this);
+    updateEnergyPowerPlantMix(mix) {
+        return EnergySector.updatePowerPlantMix(mix, this);
     }
 
-    decommissionEnergyRefinery(refineryId) {
-        return EnergySector.decommissionRefinery(refineryId, this);
+    updateEnergySlider(type, field, value) {
+        return EnergySector.updateSlider(type, field, value, this);
     }
 
     // ==========================================
@@ -1489,8 +1498,8 @@ class BusinessManager {
         return TransportationSector.getTransportationState(this);
     }
 
-    buyTransportationVehicles(modelId, quantity) {
-        return TransportationSector.buyVehicles(modelId, quantity, this);
+    buyTransportationVehicles(modelId, quantity, engineType = 'ice') {
+        return TransportationSector.buyVehicles(modelId, quantity, engineType, this);
     }
 
     sellTransportationVehicle(vehicleId) {
@@ -1512,8 +1521,8 @@ class BusinessManager {
         return MediaSector.getMediaState(this);
     }
 
-    produceMediaContent() {
-        return MediaSector.produceContent(this);
+    produceMediaContent(name, category, genre, budget) {
+        return MediaSector.produceContent(this, name, category, genre, budget);
     }
 
     upgradeMediaServers() {
@@ -1566,8 +1575,8 @@ class BusinessManager {
         return RetailSector.upgradeWarehouse(this);
     }
 
-    purchaseStock(quantity) {
-        return RetailSector.purchaseStock(quantity, this);
+    updateRetailSlider(field, value) {
+        return RetailSector.updateSlider(field, value, this);
     }
 
     // ==========================================
@@ -1626,6 +1635,45 @@ class BusinessManager {
 
     callRUPS(proposalType) {
         return CorporateGovernance.callRUPS(proposalType, this);
+    }
+
+    investInSubsidiary(subId, amount, source) {
+        const biz = gameState.get('business');
+        if (!biz || !biz.active) throw new Error('Perusahaan tidak aktif');
+
+        const index = (biz.subsidiaries || []).findIndex(s => s.id === subId);
+        if (index === -1) throw new Error('Anak perusahaan/mitra tidak ditemukan!');
+
+        const sub = biz.subsidiaries[index];
+        const cost = parseFloat(amount);
+        if (isNaN(cost) || cost <= 0) throw new Error('Nominal investasi tidak valid!');
+
+        if (source === 'treasury') {
+            if (biz.cash < cost) {
+                throw new Error(`Kas Treasury Perusahaan tidak mencukupi ($ ${financeManager.formatCurrency(biz.cash)} / Butuh $ ${financeManager.formatCurrency(cost)})`);
+            }
+            biz.cash -= cost;
+        } else {
+            const playerBal = gameState.getBalance();
+            if (playerBal < cost) {
+                throw new Error(`Saldo Rekening Pribadi Anda tidak mencukupi ($ ${financeManager.formatCurrency(playerBal)} / Butuh $ ${financeManager.formatCurrency(cost)})`);
+            }
+            financeManager.donate(cost, 'Subsidiary Investment', 'Subsidiary Investment');
+        }
+
+        sub.valuation = (sub.valuation || 0) + Math.round(cost * 1.5);
+        sub.monthlyProfit = (sub.monthlyProfit || 0) + Math.round(cost * 0.01);
+
+        gameState.update('business', b => ({
+            ...b,
+            cash: biz.cash,
+            subsidiaries: biz.subsidiaries
+        }));
+
+        this.recalculateValuation();
+
+        ui.success(`Berhasil menyuntikkan investasi sebesar $ ${financeManager.formatCurrency(cost)} ke ${sub.name}!`, '💼 Investasi Sukses');
+        return true;
     }
 }
 

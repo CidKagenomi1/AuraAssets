@@ -1306,7 +1306,7 @@ window.deploySelectedBot = () => {
 window.stopTradingBot = (id) => {
   try {
     passiveIncomeManager.stopBot(id);
-    ui.success('Bot dihentikan dan seluruh modal serta profit dikreditkan ke kas!', 'Bot Stopped');
+    ui.success('Bot dihentikan dan seluruh modal serta profit dikreditkan ke kas!', 'Bot Stopped', { deviceNotify: true });
     viewManager._renderPassiveIncome = true;
     viewManager.updateMarketView(true);
   } catch(e) {
@@ -1323,7 +1323,7 @@ window.changePassiveView = (view) => {
 window.claimStakingReward = (symbol) => {
   try {
     passiveIncomeManager.claimStaking(symbol);
-    ui.success(`Berhasil mengklaim reward staking ${symbol}!`, 'Klaim Staking');
+    ui.success(`Berhasil mengklaim reward staking ${symbol}!`, 'Klaim Staking', { deviceNotify: true });
     viewManager._renderPassiveIncome = true;
     viewManager.updateMarketView(true);
   } catch(e) { ui.error(e.message); }
@@ -1332,7 +1332,7 @@ window.claimStakingReward = (symbol) => {
 window.claimAllStakingRewards = () => {
   try {
     passiveIncomeManager.claimAllStaking();
-    ui.success('Seluruh reward staking berhasil diklaim ke wallet!', 'Klaim Semua Staking');
+    ui.success('Seluruh reward staking berhasil diklaim ke wallet!', 'Klaim Semua Staking', { deviceNotify: true });
     viewManager._renderPassiveIncome = true;
     viewManager.updateMarketView(true);
   } catch(e) { ui.error(e.message); }
@@ -1370,7 +1370,7 @@ window.commitLaunchdropPrompt = async (id) => {
 window.claimLaunchdropReward = (id) => {
   try {
     passiveIncomeManager.claimLaunchdrop(id);
-    ui.success('Token hasil Launchdrop berhasil diklaim ke wallet Anda!', 'Klaim Launchdrop');
+    ui.success('Token hasil Launchdrop berhasil diklaim ke wallet Anda!', 'Klaim Launchdrop', { deviceNotify: true });
     viewManager._renderPassiveIncome = true;
     viewManager.updateMarketView(true);
   } catch(e) { ui.error(e.message); }

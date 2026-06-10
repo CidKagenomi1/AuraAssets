@@ -455,7 +455,8 @@ class UIManager {
             title,
             message,
             duration = 4000,
-            icon = null
+            icon = null,
+            deviceNotify = false
         } = typeof options === 'string' ? { message: options } : options;
 
         const icons = {
@@ -498,6 +499,20 @@ class UIManager {
             }
         } catch (e) {}
 
+        // Handle Device Notification if enabled
+        if (deviceNotify && gameState.get('settings.deviceNotificationsEnabled') && "Notification" in window) {
+            if (Notification.permission === "granted") {
+                try {
+                    new Notification(title || type.toUpperCase(), {
+                        body: message,
+                        icon: '/favicon.ico'
+                    });
+                } catch (err) {
+                    console.error("Device Notification failed:", err);
+                }
+            }
+        }
+
         // Check if popup toasts are enabled in settings
         const isNotifEnabled = gameState.get('settings.notificationsEnabled') !== false;
         if (!isNotifEnabled) {
@@ -533,20 +548,20 @@ class UIManager {
         setTimeout(() => toast.remove(), 300);
     }
 
-    success(message, title = null) {
-        return this.toast({ type: 'success', message, title });
+    success(message, title = null, options = {}) {
+        return this.toast({ type: 'success', message, title, ...options });
     }
 
-    error(message, title = 'Error') {
-        return this.toast({ type: 'error', message, title });
+    error(message, title = 'Error', options = {}) {
+        return this.toast({ type: 'error', message, title, ...options });
     }
 
-warning(message, title = 'Peringatan') {
-        return this.toast({ type: 'warning', message, title });
+    warning(message, title = 'Peringatan', options = {}) {
+        return this.toast({ type: 'warning', message, title, ...options });
     }
 
-    info(message, title = null) {
-        return this.toast({ type: 'info', message, title });
+    info(message, title = null, options = {}) {
+        return this.toast({ type: 'info', message, title, ...options });
     }
 
     // ========================================

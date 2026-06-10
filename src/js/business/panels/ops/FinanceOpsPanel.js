@@ -7,6 +7,7 @@
 import gameState from '../../../core/GameState.js';
 import financeManager from '../../../finance/FinanceManager.js';
 import businessManager from '../../BusinessManager.js';
+import stockMarket from '../../../trading/StockMarket.js';
 import ui from '../../../ui/UIManager.js';
 
 export const FinanceOpsPanel = {
@@ -176,10 +177,51 @@ export const FinanceOpsPanel = {
             `;
         }
 
-        // Render holding blue-chip shares
+        // Render holding company stocks portfolio
+        const corpStocks = portfolio.stocks || {};
         const blueChipValuation = portfolio.valuation || 0;
-        const blueChipShares = portfolio.blueChipShares || 0;
-        const blueChipAvgBuy = portfolio.avgBuyPrice || 0;
+
+        let portfolioRows = '';
+        let hasHoldings = false;
+        
+        Object.entries(corpStocks).forEach(([symbol, data]) => {
+            const stock = stockMarket.getStock(symbol);
+            if (stock && data.shares > 0) {
+                hasHoldings = true;
+                const currentValue = stock.price * data.shares;
+                const costBasis = data.avgBuyPrice * data.shares;
+                const profit = currentValue - costBasis;
+                const profitPercent = costBasis > 0 ? (profit / costBasis) * 100 : 0;
+                
+                portfolioRows += `
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                        <td style="padding: 0.75rem 0.5rem; font-weight: 800; color: #fff;">${symbol}</td>
+                        <td style="padding: 0.75rem 0.5rem; color: var(--text-muted); font-size: 0.75rem;">${stock.name}</td>
+                        <td style="padding: 0.75rem 0.5rem; font-family: monospace;">${data.shares.toLocaleString()}</td>
+                        <td style="padding: 0.75rem 0.5rem; font-family: monospace;">$ ${data.avgBuyPrice.toLocaleString()}</td>
+                        <td style="padding: 0.75rem 0.5rem; font-family: monospace;">$ ${stock.price.toLocaleString()}</td>
+                        <td style="padding: 0.75rem 0.5rem; font-family: monospace; font-weight: 700; color: #fff;">$ ${currentValue.toLocaleString()}</td>
+                        <td style="padding: 0.75rem 0.5rem; text-align: right; font-weight: 800; color: ${profit >= 0 ? '#10b981' : '#ef4444'};">
+                            ${profit >= 0 ? '+' : ''}${profitPercent.toFixed(2)}%<br>
+                            <span style="font-size: 0.65rem; font-weight: 500;">${profit >= 0 ? '+' : ''}$ ${profit.toLocaleString()}</span>
+                        </td>
+                        <td style="padding: 0.75rem 0.5rem; text-align: right;">
+                            <button class="btn btn-xs btn-secondary btn-quick-select-corp" data-symbol="${symbol}" style="font-size: 0.65rem; padding: 2px 6px; font-weight: 800;">Trade</button>
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+
+        if (!hasHoldings) {
+            portfolioRows = `
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 2.25rem 0.5rem; font-size: 0.75rem;">
+                        📊 Holding company belum memiliki investasi saham. Cari saham melalui kotak pencarian di atas untuk membeli!
+                    </td>
+                </tr>
+            `;
+        }
 
         return `
             <!-- BANKING & MONETARY STATUS BOARD -->
@@ -296,39 +338,73 @@ export const FinanceOpsPanel = {
                 ${projectHtml}
             </div>
 
-            <!-- HOLDING BLUE-CHIP PORTFOLIO PANEL -->
+            <!-- HOLDING PORTFOLIO INTEGRATED WITH STOCK MARKET -->
             <div class="panel-card" style="padding: 1.25rem; margin-bottom:1.5rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; flex-wrap:wrap; gap:0.5rem;">
                     <div>
-                        <h3 style="font-size: 0.95rem; font-weight:800; margin:0; color:#fff;">💎 Portofolio Indeks Blue-Chip Korporasi (Holding Asset)</h3>
-                        <p class="text-muted" style="font-size:0.75rem; margin:2px 0 0 0;">Holding korporasi dapat membeli dan memiliki saham big-cap/blue-chip untuk memperkuat aset dan meraih dividen bulanan.</p>
+                        <h3 style="font-size: 0.95rem; font-weight:800; margin:0; color:#fff;">💎 Investasi & Holding Saham Korporasi (Treasury Portfolio)</h3>
+                        <p class="text-muted" style="font-size:0.75rem; margin:2px 0 0 0;">Kelola kas treasury perusahaan dengan menginvestasikannya langsung ke pasar saham global untuk memperkuat neraca aset dan meraih dividen bulanan.</p>
                     </div>
                     <div style="background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.2); padding: 6px 14px; border-radius: 8px; text-align:right;">
-                        <span style="font-size:0.6rem; color:#fbbf24; font-weight:800; text-transform:uppercase; display:block;">Nilai Buku Saham Big-Cap</span>
+                        <span style="font-size:0.6rem; color:#fbbf24; font-weight:800; text-transform:uppercase; display:block;">Nilai Portofolio Holding</span>
                         <span style="font-size:1.15rem; font-weight:900; color:#fbbf24;">$ ${financeManager.formatCurrency(blueChipValuation)}</span>
                     </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; background:rgba(0,0,0,0.15); padding:1rem; border-radius:10px; border:1px solid var(--border-color); margin-bottom:1rem; flex-wrap:wrap;">
-                    <div style="display:flex; flex-direction:column; justify-content:center;">
-                        <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">Total Saham Dimiliki: <strong style="color:#fff;">${blueChipShares} Lembar</strong></div>
-                        <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">Rata-rata Harga Beli: <strong style="color:#fff;">$ ${financeManager.formatCurrency(blueChipAvgBuy)}/lembar</strong></div>
-                        <div style="font-size:0.8rem; color:var(--text-muted);">Dividen Bulanan Diterima: <strong style="color:#10b981;">+$ ${financeManager.formatCurrency(Math.round(blueChipValuation * 0.005))}/bln</strong></div>
-                    </div>
-                    <div>
-                        <label style="font-size: 0.7rem; color: var(--text-muted); font-weight:700; display:block; margin-bottom:4px;">Jumlah Pembelian / Penjualan Saham</label>
-                        <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:8px;">
-                            <input type="number" id="bluechip-trade-shares" placeholder="Lembar saham..." 
-                                style="flex:1; padding:8px 12px; border:1px solid var(--border-color); background:rgba(0,0,0,0.2); color:#fff; border-radius:6px; font-size:0.85rem; font-weight:700; outline:none;">
-                            <span style="font-size:0.75rem; font-weight:800; color:#fff;">@ $250</span>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+                    <!-- Search & Stock Selector -->
+                    <div style="position: relative;">
+                        <label style="font-size: 0.75rem; color: var(--text-muted); font-weight:700; display:block; margin-bottom:6px;">Cari Saham Pasar Global</label>
+                        <div style="display: flex; gap: 0.5rem; position: relative;">
+                            <input type="text" id="corp-stock-search" placeholder="Cari Kode Ticker / Nama Saham (misal: AAPL, NVDA)..." 
+                                style="width:100%; padding:10px 12px; border:1px solid var(--border-color); background:rgba(0,0,0,0.3); color:#fff; border-radius:8px; font-size:0.85rem; font-weight:700; outline:none;" autocomplete="off">
                         </div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem;">
-                            <button class="btn btn-primary btn-sm" id="btn-buy-bluechip" style="font-weight:850; background:#3b82f6; border:none; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);">Beli Saham</button>
-                            <button class="btn btn-secondary btn-sm" id="btn-sell-bluechip" style="font-weight:850;">Jual Saham</button>
+                        
+                        <!-- Suggestions Dropdown -->
+                        <div id="corp-search-suggestions" style="position: absolute; left: 0; right: 0; top: 100%; background: #18181b; border: 1px solid var(--border-color); border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; display: none; margin-top: 4px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                        </div>
+                    </div>
+
+                    <!-- Trade Actions Panel -->
+                    <div id="selected-corp-stock-panel" style="background: rgba(255,255,255,0.015); border: 1px solid var(--border-color); border-radius: 10px; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div style="text-align: center; color: var(--text-dim); font-size: 0.75rem; padding: 1.5rem 0;">
+                            🔍 Pilih saham di sebelah kiri untuk memulai transaksi
                         </div>
                     </div>
                 </div>
+
+                <!-- Portfolio Holding Table -->
+                <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+                    <h4 style="margin: 0 0 0.75rem 0; font-size: 0.85rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 0.35rem;">
+                        <span>📊</span> Kepemilikan Aset Saham Korporasi (Holding Portfolio)
+                    </h4>
+                    <div style="overflow-x: auto; width: 100%;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.75rem;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted);">
+                                    <th style="padding: 0.5rem; font-weight: 800;">Ticker</th>
+                                    <th style="padding: 0.5rem; font-weight: 800;">Nama Perusahaan</th>
+                                    <th style="padding: 0.5rem; font-weight: 800;">Kepemilikan</th>
+                                    <th style="padding: 0.5rem; font-weight: 800;">Harga Beli (Rata2)</th>
+                                    <th style="padding: 0.5rem; font-weight: 800;">Harga Sekarang</th>
+                                    <th style="padding: 0.5rem; font-weight: 800;">Nilai Pasar</th>
+                                    <th style="padding: 0.5rem; text-align: right; font-weight: 800;">Profit / Loss</th>
+                                    <th style="padding: 0.5rem; text-align: right; font-weight: 800;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${portfolioRows}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
+
+            <style>
+                .search-suggestion-item:hover {
+                    background: rgba(255, 255, 255, 0.05);
+                }
+            </style>
 
             <!-- COMPLETED DEALS LIST -->
             <div style="margin-bottom:1.5rem;">
@@ -531,45 +607,170 @@ export const FinanceOpsPanel = {
             });
         }
 
-        // Buy Holding Bluechip Stock
-        const btnBuyBlueChip = container.querySelector('#btn-buy-bluechip');
-        if (btnBuyBlueChip) {
-            btnBuyBlueChip.addEventListener('click', () => {
-                const input = container.querySelector('#bluechip-trade-shares');
-                const shares = input.getNumericValue ? input.getNumericValue() : parseInt(input.value.replace(/,/g, ''), 10);
-                if (isNaN(shares) || shares <= 0) {
+        // Integrated Stock Market Search & Trading bindings
+        const searchInput = container.querySelector('#corp-stock-search');
+        const suggestionsBox = container.querySelector('#corp-search-suggestions');
+        const selectedPanel = container.querySelector('#selected-corp-stock-panel');
+
+        let selectedSymbol = null;
+
+        const updateSelectedPanel = (symbol) => {
+            selectedSymbol = symbol;
+            if (!symbol) {
+                selectedPanel.innerHTML = `
+                    <div style="text-align: center; color: var(--text-dim); font-size: 0.75rem; padding: 1.5rem 0;">
+                        🔍 Pilih saham di sebelah kiri untuk memulai transaksi
+                    </div>
+                `;
+                return;
+            }
+
+            const stock = stockMarket.getStock(symbol);
+            if (!stock) return;
+
+            const financeState = businessManager.getFinanceState();
+            const portfolioState = financeState ? (financeState.portfolio || {}) : {};
+            const stocksState = portfolioState.stocks || {};
+            const holding = stocksState[symbol] || { shares: 0, avgBuyPrice: 0 };
+            const limit5Percent = Math.round((stock.sharesOutstanding || 1000000000) * 0.05);
+
+            selectedPanel.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
+                    <div>
+                        <div style="font-weight: 900; color: #fff; font-size: 0.95rem;">${stock.symbol} - ${stock.name}</div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted);">Sektor: ${stock.sector} | Saham Beredar: ${stock.sharesOutstanding.toLocaleString()}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: 850; color: #fff; font-size: 1rem;">$ ${stock.price.toLocaleString()}</div>
+                        <span style="font-size: 0.7rem; font-weight: 700; color: ${stock.change >= 0 ? '#10b981' : '#ef4444'};">
+                            ${stock.change >= 0 ? '▲' : '▼'} ${Math.abs(stock.change).toFixed(2)}%
+                        </span>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-muted); background: rgba(0,0,0,0.15); padding: 6px 10px; border-radius: 6px;">
+                    <span>Holding: <strong>${holding.shares.toLocaleString()} Lembar</strong> (Avg: $ ${holding.avgBuyPrice.toLocaleString()})</span>
+                    <span>Batas Maks Holding (5%): <strong style="color: #fbbf24;">${limit5Percent.toLocaleString()} Lembar</strong></span>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <div style="position: relative; flex: 1;">
+                        <input type="number" id="corp-trade-shares" placeholder="Jumlah lembar..." min="1"
+                            style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: #fff; border-radius: 6px; font-size: 0.8rem; font-weight: 700; outline: none;">
+                    </div>
+                    <button class="btn btn-xs btn-secondary btn-set-max-corp-buy" style="font-size:0.65rem; padding: 8px 10px; font-weight: 800;">MAX BUY</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <button class="btn btn-primary btn-sm" id="btn-corp-buy-stock" style="font-weight: 850; background: #3b82f6; border: none; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);">BELI</button>
+                    <button class="btn btn-danger btn-sm" id="btn-corp-sell-stock" ${holding.shares === 0 ? 'disabled' : ''} style="font-weight: 850; border: none;">JUAL</button>
+                </div>
+            `;
+
+            // Bind Max Buy
+            selectedPanel.querySelector('.btn-set-max-corp-buy').addEventListener('click', () => {
+                const price = stock.price;
+                const maxBuyByCash = Math.floor(biz.cash / price);
+                const maxBuyBySharesLimit = Math.max(0, limit5Percent - holding.shares);
+                const finalMax = Math.min(maxBuyByCash, maxBuyBySharesLimit);
+                
+                selectedPanel.querySelector('#corp-trade-shares').value = finalMax;
+            });
+
+            // Bind Buy Action
+            selectedPanel.querySelector('#btn-corp-buy-stock').addEventListener('click', () => {
+                const inputShares = selectedPanel.querySelector('#corp-trade-shares');
+                const sharesCount = parseInt(inputShares.value, 10);
+                if (isNaN(sharesCount) || sharesCount <= 0) {
                     ui.error('Harap isi jumlah lembar saham pembelian yang valid!');
                     return;
                 }
-
                 try {
-                    businessManager.buyBlueChipEquity(shares);
+                    businessManager.buyCorporateStock(symbol, sharesCount);
                     if (parentPage) parentPage.render();
                 } catch (e) {
                     ui.error(e.message);
                 }
             });
-        }
 
-        // Sell Holding Bluechip Stock
-        const btnSellBlueChip = container.querySelector('#btn-sell-bluechip');
-        if (btnSellBlueChip) {
-            btnSellBlueChip.addEventListener('click', () => {
-                const input = container.querySelector('#bluechip-trade-shares');
-                const shares = input.getNumericValue ? input.getNumericValue() : parseInt(input.value.replace(/,/g, ''), 10);
-                if (isNaN(shares) || shares <= 0) {
+            // Bind Sell Action
+            selectedPanel.querySelector('#btn-corp-sell-stock').addEventListener('click', () => {
+                const inputShares = selectedPanel.querySelector('#corp-trade-shares');
+                const sharesCount = parseInt(inputShares.value, 10);
+                if (isNaN(sharesCount) || sharesCount <= 0) {
                     ui.error('Harap isi jumlah lembar saham penjualan yang valid!');
                     return;
                 }
-
                 try {
-                    businessManager.sellBlueChipEquity(shares);
+                    businessManager.sellCorporateStock(symbol, sharesCount);
                     if (parentPage) parentPage.render();
                 } catch (e) {
                     ui.error(e.message);
                 }
             });
+        };
+
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.trim().toLowerCase();
+                if (!query) {
+                    suggestionsBox.style.display = 'none';
+                    return;
+                }
+
+                const allStocks = stockMarket.getAllStocks();
+                const filtered = allStocks.filter(s => 
+                    s.symbol.toLowerCase().includes(query) || 
+                    s.name.toLowerCase().includes(query)
+                ).slice(0, 10); // max 10 suggestions
+
+                if (filtered.length === 0) {
+                    suggestionsBox.innerHTML = `
+                        <div style="padding: 10px; color: var(--text-dim); font-size: 0.75rem; text-align: center;">Tidak ada saham ditemukan</div>
+                    `;
+                } else {
+                    suggestionsBox.innerHTML = filtered.map(s => `
+                        <div class="search-suggestion-item" data-symbol="${s.symbol}" style="padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.02); transition: background 0.2s;">
+                            <div>
+                                <span style="font-weight: 800; color: #fff; font-size: 0.8rem;">${s.symbol}</span>
+                                <span style="font-size: 0.7rem; color: var(--text-dim); margin-left: 6px;">${s.name}</span>
+                            </div>
+                            <span style="font-weight: 700; color: #fff; font-size: 0.75rem;">$ ${s.price.toLocaleString()}</span>
+                        </div>
+                    `).join('');
+
+                    // Bind suggestion items clicks
+                    suggestionsBox.querySelectorAll('.search-suggestion-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            const sym = item.dataset.symbol;
+                            searchInput.value = sym;
+                            suggestionsBox.style.display = 'none';
+                            updateSelectedPanel(sym);
+                        });
+                    });
+                }
+                suggestionsBox.style.display = 'block';
+            });
+
+            // Close suggestions on outside click
+            const handleOutsideClick = (e) => {
+                if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                    suggestionsBox.style.display = 'none';
+                }
+            };
+            document.addEventListener('click', handleOutsideClick);
         }
+
+        // Quick select from portfolio table
+        container.querySelectorAll('.btn-quick-select-corp').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const sym = btn.dataset.symbol;
+                if (searchInput) searchInput.value = sym;
+                updateSelectedPanel(sym);
+                // Scroll to top of portfolio card if needed
+                searchInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        });
 
         // Hire finance modular candidates
         container.querySelectorAll('.btn-hire-fin').forEach(btn => {

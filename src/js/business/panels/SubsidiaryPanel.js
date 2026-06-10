@@ -158,7 +158,7 @@ export const SubsidiaryPanel = {
                             <h4 style="margin:0 0 2px 0; font-size: 0.95rem; font-weight:900; color:#fff;">${s.name}</h4>
                             <div style="font-size:0.65rem; color:var(--text-dim); margin-bottom:0.5rem;">Terakuisisi Kalender: ${s.foundedAt || 2010}</div>
                             
-                            <div style="display:flex; flex-direction:column; gap:0.3rem; font-size:0.75rem; background:rgba(0,0,0,0.15); padding:8px; border-radius:8px;">
+                            <div style="display:flex; flex-direction:column; gap:0.3rem; font-size:0.75rem; background:rgba(0,0,0,0.15); padding:8px; border-radius:8px; margin-bottom:0.5rem;">
                                 <div style="display:flex; justify-content:space-between;">
                                     <span style="color:var(--text-muted);">${terms.profitLabel}</span>
                                     <span style="font-weight:800; color:#10b981;">+$ ${financeManager.formatCurrency(s.monthlyProfit)}/bln</span>
@@ -167,6 +167,22 @@ export const SubsidiaryPanel = {
                                     <span style="color:var(--text-muted);">${terms.assetValLabel}</span>
                                     <span style="font-weight:800; color:#f59e0b;">$ ${formatCompact(sVal)}</span>
                                 </div>
+                            </div>
+
+                            <!-- Invest Panel inside Card -->
+                            <div style="display: flex; gap: 0.25rem; align-items: center; border-top: 1px dashed rgba(255,255,255,0.05); padding-top: 0.5rem;">
+                                <select class="invest-source" id="invest-source-${s.id}" style="padding: 4px; font-size: 0.65rem; background: #111; color: #fff; border: 1px solid var(--border-color); border-radius: 4px; flex: 1; outline: none; cursor: pointer;">
+                                    <option value="treasury">🏢 Treasury</option>
+                                    <option value="personal">💼 Pribadi</option>
+                                </select>
+                                <select class="invest-qty" id="invest-qty-${s.id}" style="padding: 4px; font-size: 0.65rem; background: #111; color: #fff; border: 1px solid var(--border-color); border-radius: 4px; flex: 1.2; outline: none; cursor: pointer;">
+                                    <option value="25000">Suntik $ 25K</option>
+                                    <option value="100000">Suntik $ 100K</option>
+                                    <option value="500000">Suntik $ 500K</option>
+                                </select>
+                                <button class="btn btn-primary btn-sm btn-invest-sub" data-id="${s.id}" style="padding: 4px 8px; font-size: 0.65rem; font-weight: 800; border-radius: 4px;">
+                                    📈 Invest
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -462,6 +478,34 @@ export const SubsidiaryPanel = {
                 if (confirmed) {
                     try {
                         businessManager.buyoutDirect(dealId, source);
+                        if (parentPage) parentPage.render();
+                    } catch (e) {
+                        ui.error(e.message);
+                    }
+                }
+            });
+        });
+
+        // Invest in Subsidiary Listeners
+        container.querySelectorAll('.btn-invest-sub').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const subId = btn.dataset.id;
+                const sourceEl = container.querySelector(`#invest-source-${subId}`);
+                const qtyEl = container.querySelector(`#invest-qty-${subId}`);
+                if (!sourceEl || !qtyEl) return;
+
+                const source = sourceEl.value;
+                const amount = parseInt(qtyEl.value);
+
+                const confirmed = await ui.confirm({
+                    title: 'Investasi pada Anak Usaha?',
+                    message: `Apakah Anda yakin ingin menyuntikkan dana sebesar $ ${amount.toLocaleString()} dari ${source === 'treasury' ? 'Treasury Perusahaan' : 'Rekening Pribadi'} ke anak usaha ini? Ini akan meningkatkan kapasitas profitabilitas dan nilai valuasinya secara signifikan.`,
+                    confirmText: 'Suntik Modal'
+                });
+
+                if (confirmed) {
+                    try {
+                        businessManager.investInSubsidiary(subId, amount, source);
                         if (parentPage) parentPage.render();
                     } catch (e) {
                         ui.error(e.message);

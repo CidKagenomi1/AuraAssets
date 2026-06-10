@@ -1,7 +1,7 @@
 /**
  * EnergyOpsPanel.js - Custom High-Fidelity Management Dashboard for Energy & Utilities Sector
- * Features Seismographic Exploration Surveys, Potential Oil/Gas/Coal/Green Discoveries Ledger,
- * Refinery and Grid Plant Operations Management, and scrapping controls.
+ * Features slider-based target production and price control, capacity expansions,
+ * and electrical grid power plant mix configuration.
  */
 
 import gameState from '../../../core/GameState.js';
@@ -14,201 +14,278 @@ export const EnergyOpsPanel = {
         const energy = businessManager.getEnergyState();
         if (!energy) return `<p class="text-muted" style="padding: 2rem; text-align: center;">Memuat data divisi energi & utilitas...</p>`;
 
-        const explorations = energy.explorations || [];
-        const refineries = energy.refineries || [];
-        const demand = energy.demandFluctuation || 1.0;
+        const capacities = energy.capacities || { oil: 100000, gas: 150000, coal: 200000, electricity: 120000 };
+        const productionTargets = energy.productionTargets || { oil: 50, gas: 50, coal: 50, electricity: 50 };
+        const prices = energy.prices || { oil: 15, gas: 12, coal: 8, electricity: 25 };
+        const powerPlants = energy.powerPlants || { coal_pltu: 40, gas_pltg: 30, oil_pltd: 10, renewable_nuclear: 20 };
+        const marketDemand = energy.marketDemand || { oil: 1.0, gas: 1.0, coal: 1.0, electricity: 1.0 };
+        const lastTick = energy.lastTickInfo || {
+            oilConsumed: 0, gasConsumed: 0, coalConsumed: 0,
+            oilPurchased: 0, gasPurchased: 0, coalPurchased: 0,
+            oilDeficitCost: 0, gasDeficitCost: 0, coalDeficitCost: 0
+        };
 
-        // Dynamic styling variables
-        const demandPercent = Math.round(demand * 100);
-        const demandColor = demand > 1.1 ? '#10b981' : demand > 0.95 ? '#fbbf24' : '#ef4444';
-        
-        let totalOutput = 0;
-        let totalMaint = 0;
-        let estRevenue = 0;
+        const basePrices = { oil: 15, gas: 12, coal: 8, electricity: 25 };
+        const costMap = { oil: 100000, gas: 80000, coal: 60000, electricity: 150000 };
+        const incrementMap = { oil: 50000, gas: 50000, coal: 100000, electricity: 50000 };
 
-        refineries.forEach(r => {
-            totalOutput += r.capacity;
-            totalMaint += r.maintenance;
-            estRevenue += r.capacity * r.revenueRate * demand;
-        });
+        // Realtime estimates
+        let totalEstRevenue = 0;
+        let totalEstMaintenance = 0;
+        const actualOutputs = {};
+
+        // Calculate outputs
+        for (const type of ['oil', 'gas', 'coal', 'electricity']) {
+            const cap = capacities[type];
+            const target = productionTargets[type];
+            let erpModifier = 1.0;
+            if (biz.operations?.production === 'jit') erpModifier *= 1.15;
+            if (biz.operations?.production === 'batch') erpModifier *= 1.05;
+
+            actualOutputs[type] = Math.round(cap * (target / 100) * erpModifier);
+        }
+
+        // Electricity consumption simulation for preview
+        const electProd = actualOutputs['electricity'];
+        const estCoalNeeded = Math.round(electProd * (powerPlants.coal_pltu / 100) * 0.5);
+        const estGasNeeded = Math.round(electProd * (powerPlants.gas_pltg / 100) * 0.4);
+        const estOilNeeded = Math.round(electProd * (powerPlants.oil_pltd / 100) * 0.3);
+
+        const estOilDeficit = Math.max(0, estOilNeeded - actualOutputs['oil']);
+        const estGasDeficit = Math.max(0, estGasNeeded - actualOutputs['gas']);
+        const estCoalDeficit = Math.max(0, estCoalNeeded - actualOutputs['coal']);
+
+        const previewMarketPrice = (type) => basePrices[type] * marketDemand[type];
+        const estOilDeficitCost = Math.round(estOilDeficit * previewMarketPrice('oil') * 1.3);
+        const estGasDeficitCost = Math.round(estGasDeficit * previewMarketPrice('gas') * 1.3);
+        const estCoalDeficitCost = Math.round(estCoalDeficit * previewMarketPrice('coal') * 1.3);
+
+        const estDeficitCost = estOilDeficitCost + estGasDeficitCost + estCoalDeficitCost;
+
+        // Sale volumes
+        const saleVolumes = {
+            oil: Math.max(0, actualOutputs['oil'] - estOilNeeded),
+            gas: Math.max(0, actualOutputs['gas'] - estGasNeeded),
+            coal: Math.max(0, actualOutputs['coal'] - estCoalNeeded),
+            electricity: electProd
+        };
+
+        // Revenue & Maint calculation
+        for (const type of ['oil', 'gas', 'coal', 'electricity']) {
+            const playerPrice = prices[type];
+            const currentMarketPrice = previewMarketPrice(type);
+            const volume = saleVolumes[type];
+
+            let soldPercent = 1.0;
+            if (playerPrice > currentMarketPrice) {
+                soldPercent = Math.max(0, 1 - (playerPrice - currentMarketPrice) / (currentMarketPrice * 0.8));
+            }
+            totalEstRevenue += volume * soldPercent * playerPrice;
+
+            // Maintenance
+            const cap = capacities[type];
+            const targetPercent = productionTargets[type];
+            let baseRate = 0.04;
+            let utilRate = 0.02;
+            if (type === 'electricity') {
+                const fossilRatio = (powerPlants.coal_pltu + powerPlants.gas_pltg + powerPlants.oil_pltd) / 100;
+                baseRate = (fossilRatio * 0.06) + ((1 - fossilRatio) * 0.02);
+                utilRate = (fossilRatio * 0.04) + ((1 - fossilRatio) * 0.01);
+            }
+            totalEstMaintenance += (cap * baseRate) + ((targetPercent / 100) * cap * utilRate);
+        }
 
         if (biz.initiatives?.energy_renewable) {
-            estRevenue += estRevenue * 0.15;
+            totalEstRevenue += totalEstRevenue * 0.15;
+        }
+        if (biz.initiatives?.energy_smart_grid) {
+            totalEstMaintenance *= 0.85;
         }
 
-        // Active Refineries Table rows
-        let refineriesHtml = '';
-        if (refineries.length === 0) {
-            refineriesHtml = `
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.85rem;">
-                        ⚠️ Tidak ada kilang atau pembangkit aktif. Mulailah eksplorasi geologi dan bangun kilang baru!
-                    </td>
-                </tr>
-            `;
-        } else {
-            refineriesHtml = refineries.map(r => {
-                let typeBadge = '';
-                if (r.type === 'oil') typeBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">🛢️ MINYAK</span>`;
-                else if (r.type === 'gas') typeBadge = `<span style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">🔥 GAS ALAM</span>`;
-                else if (r.type === 'coal') typeBadge = `<span style="background: rgba(107, 114, 128, 0.15); color: #9ca3af; border: 1px solid rgba(107, 114, 128, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">🪨 BATUBARA</span>`;
-                else typeBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">🍃 HIJAU</span>`;
+        const estNetProfit = Math.round(totalEstRevenue - totalEstMaintenance - estDeficitCost);
 
-                const scrapCash = Math.round(r.maintenance * 4);
+        // Grid Green Ratio
+        const greenRatio = powerPlants.renewable_nuclear;
+
+        // Resource details
+        const resourceTypes = [
+            { id: 'oil', name: 'Minyak Bumi', icon: '🛢️', unit: 'barrel', color: '#f59e0b' },
+            { id: 'gas', name: 'Gas Alam', icon: '🔥', unit: 'MMBtu', color: '#3b82f6' },
+            { id: 'coal', name: 'Batu Bara', icon: '🪨', unit: 'ton', color: '#9ca3af' },
+            { id: 'electricity', name: 'Listrik & Grid', icon: '⚡', unit: 'MWh', color: '#10b981' }
+        ];
+
+        let commoditiesHtml = resourceTypes.map(res => {
+            const cap = capacities[res.id];
+            const target = productionTargets[res.id];
+            const price = prices[res.id];
+            const mktPrice = previewMarketPrice(res.id);
+            const actualOut = actualOutputs[res.id];
+            const upgradeCost = costMap[res.id];
+            const upgradeInc = incrementMap[res.id];
+
+            // Specific info for fossil inputs / electric outputs
+            let consumptionInfo = '';
+            if (res.id === 'electricity') {
+                consumptionInfo = `
+                    <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem;">
+                        Estimasi Kebutuhan Bahan Grid:<br>
+                        🛢️ Minyak: <strong>${estOilNeeded.toLocaleString()}</strong> |
+                        🔥 Gas: <strong>${estGasNeeded.toLocaleString()}</strong> |
+                        🪨 Batubara: <strong>${estCoalNeeded.toLocaleString()}</strong>
+                    </div>
+                `;
+            } else {
+                const consumed = res.id === 'oil' ? estOilNeeded : res.id === 'gas' ? estGasNeeded : estCoalNeeded;
+                const deficit = res.id === 'oil' ? estOilDeficit : res.id === 'gas' ? estGasDeficit : estCoalDeficit;
+                const deficitCost = res.id === 'oil' ? estOilDeficitCost : res.id === 'gas' ? estGasDeficitCost : estCoalDeficitCost;
                 
-                return `
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.02); vertical-align: middle;">
-                        <td style="padding: 12px 8px;">
-                            <strong style="color: #fff; font-size: 0.85rem; display: block;">${r.name}</strong>
-                            <span style="font-size: 0.7rem; color: var(--text-dim);">ID Node: ${r.id}</span>
-                        </td>
-                        <td style="padding: 12px 8px;">${typeBadge}</td>
-                        <td style="padding: 12px 8px; font-weight: 800; color: #fff;">${r.capacity.toLocaleString('en-US')} u/bln</td>
-                        <td style="padding: 12px 8px; font-weight: 700; color: #ef4444;">-$ ${financeManager.formatCurrency(r.maintenance)}</td>
-                        <td style="padding: 12px 8px; text-align: right;">
-                            <button class="btn btn-danger btn-sm btn-decom-refinery" data-id="${r.id}" style="padding: 4px 10px; font-size: 0.65rem; font-weight: 800; border-radius: 4px;">
-                                ❌ DECOM (+$ ${financeManager.formatCurrency(scrapCash)})
-                            </button>
-                        </td>
-                    </tr>
+                consumptionInfo = `
+                    <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem;">
+                        Dikonsumsi Grid Listrik: <strong>${consumed.toLocaleString()} ${res.unit}</strong><br>
+                        ${deficit > 0 ? `<span style="color: #ef4444;">⚠️ Defisit: ${deficit.toLocaleString()} ${res.unit} (Impor: +$ ${deficitCost.toLocaleString()})</span>` : `<span style="color: #10b981;">✓ Mandiri (Sisa Jual: ${(actualOut - consumed).toLocaleString()} ${res.unit})</span>`}
+                    </div>
                 `;
-            }).join('');
-        }
+            }
 
-        // Potential Discoveries Table rows
-        let discoveriesHtml = '';
-        if (explorations.length === 0) {
-            discoveriesHtml = `
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.85rem;">
-                        🔍 Belum ada potensi wilayah baru. Jalankan survei eksplorasi seismik di atas!
-                    </td>
-                </tr>
+            return `
+                <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color); background: rgba(255,255,255,0.01);">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 900; color: #fff; display: flex; align-items: center; gap: 0.4rem;">
+                                <span style="color: ${res.color};">${res.icon}</span> ${res.name}
+                            </h3>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">
+                                Kapasitas: <strong>${cap.toLocaleString()} ${res.unit}/bln</strong>
+                            </span>
+                        </div>
+                        <button class="btn btn-primary btn-sm btn-upgrade-capacity" data-type="${res.id}" style="padding: 4px 10px; font-size: 0.65rem; font-weight: 800; border-radius: 4px;">
+                            🚀 Upgrade (+${upgradeInc.toLocaleString()} u, $ ${upgradeCost.toLocaleString()})
+                        </button>
+                    </div>
+
+                    <!-- Slider 1: Production Target -->
+                    <div style="margin-bottom: 1.25rem;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 4px; color: var(--text-muted);">
+                            <span>Target Produksi: <strong>${target}%</strong></span>
+                            <span style="color: #fff; font-weight: 800;">${actualOut.toLocaleString()} ${res.unit}</span>
+                        </div>
+                        <input type="range" class="slider-prod" data-type="${res.id}" min="0" max="100" value="${target}" style="width: 100%; cursor: pointer;">
+                    </div>
+
+                    <!-- Slider 2: Selling Price -->
+                    <div style="margin-bottom: 0.5rem;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 4px; color: var(--text-muted);">
+                            <span>Harga Jual: <strong style="color: #fff;">$ ${price}/unit</strong></span>
+                            <span>Pasar: $ ${mktPrice.toFixed(1)}/unit</span>
+                        </div>
+                        <input type="range" class="slider-price" data-type="${res.id}" min="1" max="${Math.round(mktPrice * 2.5)}" value="${price}" style="width: 100%; cursor: pointer;">
+                    </div>
+
+                    ${consumptionInfo}
+                </div>
             `;
-        } else {
-            discoveriesHtml = explorations.map(d => {
-                let typeBadge = '';
-                if (d.type === 'oil') typeBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">🛢️ POTENSI MINYAK</span>`;
-                else if (d.type === 'gas') typeBadge = `<span style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">🔥 POTENSI GAS</span>`;
-                else if (d.type === 'coal') typeBadge = `<span style="background: rgba(107, 114, 128, 0.15); color: #9ca3af; border: 1px solid rgba(107, 114, 128, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">🪨 POTENSI BATUBARA</span>`;
-                else typeBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">🍃 HIJAU / TERBARUKAN</span>`;
-
-                return `
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.02); vertical-align: middle;">
-                        <td style="padding: 12px 8px;">
-                            <strong style="color: #fff; font-size: 0.85rem;">${d.name}</strong>
-                        </td>
-                        <td style="padding: 12px 8px;">${typeBadge}</td>
-                        <td style="padding: 12px 8px; font-weight: 800; color: #fff;">${d.capacity.toLocaleString('en-US')} u/bln</td>
-                        <td style="padding: 12px 8px; font-weight: 800; color: #fbbf24;">$ ${financeManager.formatCurrency(d.buildCost)}</td>
-                        <td style="padding: 12px 8px; text-align: right;">
-                            <button class="btn btn-primary btn-sm btn-build-refinery" data-id="${d.id}" style="padding: 6px 14px; font-size: 0.7rem; font-weight: 900; border-radius: 6px; box-shadow: 0 4px 10px rgba(16,185,129,0.25);">
-                                ⚙️ BANGUN UNIT
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
+        }).join('');
 
         return `
             <div class="energy-tab-wrapper" style="animation: fadeIn 0.3s ease-out;">
-                <!-- Row 1: Energy Stats Widgets -->
+                <!-- Row 1: Energy Grid Stats Widgets -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                    <div class="card" style="border-left: 4px solid #10b981; padding: 1.25rem; background: rgba(255,255,255,0.015);">
+                    <div class="card" style="border-left: 4px solid ${estNetProfit >= 0 ? '#10b981' : '#ef4444'}; padding: 1.25rem; background: rgba(255,255,255,0.015);">
                         <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Estimasi Hasil Bersih Bulanan</div>
-                        <div style="font-size: 1.65rem; font-weight: 900; color: #10b981;">+$ ${financeManager.formatCurrency(Math.round(estRevenue - totalMaint))}</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Est. Revenue: $ ${financeManager.formatCurrency(Math.round(estRevenue))}</div>
+                        <div style="font-size: 1.65rem; font-weight: 900; color: ${estNetProfit >= 0 ? '#10b981' : '#ef4444'};">
+                            ${estNetProfit >= 0 ? '+' : ''}$ ${estNetProfit.toLocaleString()}
+                        </div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">
+                            Pendapatan: $ ${Math.round(totalEstRevenue).toLocaleString()} | Biaya: $ ${Math.round(totalEstMaintenance).toLocaleString()}
+                        </div>
                     </div>
                     
-                    <div class="card" style="border-left: 4px solid #ef4444; padding: 1.25rem; background: rgba(255,255,255,0.015);">
-                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Biaya Pemeliharaan Kilang</div>
-                        <div style="font-size: 1.65rem; font-weight: 900; color: #ef4444;">-$ ${financeManager.formatCurrency(totalMaint)}</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Total ${refineries.length} Kilang / Pembangkit</div>
-                    </div>
-                    
-                    <div class="card" style="border-left: 4px solid #fbbf24; padding: 1.25rem; background: rgba(255,255,255,0.015);">
-                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Kapasitas Output Grid</div>
-                        <div style="font-size: 1.65rem; font-weight: 900; color: #fff;">${totalOutput.toLocaleString('en-US')} u/mo</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Grid Load: Stabil (100% Demand)</div>
-                    </div>
-
-                    <div class="card" style="border-left: 4px solid ${demandColor}; padding: 1.25rem; background: rgba(255,255,255,0.015);">
-                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Fluktuasi Harga Pasar</div>
-                        <div style="font-size: 1.65rem; font-weight: 900; color: ${demandColor};">${demandPercent}%</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Permintaan energi global</div>
-                    </div>
-                </div>
-
-                <!-- Row 2: Geophysical Survey & Exploration System -->
-                <div class="card" style="padding: 1.75rem; margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(245,158,11,0.03) 0%, transparent 100%); border: 1px solid var(--border-color);">
-                    <h3 style="margin-top: 0; font-size: 1.2rem; font-weight: 900; color: #f59e0b; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                        <span>🔍</span> Eksplorasi Geologi Seismik & Pencarian Sumber Baru
-                    </h3>
-                    <p class="text-muted" style="font-size: 0.85rem; line-height: 1.5; margin-bottom: 1.5rem;">
-                        Lakukan survei satelit geofisika dan eksplorasi geologi secara aktif. Setiap survei yang diselenggarakan akan mendeteksi potensi area cadangan migas, deposit batubara, atau titik optimal pembangkit energi hijau terbarukan yang siap dikembangkan menjadi kilang.
-                    </p>
-                    
-                    <button class="btn btn-primary" id="btn-survey-energy" style="font-weight: 900; letter-spacing: 0.05em; padding: 12px 24px; border: none; background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 4px 15px rgba(245,158,11,0.25); display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                        <span>🔍</span> JALANKAN SURVEI SEISMIK BARU (Biaya: $ ${financeManager.formatCurrency(energy.surveyCost)})
-                    </button>
-                </div>
-
-                <!-- Row 3: Discoveries Ledger & Active Refineries Grid -->
-                <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
-                    
-                    <!-- Potential Discoveries -->
-                    <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color);">
-                        <h3 style="margin-top: 0; font-size: 1.1rem; font-weight: 900; color: #fff; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <span>🗺️</span> Wilayah Hasil Temuan Potensial (Discovered Areas)
-                        </h3>
-                        <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 1.2rem; line-height: 1.4;">
-                            Daftar area potensi energi yang terdeteksi dari hasil survei eksplorasi. Kembangkan area ini dengan membangun kilang atau pembangkit listrik baru untuk mulai menyuplai grid energi dan meraup omzet bulanan.
-                        </p>
-                        
-                        <div style="overflow-x: auto; width: 100%;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left;">
-                                <thead>
-                                    <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted); font-weight: 800; text-transform: uppercase;">
-                                        <th style="padding: 8px 8px;">Wilayah Temuan</th>
-                                        <th style="padding: 8px 8px;">Klasifikasi Sumber</th>
-                                        <th style="padding: 8px 8px;">Kapasitas Potensi</th>
-                                        <th style="padding: 8px 8px;">Biaya Konstruksi</th>
-                                        <th style="padding: 8px 8px; text-align: right;">Aksi Tindakan</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${discoveriesHtml}
-                                </tbody>
-                            </table>
+                    <div class="card" style="border-left: 4px solid #3b82f6; padding: 1.25rem; background: rgba(255,255,255,0.015);">
+                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Konsumsi & Impor Bahan Mentah</div>
+                        <div style="font-size: 1.65rem; font-weight: 900; color: #fff;">
+                            -$ ${estDeficitCost.toLocaleString()}
+                        </div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">
+                            Membeli batubara/gas/minyak pasar karena suplai kurang
                         </div>
                     </div>
 
-                    <!-- Operational Refineries -->
-                    <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color);">
-                        <h3 style="margin-top: 0; font-size: 1.1rem; font-weight: 900; color: #fff; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <span>🏢</span> Pengelolaan Kilang & Pembangkit Aktif (Active Assets)
-                        </h3>
-                        <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 1.2rem; line-height: 1.4;">
-                            Rincian kilang minyak, gas, tambang batubara, dan pembangkit hijau yang sedang beroperasi penuh menyuplai grid transmisi daya. Anda dapat menonaktifkan (*decommission*) kilang dengan sisa besi tua dijual kembali ke kas treasury.
-                        </p>
-                        
-                        <div style="overflow-x: auto; width: 100%;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left;">
-                                <thead>
-                                    <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted); font-weight: 800; text-transform: uppercase;">
-                                        <th style="padding: 8px 8px;">Nama Aset Aset</th>
-                                        <th style="padding: 8px 8px;">Tipe Kilang</th>
-                                        <th style="padding: 8px 8px;">Kapasitas Output</th>
-                                        <th style="padding: 8px 8px;">Biaya Pemeliharaan</th>
-                                        <th style="padding: 8px 8px; text-align: right;">Aksi Tindakan</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${refineriesHtml}
-                                </tbody>
-                            </table>
+                    <div class="card" style="border-left: 4px solid #10b981; padding: 1.25rem; background: rgba(255,255,255,0.015);">
+                        <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Grid Bauran Energi Hijau</div>
+                        <div style="font-size: 1.65rem; font-weight: 900; color: #10b981;">${greenRatio}%</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">
+                            Mengurangi konsumsi bahan mentah batubara, minyak, & gas
                         </div>
+                    </div>
+                </div>
+
+                <!-- Main Layout: Left Commodities, Right Power Plant Mix -->
+                <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem;">
+                    
+                    <!-- Left: Sliders Grid -->
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 900; color: #fff;">📊 Kontrol Suplai & Harga Energi</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            ${commoditiesHtml}
+                        </div>
+                    </div>
+
+                    <!-- Right: Power Plant Mix Configuration -->
+                    <div class="card" style="padding: 1.5rem; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1.25rem;">
+                        <h3 style="margin-top: 0; font-size: 1.1rem; font-weight: 900; color: #fff; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                            <span>🔌</span> Konfigurasi Bauran Pembangkit Listrik (Power Grid Mix)
+                        </h3>
+                        <p class="text-muted" style="font-size: 0.75rem; margin: 0; line-height: 1.4;">
+                            Tentukan bauran teknologi pembangkit listrik dalam grid Anda. Pembangkit berbahan fosil membutuhkan bahan bakar mentah, sementara pembangkit terbarukan (angin, solar) & nuklir 100% bebas bahan baku. <strong>Total alokasi bauran harus tepat 100%!</strong>
+                        </p>
+
+                        <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem;">
+                            <!-- Coal PLTU -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                                    <span>🪨 PLTU Batubara</span>
+                                    <span style="font-weight: 800; color: #fff;"><span id="val-mix-coal">${powerPlants.coal_pltu}</span>%</span>
+                                </div>
+                                <input type="range" class="mix-slider" data-mix="coal_pltu" min="0" max="100" value="${powerPlants.coal_pltu}" style="width: 100%; cursor: pointer;">
+                            </div>
+
+                            <!-- Gas PLTG -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                                    <span>🔥 PLTG Gas Alam</span>
+                                    <span style="font-weight: 800; color: #fff;"><span id="val-mix-gas">${powerPlants.gas_pltg}</span>%</span>
+                                </div>
+                                <input type="range" class="mix-slider" data-mix="gas_pltg" min="0" max="100" value="${powerPlants.gas_pltg}" style="width: 100%; cursor: pointer;">
+                            </div>
+
+                            <!-- Oil PLTD -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                                    <span>🛢️ PLTD Diesel Minyak</span>
+                                    <span style="font-weight: 800; color: #fff;"><span id="val-mix-oil">${powerPlants.oil_pltd}</span>%</span>
+                                </div>
+                                <input type="range" class="mix-slider" data-mix="oil_pltd" min="0" max="100" value="${powerPlants.oil_pltd}" style="width: 100%; cursor: pointer;">
+                            </div>
+
+                            <!-- Renewable & Nuclear -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                                    <span>🍃 PLTB/A/N Terbarukan & Nuklir</span>
+                                    <span style="font-weight: 800; color: #10b981;"><span id="val-mix-renewable">${powerPlants.renewable_nuclear}</span>%</span>
+                                </div>
+                                <input type="range" class="mix-slider" data-mix="renewable_nuclear" min="0" max="100" value="${powerPlants.renewable_nuclear}" style="width: 100%; cursor: pointer;">
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); text-align: center;">
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Akumulasi Alokasi Grid:</div>
+                            <div style="font-size: 1.5rem; font-weight: 900; color: #fff;" id="mix-total-display">100%</div>
+                        </div>
+
+                        <button class="btn btn-primary" id="btn-save-mix" style="font-weight: 800; padding: 10px; border-radius: 6px; cursor: pointer;">
+                            💾 Simpan Konfigurasi Grid
+                        </button>
                     </div>
 
                 </div>
@@ -217,52 +294,100 @@ export const EnergyOpsPanel = {
     },
 
     bindEvents(biz, container, parentPage) {
-        // Survey Event click
-        const btnSurvey = container.querySelector('#btn-survey-energy');
-        if (btnSurvey) {
-            btnSurvey.addEventListener('click', () => {
+        // Upgrade Capacity
+        container.querySelectorAll('.btn-upgrade-capacity').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.type;
                 try {
-                    businessManager.surveyEnergyExploration();
+                    businessManager.upgradeEnergyCapacity(type);
+                    if (parentPage) parentPage.render();
+                } catch (e) {
+                    ui.error(e.message);
+                }
+            });
+        });
+
+        // Sliders change event for Target Production
+        container.querySelectorAll('.slider-prod').forEach(slider => {
+            slider.addEventListener('change', () => {
+                const type = slider.dataset.type;
+                const value = slider.value;
+                businessManager.updateEnergySlider(type, 'production', value);
+                if (parentPage) parentPage.render();
+            });
+        });
+
+        // Sliders change event for Selling Price
+        container.querySelectorAll('.slider-price').forEach(slider => {
+            slider.addEventListener('change', () => {
+                const type = slider.dataset.type;
+                const value = slider.value;
+                businessManager.updateEnergySlider(type, 'price', value);
+                if (parentPage) parentPage.render();
+            });
+        });
+
+        // Mix Sliders live update validation
+        const mixSliders = container.querySelectorAll('.mix-slider');
+        const mixTotalDisplay = container.querySelector('#mix-total-display');
+        const btnSaveMix = container.querySelector('#btn-save-mix');
+
+        const updateMixDisplay = () => {
+            let total = 0;
+            mixSliders.forEach(slider => {
+                const val = parseInt(slider.value);
+                total += val;
+                
+                // Update live text labels
+                const mixType = slider.dataset.mix;
+                if (mixType === 'coal_pltu') container.querySelector('#val-mix-coal').textContent = val;
+                else if (mixType === 'gas_pltg') container.querySelector('#val-mix-gas').textContent = val;
+                else if (mixType === 'oil_pltd') container.querySelector('#val-mix-oil').textContent = val;
+                else if (mixType === 'renewable_nuclear') container.querySelector('#val-mix-renewable').textContent = val;
+            });
+
+            if (mixTotalDisplay) {
+                mixTotalDisplay.textContent = `${total}%`;
+                if (total === 100) {
+                    mixTotalDisplay.style.color = '#10b981';
+                    btnSaveMix.disabled = false;
+                    btnSaveMix.style.opacity = '1';
+                } else {
+                    mixTotalDisplay.style.color = '#ef4444';
+                    btnSaveMix.disabled = true;
+                    btnSaveMix.style.opacity = '0.5';
+                }
+            }
+        };
+
+        mixSliders.forEach(slider => {
+            slider.addEventListener('input', updateMixDisplay);
+        });
+
+        // Save Mix configuration
+        if (btnSaveMix) {
+            btnSaveMix.addEventListener('click', () => {
+                const mix = {};
+                let total = 0;
+                mixSliders.forEach(slider => {
+                    const val = parseInt(slider.value);
+                    mix[slider.dataset.mix] = val;
+                    total += val;
+                });
+
+                if (total !== 100) {
+                    ui.error(`Bauran transmisi grid saat ini adalah ${total}%. Total alokasi harus tepat 100%!`);
+                    return;
+                }
+
+                try {
+                    businessManager.updateEnergyPowerPlantMix(mix);
                     if (parentPage) parentPage.render();
                 } catch (e) {
                     ui.error(e.message);
                 }
             });
         }
-
-        // Build Refinery Click
-        container.querySelectorAll('.btn-build-refinery').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const discId = btn.dataset.id;
-                try {
-                    businessManager.developEnergyDiscovery(discId);
-                    if (parentPage) parentPage.render();
-                } catch (e) {
-                    ui.error(e.message);
-                }
-            });
-        });
-
-        // Decommission Refinery Click
-        container.querySelectorAll('.btn-decom-refinery').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const refId = btn.dataset.id;
-                const confirmed = await ui.confirm({
-                    title: 'Nonaktifkan Kilang?',
-                    message: 'Apakah Anda yakin ingin menonaktifkan kilang ini secara permanen? Sisa logam bekas akan dijual ke kas treasury.',
-                    confirmText: 'Ya, Decommission',
-                    confirmClass: 'btn-danger'
-                });
-                if (confirmed) {
-                    try {
-                        businessManager.decommissionEnergyRefinery(refId);
-                        if (parentPage) parentPage.render();
-                    } catch (e) {
-                        ui.error(e.message);
-                    }
-                }
-            });
-        });
     }
 };
 

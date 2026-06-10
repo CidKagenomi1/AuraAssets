@@ -18,6 +18,17 @@ const formatCompact = (num) => {
 };
 
 export const TransportationOpsPanel = {
+    getVehicleIcon(type) {
+        switch(type.toLowerCase()) {
+            case 'lcgc': return '🚗';
+            case 'sedan': return '🚘';
+            case 'suv': return '🚙';
+            case 'truk': return '🚚';
+            case 'semi truk': return '🚛';
+            default: return '🚗';
+        }
+    },
+
     render(biz) {
         const trans = businessManager.getTransportationState();
         if (!trans) return `<p class="text-muted" style="padding: 2rem; text-align: center;">Memuat data divisi transportasi...</p>`;
@@ -26,17 +37,17 @@ export const TransportationOpsPanel = {
         const demand = trans.demandFluctuation || 1.0;
         const demandPercent = Math.round(demand * 100);
 
-        // Count fleet models
-        let rideHailingCount = 0;
-        let rentalCount = 0;
+        // Count fleet models by passenger vs cargo
+        let passengerCount = 0;
+        let cargoCount = 0;
         let groundedCount = 0;
         let repairAllCost = 0;
 
         fleet.forEach(v => {
-            if (v.id.includes('ride') || v.name.toLowerCase().includes('hailing') || v.type.toLowerCase().includes('hailing')) {
-                rideHailingCount++;
+            if (['lcgc', 'sedan', 'suv'].includes(v.id)) {
+                passengerCount++;
             } else {
-                rentalCount++;
+                cargoCount++;
             }
             if (v.condition < 40) {
                 groundedCount++;
@@ -48,19 +59,30 @@ export const TransportationOpsPanel = {
 
         // Vehicle catalog options HTML
         const catalogHtml = VEHICLE_CATALOG.map(v => {
+            const vIcon = this.getVehicleIcon(v.type);
             return `
-                <div class="card" style="padding: 1rem; border: 1px solid var(--border-color); background: rgba(0,0,0,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
-                    <div>
-                        <div style="font-weight: 800; color: #fff; font-size: 0.88rem;">🚗 ${v.name}</div>
-                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
-                            Biaya: <strong style="color: #ef4444;">$ ${v.monthlyCost}/bln</strong> | Profit: <strong style="color: #10b981;">+$ ${v.baseProfit}/bln</strong> | Kru: <strong style="color:#fbbf24;">${v.crewRequired} driver</strong>
+                <div class="card" style="padding: 1rem; border: 1px solid var(--border-color); background: rgba(0,0,0,0.15); border-radius: 8px; display: flex; flex-direction: column; gap: 0.8rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+                        <div>
+                            <div style="font-weight: 800; color: #fff; font-size: 0.88rem;">${vIcon} ${v.name}</div>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
+                                Biaya: <strong style="color: #ef4444;">$ ${v.monthlyCost}/bln</strong> &bull; Profit: <strong style="color: #10b981;">+$ ${v.baseProfit}/bln</strong> &bull; Kru: <strong style="color:#fbbf24;">${v.crewRequired} orang</strong>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <input type="number" class="buy-qty-input" data-id="${v.id}" value="1" min="1" max="20" style="width: 45px; padding: 4px; border-radius: 4px; border:1px solid var(--border-color); background:#111; color:#fff; text-align:center; font-weight:700; height: 28px;">
+                            <button class="btn btn-primary btn-sm btn-buy-vehicle" data-id="${v.id}" style="font-weight: 850; font-size: 0.7rem; padding: 6px 12px; border-radius: 6px; white-space: nowrap; height: 28px;">
+                                🛒 BELI ($ ${formatCompact(v.price)})
+                            </button>
                         </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:0.5rem;">
-                        <input type="number" class="buy-qty-input" data-id="${v.id}" value="1" min="1" max="20" style="width: 45px; padding: 4px; border-radius: 4px; border:1px solid var(--border-color); background:#111; color:#fff; text-align:center; font-weight:700;">
-                        <button class="btn btn-primary btn-sm btn-buy-vehicle" data-id="${v.id}" style="font-weight: 850; font-size: 0.7rem; padding: 6px 12px; border-radius: 6px; white-space: nowrap;">
-                            🛒 BELI ($ ${formatCompact(v.price)})
-                        </button>
+                    <div style="display: flex; align-items: center; gap: 8px; border-top: 1px dashed rgba(255,255,255,0.04); padding-top: 8px;">
+                        <label style="font-size: 0.65rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase;">Tipe Mesin:</label>
+                        <select class="engine-type-select" data-id="${v.id}" style="padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); background: #222; color: #fff; font-size: 0.72rem; font-weight: 700; height: 24px; cursor: pointer; flex: 1;">
+                            <option value="ice">BBM Standar (Base Price)</option>
+                            <option value="hybrid">Hybrid (+20% Harga, -15% Opex, +5% Profit)</option>
+                            <option value="ev">Listrik / EV (+40% Harga, -35% Opex, +10% Profit)</option>
+                        </select>
                     </div>
                 </div>
             `;
@@ -78,16 +100,22 @@ export const TransportationOpsPanel = {
             const isGrounded = cond < 40;
             const repairCost = Math.round(v.price * (1 - cond / 100) * 0.35);
             const resale = Math.round(v.price * (cond / 100) * 0.50);
+            const vIcon = this.getVehicleIcon(v.type);
 
             let condColor = '#10b981';
             if (cond < 40) condColor = '#ef4444';
             else if (cond < 75) condColor = '#f59e0b';
 
+            let engineColor = '#94a3b8';
+            if (v.engineType === 'hybrid') engineColor = '#fbbf24';
+            else if (v.engineType === 'ev') engineColor = '#10b981';
+
             return `
                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                     <td style="padding: 0.85rem 0.5rem; font-weight: 850; color: #fff;">
-                        🚗 ${v.name}
+                        ${vIcon} ${v.name}
                         ${isGrounded ? '<span style="font-size:0.6rem; color:#ef4444; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:3px; padding:1px 4px; font-weight:800; margin-left:6px;">MOGOK</span>' : ''}
+                        <span style="font-size:0.65rem; background:${engineColor}18; color:${engineColor}; border:1px solid ${engineColor}33; border-radius:4px; padding:2px 6px; font-weight:800; margin-left:6px; letter-spacing:0.03em;">${v.engineLabel || 'BBM'}</span>
                     </td>
                     <td style="padding: 0.85rem 0.5rem;">
                         <span style="background: rgba(168,85,247,0.12); color: #c084fc; font-weight: 800; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(168,85,247,0.25);">
@@ -95,8 +123,13 @@ export const TransportationOpsPanel = {
                         </span>
                     </td>
                     <td style="padding: 0.85rem 0.5rem;">
-                        <div style="font-weight: 700; color: ${condColor};">${cond}%</div>
-                        <div style="font-size: 0.65rem; color: var(--text-dim);">${v.ageMonths || 0} bulan beroperasi</div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="font-weight: 700; color: ${condColor};">${cond}%</div>
+                            <div style="font-size: 0.72rem; color: var(--text-dim); background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px; font-weight:800;">
+                                ${(v.mileage || 0).toLocaleString('id-ID')} km
+                            </div>
+                        </div>
+                        <div style="font-size: 0.65rem; color: var(--text-dim); margin-top:2px;">${v.ageMonths || 0} bulan beroperasi</div>
                     </td>
                     <td style="padding: 0.85rem 0.5rem; font-family: monospace; color: #fbbf24; font-weight:800;">
                         +$ ${Math.round(v.baseProfit * demand).toLocaleString()} / bln
@@ -122,8 +155,8 @@ export const TransportationOpsPanel = {
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
                     <div class="card" style="border-left: 4px solid #a855f7; padding: 1.25rem; background: rgba(255,255,255,0.015);">
                         <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Total Armada Kendaraan</div>
-                        <div style="font-size: 1.65rem; font-weight: 900; color: #a855f7;">${fleet.length} Unit Mobil</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Ride-Hailing: ${rideHailingCount} | VIP Rental: ${rentalCount}</div>
+                        <div style="font-size: 1.65rem; font-weight: 900; color: #a855f7;">${fleet.length} Unit Armada</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Ringan: ${passengerCount} | Kargo Berat: ${cargoCount}</div>
                     </div>
                     
                     <div class="card" style="border-left: 4px solid #ef4444; padding: 1.25rem; background: rgba(255,255,255,0.015);">
@@ -145,7 +178,7 @@ export const TransportationOpsPanel = {
                     <div class="card" style="border-left: 4px solid #ec4899; padding: 1.25rem; background: rgba(255,255,255,0.015);">
                         <div class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Tingkat Mobilitas & Demand</div>
                         <div style="font-size: 1.65rem; font-weight: 900; color: ${demandPercent > 100 ? '#10b981' : '#ec4899'};">${demandPercent}%</div>
-                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Faktor pengali tarif perjalanan komuter</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--text-dim);">Faktor pengali tarif perjalanan logistik</div>
                     </div>
                 </div>
 
@@ -158,7 +191,7 @@ export const TransportationOpsPanel = {
                             <span>🏢</span> Depot Pembelian Armada Baru
                         </h3>
                         <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 1.25rem;">
-                            Beli unit Avanza komuter untuk ride-hailing online, atau Alphard VIP mewah untuk layanan sewa eksekutif premium.
+                            Lakukan pengadaan armada untuk kebutuhan mobilitas ringan (LCGC, Sedan, SUV) hingga pengiriman kargo logistik kelas berat (Truk, Semi Truk).
                         </p>
                         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                             ${catalogHtml}
@@ -176,7 +209,7 @@ export const TransportationOpsPanel = {
                                     <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted);">
                                         <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Mobil / Armada</th>
                                         <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Model</th>
-                                        <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Kondisi</th>
+                                        <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Kondisi & Odometer</th>
                                         <th style="padding: 0.6rem 0.5rem; font-weight: 800;">Est. Omset / Bln</th>
                                         <th style="padding: 0.6rem 0.5rem; text-align: right; font-weight: 800;">Tindakan</th>
                                     </tr>
@@ -201,18 +234,29 @@ export const TransportationOpsPanel = {
                 const qtyInput = card.querySelector('.buy-qty-input');
                 const qty = qtyInput ? parseInt(qtyInput.value) : 1;
 
+                const engineSelect = card.querySelector('.engine-type-select');
+                const engineType = engineSelect ? engineSelect.value : 'ice';
+
                 const modelSpec = VEHICLE_CATALOG.find(v => v.id === modelId);
                 if (!modelSpec) return;
 
+                let priceMult = 1.0;
+                let engineLabel = 'BBM';
+                if (engineType === 'hybrid') { priceMult = 1.2; engineLabel = 'Hybrid'; }
+                else if (engineType === 'ev') { priceMult = 1.4; engineLabel = 'EV'; }
+
+                const finalPrice = Math.round(modelSpec.price * priceMult);
+                const totalCost = finalPrice * qty;
+
                 const confirmed = await ui.confirm({
                     title: `Beli Armada Kendaraan?`,
-                    message: `Apakah Anda yakin ingin membelanjakan dana kas treasury perusahaan sebesar $ ${(modelSpec.price * qty).toLocaleString()} untuk membeli ${qty} unit "${modelSpec.name}"?`,
+                    message: `Apakah Anda yakin ingin membelanjakan dana kas treasury perusahaan sebesar $ ${totalCost.toLocaleString()} untuk membeli ${qty} unit "${modelSpec.name} (${engineLabel})"?`,
                     confirmText: 'Beli Unit'
                 });
 
                 if (confirmed) {
                     try {
-                        businessManager.buyTransportationVehicles(modelId, qty);
+                        businessManager.buyTransportationVehicles(modelId, qty, engineType);
                         if (parentPage) parentPage.render();
                     } catch (e) {
                         ui.error(e.message);

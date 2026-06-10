@@ -755,7 +755,7 @@ class HomeScreen {
                 document.getElementById('btn-save-progress')?.addEventListener('click', (e) => {
                     const success = gameState.save();
                     if (success) {
-                        ui.success('Progres permainan berhasil disimpan ke slot karakter: ' + (gameState.activeCharacter || 'Pemain'), '💾 Sukses Menyimpan');
+                        ui.success('Progres permainan berhasil disimpan ke slot karakter: ' + (gameState.activeCharacter || 'Pemain'), '💾 Sukses Menyimpan', { deviceNotify: true });
                         try {
                             import('./Animations.js').then(anim => {
                                 anim.createFloatingText(e.target, '💾 DISIMPAN', '#10b981');
@@ -913,21 +913,37 @@ class HomeScreen {
 
         const notifs = gameState.get('notifications') || [];
         const isNotifEnabled = gameState.get('settings.notificationsEnabled') !== false;
+        const isDeviceNotifEnabled = gameState.get('settings.deviceNotificationsEnabled') === true;
 
         let content = `
             <div style="max-height: 65vh; display: flex; flex-direction: column; gap: 1rem;">
                 <!-- Notification Settings Toggles -->
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                    <div>
-                        <div style="font-weight: 700; font-size: 0.9rem; color: white;">Aktifkan Pop-up Notifikasi (Toast)</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Jika dinonaktifkan, notifikasi hanya akan menambah angka di lonceng tanpa popup yang menutupi konten.</div>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.9rem; color: white;">Aktifkan Pop-up Notifikasi (Toast)</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Jika dinonaktifkan, notifikasi hanya akan menambah angka di lonceng tanpa popup yang menutupi konten.</div>
+                        </div>
+                        <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 22px;">
+                            <input type="checkbox" id="toggle-popup-notifs" ${isNotifEnabled ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
+                            <span class="slider" style="position: absolute; cursor: pointer; inset: 0; background-color: ${isNotifEnabled ? 'var(--accent-primary)' : '#4b5563'}; border-radius: 20px; transition: 0.3s; display: flex; align-items: center;">
+                                <span class="knob" style="height: 16px; width: 16px; background-color: white; border-radius: 50%; transition: 0.3s; transform: translateX(${isNotifEnabled ? '24px' : '4px'}); display: block;"></span>
+                            </span>
+                        </label>
                     </div>
-                    <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 22px;">
-                        <input type="checkbox" id="toggle-popup-notifs" ${isNotifEnabled ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
-                        <span class="slider" style="position: absolute; cursor: pointer; inset: 0; background-color: ${isNotifEnabled ? 'var(--accent-primary)' : '#4b5563'}; border-radius: 20px; transition: 0.3s; display: flex; align-items: center;">
-                            <span class="knob" style="height: 16px; width: 16px; background-color: white; border-radius: 50%; transition: 0.3s; transform: translateX(${isNotifEnabled ? '24px' : '4px'}); display: block;"></span>
-                        </span>
-                    </label>
+
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.9rem; color: white;">Notifikasi Perangkat (Desktop/HP)</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Kirim notifikasi hasil trading bot, claim staking/launchdrop, auto-save, dan sesi habis langsung ke perangkat Anda.</div>
+                        </div>
+                        <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 22px;">
+                            <input type="checkbox" id="toggle-device-notifs" ${isDeviceNotifEnabled ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
+                            <span class="slider" style="position: absolute; cursor: pointer; inset: 0; background-color: ${isDeviceNotifEnabled ? 'var(--accent-primary)' : '#4b5563'}; border-radius: 20px; transition: 0.3s; display: flex; align-items: center;">
+                                <span class="knob" style="height: 16px; width: 16px; background-color: white; border-radius: 50%; transition: 0.3s; transform: translateX(${isDeviceNotifEnabled ? '24px' : '4px'}); display: block;"></span>
+                            </span>
+                        </label>
+                    </div>
                 </div>
 
                 <!-- Notifications List -->
@@ -937,8 +953,8 @@ class HomeScreen {
                             <span style="font-size: 1.5rem; display: flex; align-items: center;">${n.icon || '🔔'}</span>
                             <div style="flex: 1;">
                                 <div style="font-size: 0.85rem; font-weight: 800; color: white; display: flex; justify-content: space-between;">
-                                    <span>${n.title}</span>
-                                    <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal;">${n.date || ''}</span>
+                                     <span>${n.title}</span>
+                                     <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal;">${n.date || ''}</span>
                                 </div>
                                 <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${n.message}</div>
                             </div>
@@ -966,6 +982,44 @@ class HomeScreen {
                 slider.style.backgroundColor = checked ? 'var(--accent-primary)' : '#4b5563';
                 knob.style.transform = `translateX(${checked ? '24px' : '4px'})`;
                 ui.success(checked ? 'Pop-up notifikasi diaktifkan' : 'Pop-up notifikasi dinonaktifkan (hanya angka lonceng)');
+            });
+        }
+
+        const deviceCheckbox = document.getElementById('toggle-device-notifs');
+        if (deviceCheckbox) {
+            deviceCheckbox.addEventListener('change', (e) => {
+                const checked = e.target.checked;
+                const slider = deviceCheckbox.nextElementSibling;
+                const knob = slider.querySelector('.knob');
+                
+                if (checked) {
+                    if (!("Notification" in window)) {
+                        ui.error("Browser Anda tidak mendukung notifikasi perangkat.");
+                        deviceCheckbox.checked = false;
+                        slider.style.backgroundColor = '#4b5563';
+                        knob.style.transform = 'translateX(4px)';
+                        return;
+                    }
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            gameState.set('settings.deviceNotificationsEnabled', true);
+                            slider.style.backgroundColor = 'var(--accent-primary)';
+                            knob.style.transform = 'translateX(24px)';
+                            ui.success('Notifikasi perangkat berhasil diaktifkan!');
+                        } else {
+                            gameState.set('settings.deviceNotificationsEnabled', false);
+                            deviceCheckbox.checked = false;
+                            slider.style.backgroundColor = '#4b5563';
+                            knob.style.transform = 'translateX(4px)';
+                            ui.error('Izin notifikasi ditolak oleh sistem/browser.');
+                        }
+                    });
+                } else {
+                    gameState.set('settings.deviceNotificationsEnabled', false);
+                    slider.style.backgroundColor = '#4b5563';
+                    knob.style.transform = 'translateX(4px)';
+                    ui.success('Notifikasi perangkat dinonaktifkan');
+                }
             });
         }
     }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * IPOPanel.js - Handles Go Public (IPO) and Investor Relations for corporations.
  */
 
@@ -197,21 +197,48 @@ export const IPOPanel = {
                         </div>
                     </div>
 
-                    <!-- Dividend Actions -->
-                    <div class="card" style="padding:1.5rem; display:flex; flex-direction:column; justify-content:space-between;">
-                        <div>
-                            <h3 style="margin-top:0; font-size: 1.15rem; font-weight: 900; margin-bottom: 0.75rem;">💸 Pembagian Dividen Publik</h3>
-                            <p class="text-muted" style="font-size: 0.8rem; line-height: 1.4; margin-bottom: 1rem;">
-                                Bagikan sebagian keuntungan tunai di kas treasury kepada pemegang saham (publik & Anda sendiri). Deviden dipotong dari kas treasury korporasi.
-                            </p>
-                            
-                            <div style="background: rgba(0,0,0,0.1); border: 1px solid var(--border-color); padding: 10px; border-radius:8px; margin-bottom:1rem;">
-                                <label style="font-size: 0.75rem; color:var(--text-muted); font-weight:700; display:block; margin-bottom:4px;">Dividen Per Lembar Saham ($)</label>
-                                <input type="number" step="0.05" id="dividend-payout-input" placeholder="Misal: 0.50, 1.00"
-                                    style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: #fff; font-size: 0.95rem; font-weight: 700; border-radius: 6px; outline: none;">
+                    <!-- Right Column: Dividend & Divestment (Penny Stock) Actions -->
+                    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                        <!-- Dividend Actions -->
+                        <div class="card" style="padding:1.5rem; display:flex; flex-direction:column; justify-content:space-between; background: rgba(255,255,255,0.015);">
+                            <div>
+                                <h3 style="margin-top:0; font-size: 1.15rem; font-weight: 900; margin-bottom: 0.75rem;">💸 Pembagian Dividen Publik</h3>
+                                <p class="text-muted" style="font-size: 0.8rem; line-height: 1.4; margin-bottom: 1rem;">
+                                    Bagikan sebagian keuntungan tunai di kas treasury kepada pemegang saham (publik & Anda sendiri). Deviden dipotong dari kas treasury korporasi.
+                                </p>
+                                
+                                <div style="background: rgba(0,0,0,0.1); border: 1px solid var(--border-color); padding: 10px; border-radius:8px; margin-bottom:1rem;">
+                                    <label style="font-size: 0.75rem; color:var(--text-muted); font-weight:700; display:block; margin-bottom:4px;">Dividen Per Lembar Saham ($)</label>
+                                    <input type="number" step="0.05" id="dividend-payout-input" placeholder="Misal: 0.50, 1.00"
+                                        style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: #fff; font-size: 0.95rem; font-weight: 700; border-radius: 6px; outline: none;">
+                                </div>
                             </div>
+                            <button class="btn btn-primary btn-sm" id="btn-declare-dividend" style="width:100%; font-weight:800;">Declare & Share Dividend</button>
                         </div>
-                        <button class="btn btn-primary btn-sm" id="btn-declare-dividend" style="width:100%; font-weight:800;">Declare & Share Dividend</button>
+
+                        <!-- Divestment Actions (Penny Stock) -->
+                        <div class="card" style="padding:1.5rem; display:flex; flex-direction:column; justify-content:space-between; background: rgba(255,255,255,0.015); border: 1px solid ${parseFloat(founderPercent) < 30 ? '#ef4444' : 'var(--border-color)'};">
+                            <div>
+                                <h3 style="margin-top:0; font-size: 1.15rem; font-weight: 900; color: ${parseFloat(founderPercent) < 30 ? '#ef4444' : '#fff'};">
+                                    ${parseFloat(founderPercent) < 30 ? '⚠️ Spekulatif (Penny Stock)' : '🛡️ Emiten Blue Chip'}
+                                </h3>
+                                <p class="text-muted" style="font-size: 0.8rem; line-height: 1.4; margin-bottom: 1rem;">
+                                    ${parseFloat(founderPercent) < 30 
+                                        ? 'Status emiten terdegradasi menjadi Penny Stock karena kepemilikan Founder < 30%! Volatilitas harga saham menjadi sangat spekulatif.' 
+                                        : 'Divestasi/lepas kepemilikan saham Founder Anda ke publik untuk meraup modal pribadi tunai secara instan.'}
+                                </p>
+                                
+                                <div style="background: rgba(0,0,0,0.1); border: 1px solid var(--border-color); padding: 10px; border-radius:8px; margin-bottom:1rem;">
+                                    <label style="font-size: 0.75rem; color:var(--text-muted); font-weight:700; display:block; margin-bottom:4px;">Jumlah Lembar Dilepas</label>
+                                    <input type="text" id="divest-shares-input" placeholder="Misal: 50,000"
+                                        style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: #fff; font-size: 0.95rem; font-weight: 700; border-radius: 6px; outline: none;">
+                                    <span style="font-size: 0.65rem; color: var(--text-dim); margin-top: 4px; display:block;">
+                                        Maksimal lepas: ${playerShares.toLocaleString()} Lembar
+                                    </span>
+                                </div>
+                            </div>
+                            <button class="btn btn-warning btn-sm" id="btn-divest-shares" style="width:100%; font-weight:800;">Jual Saham Founder ke Publik</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -238,10 +265,28 @@ export const IPOPanel = {
         
         const btnSubmit = container.querySelector('#btn-submit-ipo');
 
-        const updateAllEstimates = () => {
+        const updateAllEstimates = (e) => {
             if (!slider || !boardSlider) return;
-            const publicPct = parseInt(slider.value);
-            const boardPct = parseInt(boardSlider.value);
+            let publicPct = parseInt(slider.value);
+            let boardPct = parseInt(boardSlider.value);
+
+            if (e && e.target === slider) {
+                if (publicPct + boardPct > 70) {
+                    boardPct = 70 - publicPct;
+                    boardSlider.value = boardPct;
+                }
+            } else if (e && e.target === boardSlider) {
+                if (publicPct + boardPct > 70) {
+                    publicPct = 70 - boardPct;
+                    slider.value = publicPct;
+                }
+            } else {
+                if (publicPct + boardPct > 70) {
+                    boardPct = 70 - publicPct;
+                    boardSlider.value = boardPct;
+                }
+            }
+
             const founderPct = 100 - publicPct - boardPct;
 
             if (valSpan) valSpan.textContent = `${publicPct}%`;
@@ -304,8 +349,8 @@ export const IPOPanel = {
             }
         };
 
-        if (slider) slider.addEventListener('input', updateAllEstimates);
-        if (boardSlider) boardSlider.addEventListener('input', updateAllEstimates);
+        if (slider) slider.addEventListener('input', (e) => updateAllEstimates(e));
+        if (boardSlider) boardSlider.addEventListener('input', (e) => updateAllEstimates(e));
         
         // Initial run
         updateAllEstimates();
@@ -373,6 +418,77 @@ export const IPOPanel = {
                     parentPage.render();
                 } catch (e) {
                     ui.error(e.message);
+                }
+            });
+        }
+
+        // Divest Shares (Penny Stock conversion)
+        const divestInput = container.querySelector('#divest-shares-input');
+        if (divestInput) {
+            ui.setupNumericInput(divestInput, {
+                isDecimal: false,
+                showZeroAppend: false,
+                showMax: false
+            });
+        }
+
+        const btnDivest = container.querySelector('#btn-divest-shares');
+        if (btnDivest) {
+            btnDivest.addEventListener('click', async () => {
+                const ticker = biz.ipo.ticker;
+                const stocks = gameState.get('stocks') || {};
+                const playerShares = stocks[ticker] ? stocks[ticker].shares : 0;
+                
+                const amtShares = divestInput.getNumericValue ? divestInput.getNumericValue() : parseInt(divestInput.value.replace(/,/g, ''));
+                
+                if (isNaN(amtShares) || amtShares <= 0) {
+                    ui.error('Harap isi jumlah lembar saham divestasi yang valid!');
+                    return;
+                }
+                if (amtShares > playerShares) {
+                    ui.error('Jumlah lembar saham divestasi melebihi jumlah saham Founder yang Anda miliki!');
+                    return;
+                }
+
+                const stockData = stockMarket.getStock(ticker) || { price: biz.ipo.sharePrice || 1.0 };
+                const grossPayout = amtShares * stockData.price;
+                const tax = grossPayout * 0.15;
+                const netPayout = grossPayout - tax;
+
+                const willBecomePennyStock = ((playerShares - amtShares) / biz.ipo.totalShares * 100) < 30;
+
+                const confirmed = await ui.confirm({
+                    title: 'Lepas Saham Founder ke Publik?',
+                    message: `Anda akan menjual <strong>${amtShares.toLocaleString()} Lembar</strong> saham ke publik seharga <strong>$ ${financeManager.formatCurrency(grossPayout)}</strong>.<br>` +
+                             `Setelah dipotong pajak 15% ($ ${financeManager.formatCurrency(tax)}), Anda akan menerima dana pribadi senilai <strong>$ ${financeManager.formatCurrency(netPayout)}</strong>.<br>` +
+                             (willBecomePennyStock ? `<strong style="color:#ef4444;">Peringatan: Saham Founder Anda akan turun di bawah 30% sehingga emiten ini diklasifikasikan sebagai Penny Stock spekulatif!</strong>` : ''),
+                    confirmText: 'Ya, Divestasi Saham'
+                });
+
+                if (confirmed) {
+                    try {
+                        // Deduct from player portfolio
+                        stocks[ticker].shares -= amtShares;
+                        if (stocks[ticker].shares <= 0) {
+                            delete stocks[ticker];
+                        } else {
+                            stocks[ticker].totalInvested = stocks[ticker].shares * stocks[ticker].avgBuyPrice;
+                        }
+                        gameState.set('stocks', stocks);
+
+                        // Add to public shares
+                        biz.ipo.publicShares += amtShares;
+                        biz.ipo.publicSharePercent = (biz.ipo.publicShares / biz.ipo.totalShares) * 100;
+                        gameState.update('business', b => ({ ...b, ipo: biz.ipo }));
+
+                        // Payout cash to player personally
+                        financeManager.addIncome(netPayout, 'Divestasi Saham', `Divestment of ${amtShares} shares of ${ticker}`);
+
+                        ui.success(`Divestasi sukses! Kepemilikan Anda berkurang dan Anda menerima $ ${financeManager.formatCurrency(netPayout)} personally.`, '📈 Divestasi Sukses');
+                        if (parentPage) parentPage.render();
+                    } catch (e) {
+                        ui.error(e.message);
+                    }
                 }
             });
         }

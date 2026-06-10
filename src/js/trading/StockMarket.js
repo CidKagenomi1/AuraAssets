@@ -126,10 +126,40 @@ class StockMarket {
             NOC: { name: 'Northrop Grumman Corporation', price: 465.30, basePrice: 465.30, volatility: 0.012, sector: 'Industrials' }
         };
 
+        const generateSharesOutstanding = (ticker, price) => {
+            const custom = {
+                AAPL: 15500000000,
+                MSFT: 7450000000,
+                AMZN: 10500000000,
+                NVDA: 24500000000,
+                GOOGL: 12200000000,
+                META: 2550000000,
+                TSLA: 3200000000,
+                'BRK.B': 2200000000,
+                JPM: 2900000000,
+                V: 1700000000,
+                XOM: 4100000000,
+                BAC: 7900000000,
+                PFE: 5600000000,
+                INTC: 4200000000,
+                AMD: 1620000000,
+                NFLX: 430000000,
+                AVGO: 500000000,
+                LLY: 900000000,
+                MA: 980000000,
+                UNH: 920000000
+            };
+
+            if (custom[ticker]) return custom[ticker];
+            const marketCap = 50000000000 + Math.random() * 250000000000;
+            return Math.round(marketCap / price);
+        };
+
         Object.keys(stocks).forEach(symbol => {
             stocks[symbol].priceHistory = [stocks[symbol].price];
             stocks[symbol].previousPrice = stocks[symbol].price;
             stocks[symbol].change = 0;
+            stocks[symbol].sharesOutstanding = generateSharesOutstanding(symbol, stocks[symbol].price);
         });
 
         return stocks;
@@ -213,6 +243,16 @@ class StockMarket {
                 const biz = gameState.get('business');
                 const ops = biz.operations || { supplier: 'local', production: 'manual' };
                 const initiatives = biz.initiatives || {};
+
+                // Speculative penny stock volatility boost if founder shares drop below 30%
+                const stocks = gameState.get('stocks') || {};
+                const playerShares = stocks[symbol] ? stocks[symbol].shares : 0;
+                const founderPct = (playerShares / playerIpo.totalShares) * 100;
+                if (founderPct < 30) {
+                    stock.volatility = 0.09; // Penny Stock volatility!
+                } else {
+                    stock.volatility = 0.025; // Normal stable volatility
+                }
 
                 // --- Operations multiplier (same logic as BusinessManager) ---
                 let supplierQuality = 0.50;

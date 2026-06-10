@@ -16,11 +16,11 @@ export const PropertySector = {
         if (!biz.property) {
             biz.property = {
                 discoveredLands: [
-                    { id: 'land_init_1', name: 'Kavling BSD City Blok A', price: 90000, multiplier: 1.2, status: 'available' },
-                    { id: 'land_init_2', name: 'Kavling Sudirman Central', price: 180000, multiplier: 2.2, status: 'available' }
+                    { id: 'land_init_1', name: 'Kavling BSD City Blok A', price: 90000, pricePerSqm: 90, multiplier: 1.2, status: 'available' },
+                    { id: 'land_init_2', name: 'Kavling Sudirman Central', price: 180000, pricePerSqm: 180, multiplier: 2.2, status: 'available' }
                 ],
                 developments: [
-                    { id: 'dev_init_1', name: 'Kawasan Hunian Bintaro', zone: 'Pemukiman', buildCost: 100000, revenue: 10800, maintenance: 1440 }
+                    { id: 'dev_init_1', name: 'Kawasan Hunian Bintaro', zone: 'Pemukiman', sqm: 1000, buildCost: 100000, revenue: 10800, maintenance: 1440 }
                 ],
                 demandFluctuation: 1.0,
                 surveyCost: 15000
@@ -41,12 +41,14 @@ export const PropertySector = {
             const name = suffix + loc;
             
             const multiplier = parseFloat((0.8 + Math.random() * 1.6).toFixed(2)); // 0.8x to 2.4x
-            const price = Math.round((60000 + Math.random() * 80000) * multiplier);
+            const pricePerSqm = Math.round((60 + Math.random() * 80) * multiplier);
+            const price = pricePerSqm * 1000; // default/base price for 1000 m²
 
             lands.push({
                 id: 'land_' + Math.random().toString(36).substr(2, 9),
                 name,
                 price,
+                pricePerSqm,
                 multiplier,
                 status: 'available'
             });
@@ -78,7 +80,7 @@ export const PropertySector = {
         return true;
     },
 
-    developLand(landId, zoneType, manager) {
+    developLand(landId, zoneType, sqm, manager) {
         const biz = gameState.get('business');
         if (!biz || !biz.active) throw new Error('Perusahaan tidak aktif');
         const prop = this.getPropertyState(manager);
@@ -89,6 +91,9 @@ export const PropertySector = {
         const land = prop.discoveredLands[index];
         const mult = land.multiplier;
 
+        const pricePerSqm = land.pricePerSqm || Math.round(land.price / 1000) || 90;
+        const landPrice = Math.round(pricePerSqm * sqm);
+
         let buildCost = 0;
         let baseRevenue = 0;
         let baseMaint = 0;
@@ -96,24 +101,24 @@ export const PropertySector = {
 
         if (zoneType === 'commercial') {
             displayZone = 'Area Komersial';
-            buildCost = Math.round(120000 * mult);
-            baseRevenue = Math.round(15000 * mult);
-            baseMaint = Math.round(2500 * mult);
+            buildCost = Math.round(120 * sqm * mult);
+            baseRevenue = Math.round(15 * sqm * mult);
+            baseMaint = Math.round(2.5 * sqm * mult);
         } else if (zoneType === 'residential') {
             displayZone = 'Pemukiman';
-            buildCost = Math.round(80000 * mult);
-            baseRevenue = Math.round(9000 * mult);
-            baseMaint = Math.round(1200 * mult);
+            buildCost = Math.round(80 * sqm * mult);
+            baseRevenue = Math.round(9 * sqm * mult);
+            baseMaint = Math.round(1.2 * sqm * mult);
         } else if (zoneType === 'industrial') {
             displayZone = 'Industri';
-            buildCost = Math.round(200000 * mult);
-            baseRevenue = Math.round(28000 * mult);
-            baseMaint = Math.round(5500 * mult);
+            buildCost = Math.round(200 * sqm * mult);
+            baseRevenue = Math.round(28 * sqm * mult);
+            baseMaint = Math.round(5.5 * sqm * mult);
         } else {
             throw new Error('Zona pembangunan tidak valid!');
         }
 
-        const totalAcquisitionCost = land.price + buildCost;
+        const totalAcquisitionCost = landPrice + buildCost;
 
         if (biz.cash < totalAcquisitionCost) {
             throw new Error(`Kas Treasury Perusahaan tidak mencukupi untuk mengakuisisi & membangun lahan ($ ${financeManager.formatCurrency(biz.cash)} / Butuh $ ${financeManager.formatCurrency(totalAcquisitionCost)})`);
@@ -126,6 +131,7 @@ export const PropertySector = {
             id: 'dev_' + Math.random().toString(36).substr(2, 9),
             name: land.name.replace('Kavling ', '').replace('Lahan Strategis ', ''),
             zone: displayZone,
+            sqm: sqm,
             buildCost: totalAcquisitionCost,
             revenue: baseRevenue,
             maintenance: baseMaint
@@ -144,7 +150,7 @@ export const PropertySector = {
             property: prop
         }));
 
-        ui.success(`Lahan "${newDevelopment.name}" resmi dikembangkan menjadi "${displayZone}"!`, '🏗️ Konstruksi Selesai');
+        ui.success(`Lahan "${newDevelopment.name}" (${sqm.toLocaleString()} m²) resmi dikembangkan menjadi "${displayZone}"!`, '🏗️ Konstruksi Selesai');
         return true;
     },
 

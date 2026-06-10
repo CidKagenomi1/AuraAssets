@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FinanceSector.js - Core Financial Services & Banking Simulation Engine
  * Models retail bank deposits, loan portfolios, Net Interest Margin (NIM),
  * actuarial insurance premium/claims, and custom bond / project financing syndications.
@@ -6,6 +6,7 @@
 
 import gameState from '../../core/GameState.js';
 import financeManager from '../../finance/FinanceManager.js';
+import stockMarket from '../../trading/StockMarket.js';
 import ui from '../../ui/UIManager.js';
 
 export const FinanceSector = {
@@ -31,8 +32,7 @@ export const FinanceSector = {
                     lastClaimPayout: 0
                 },
                 portfolio: {
-                    blueChipShares: 0,
-                    avgBuyPrice: 0,
+                    stocks: {},
                     valuation: 0
                 },
                 employees: [
@@ -311,7 +311,7 @@ export const FinanceSector = {
         ui.success(`🚀 DEAL RAMPUNG: Pembiayaan obligasi "${project.name}" (Kualitas Deal: ★${finalQuality}) resmi diluncurkan! ${detailMsg}`, '🚀 Deal Dirilis');
     },
 
-    buyBlueChipEquity(sharesCount, manager) {
+    buyCorporateStock(symbol, sharesCount, manager) {
         const biz = gameState.get('business');
         if (!biz || !biz.active) throw new Error('Perusahaan tidak aktif');
         const finance = this.getFinanceState(manager);
@@ -319,9 +319,10 @@ export const FinanceSector = {
         
         if (sharesCount <= 0) throw new Error('Jumlah lembar saham tidak valid');
         
-        // Let's assume corporate price of bluechip indices is fixed at $250/share
-        const sharePrice = 250;
-        const totalCost = sharesCount * sharePrice;
+        const stock = stockMarket.getStock(symbol);
+        if (!stock) throw new Error('Saham tidak ditemukan di bursa');
+
+        const totalCost = sharesCount * stock.price;
         
         if (biz.cash < totalCost) {
             throw new Error(`Kas korporasi tidak cukup. Butuh $ ${financeManager.formatCurrency(totalCost)} dari kas treasury.`);
@@ -329,19 +330,38 @@ export const FinanceSector = {
         
         biz.cash -= totalCost;
         
-        const currentShares = finance.portfolio.blueChipShares || 0;
-        const newShares = currentShares + sharesCount;
+        if (!finance.portfolio.stocks) {
+            finance.portfolio.stocks = {};
+        }
         
-        // Calculate new average buy price
-        const currentVal = currentShares * (finance.portfolio.avgBuyPrice || sharePrice);
+        const existing = finance.portfolio.stocks[symbol] || { shares: 0, avgBuyPrice: 0 };
+        const newShares = existing.shares + sharesCount;
+
+        const maxShares = Math.round((stock.sharesOutstanding || 1000000000) * 0.05);
+        if (newShares > maxShares) {
+            throw new Error(`Pembelian dibatasi maksimal 5% dari total saham beredar (${maxShares.toLocaleString()} lembar)`);
+        }
+
+        const currentVal = existing.shares * existing.avgBuyPrice;
         const newAvg = Math.round((currentVal + totalCost) / newShares);
         
-        finance.portfolio.blueChipShares = newShares;
-        finance.portfolio.avgBuyPrice = newAvg;
-        finance.portfolio.valuation = newShares * sharePrice;
+        finance.portfolio.stocks[symbol] = {
+            shares: newShares,
+            avgBuyPrice: newAvg
+        };
+
+        // Recalculate portfolio valuation
+        let totalValuation = 0;
+        Object.entries(finance.portfolio.stocks).forEach(([sym, data]) => {
+            const stk = stockMarket.getStock(sym);
+            if (stk) {
+                totalValuation += stk.price * data.shares;
+            }
+        });
+        finance.portfolio.valuation = Math.round(totalValuation);
         
         // Add to business valuation assets
-        biz.valuation += Math.round(totalCost * 1.25); // Holding discount asset appreciation
+        biz.valuation += Math.round(totalCost * 1.25);
         
         gameState.update('business', b => ({
             ...b,
@@ -351,27 +371,45 @@ export const FinanceSector = {
         }));
         
         manager.recalculateValuation();
-        ui.success(`📈 HOLDING INVESTASI: Holding korporasi berhasil membeli ${sharesCount} lembar saham Blue-Chip indeks seharga $ ${financeManager.formatCurrency(totalCost)}!`, '💎 Portofolio Ditambah');
+        ui.success(`📈 HOLDING INVESTASI: Holding korporasi berhasil membeli ${sharesCount} lembar saham ${symbol} seharga $ ${financeManager.formatCurrency(totalCost)}!`, '💎 Portofolio Ditambah');
     },
 
-    sellBlueChipEquity(sharesCount, manager) {
+    sellCorporateStock(symbol, sharesCount, manager) {
         const biz = gameState.get('business');
         if (!biz || !biz.active) throw new Error('Perusahaan tidak aktif');
         const finance = this.getFinanceState(manager);
         if (!finance) throw new Error('Bukan industri jasa keuangan');
         
-        const currentShares = finance.portfolio.blueChipShares || 0;
-        if (sharesCount <= 0 || sharesCount > currentShares) throw new Error('Saldo kepemilikan saham holding tidak cukup');
+        if (!finance.portfolio.stocks || !finance.portfolio.stocks[symbol]) {
+            throw new Error('Holding tidak memiliki kepemilikan saham ini');
+        }
+
+        const existing = finance.portfolio.stocks[symbol];
+        if (sharesCount <= 0 || sharesCount > existing.shares) {
+            throw new Error('Saldo kepemilikan saham holding tidak cukup');
+        }
         
-        const sharePrice = 250; // Sell at book value
-        const totalYield = sharesCount * sharePrice;
+        const stock = stockMarket.getStock(symbol);
+        if (!stock) throw new Error('Saham tidak ditemukan di bursa');
+
+        const totalYield = sharesCount * stock.price;
         
         biz.cash += totalYield;
-        const newShares = currentShares - sharesCount;
+        existing.shares -= sharesCount;
         
-        finance.portfolio.blueChipShares = newShares;
-        finance.portfolio.valuation = newShares * sharePrice;
-        if (newShares === 0) finance.portfolio.avgBuyPrice = 0;
+        if (existing.shares <= 0) {
+            delete finance.portfolio.stocks[symbol];
+        }
+        
+        // Recalculate portfolio valuation
+        let totalValuation = 0;
+        Object.entries(finance.portfolio.stocks).forEach(([sym, data]) => {
+            const stk = stockMarket.getStock(sym);
+            if (stk) {
+                totalValuation += stk.price * data.shares;
+            }
+        });
+        finance.portfolio.valuation = Math.round(totalValuation);
         
         // Reduce business valuation assets
         biz.valuation = Math.max(0, biz.valuation - Math.round(totalYield * 1.25));
@@ -384,7 +422,7 @@ export const FinanceSector = {
         }));
         
         manager.recalculateValuation();
-        ui.success(`📉 HOLDING DIVESTASI: Holding korporasi berhasil melikuidasi ${sharesCount} lembar saham Blue-Chip seharga $ ${financeManager.formatCurrency(totalYield)} langsung ke kas treasury!`, '💎 Portofolio Divestasi');
+        ui.success(`📉 HOLDING DIVESTASI: Holding korporasi berhasil melikuidasi ${sharesCount} lembar saham ${symbol} seharga $ ${financeManager.formatCurrency(totalYield)} langsung ke kas treasury!`, '💎 Portofolio Divestasi');
     },
 
     injectPersonalReserve(amount, manager) {
@@ -586,7 +624,23 @@ export const FinanceSector = {
 
         const netInsuranceRevenue = totalPremiums - monthlyClaimsCost;
 
-        // 6. Bluechip Stock holding monthly dividend yield
+        // Update portfolio valuation dynamically based on latest market prices
+        let newPortfolioValuation = 0;
+        if (finance.portfolio && finance.portfolio.stocks) {
+            Object.entries(finance.portfolio.stocks).forEach(([sym, data]) => {
+                const stk = stockMarket.getStock(sym);
+                if (stk) {
+                    newPortfolioValuation += stk.price * data.shares;
+                }
+            });
+        }
+        const oldPortfolioVal = finance.portfolio.valuation || 0;
+        finance.portfolio.valuation = Math.round(newPortfolioValuation);
+        // Adjust general company valuation accordingly
+        const valuationDelta = Math.round((finance.portfolio.valuation - oldPortfolioVal) * 1.25);
+        biz.valuation = Math.max(0, (biz.valuation || 0) + valuationDelta);
+
+        // 6. Stock holding monthly dividend yield
         let portfolioDividendRevenue = 0;
         if (finance.portfolio.valuation > 0) {
             // Assume 6% annual dividend yield paid monthly (0.5% monthly)

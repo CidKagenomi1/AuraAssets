@@ -596,48 +596,98 @@ class BusinessPage {
                             </h4>
                             <div style="display: flex; flex-direction: column; gap: 0.8rem; font-size: 0.85rem;">
                                 ${displayWages > 0 ? `
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="color: var(--text-muted);">Beban Gaji Karyawan (${employees} Orang)</span>
-                                    <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayWages)}</span>
+                                <div style="border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="color: var(--text-muted);">Beban Gaji Karyawan (${employees} Orang)</span>
+                                        <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayWages)}</span>
+                                    </div>
+                                    <div style="margin-top:4px; height:3px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+                                        <div style="width:${Math.min(100, (displayWages / (displayTotalExpense || 1) * 100)).toFixed(0)}%; height:100%; background:#ef4444; border-radius:2px;"></div>
+                                    </div>
                                 </div>
                                 ` : ''}
                                 ${displaySupplierCost > 0 ? `
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="color: var(--text-muted);">Biaya Rantai Pasok (${ops.supplier.toUpperCase()})</span>
-                                    <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displaySupplierCost)}</span>
+                                <div style="border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="color: var(--text-muted);">Biaya Rantai Pasok (${ops.supplier.toUpperCase()})</span>
+                                        <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displaySupplierCost)}</span>
+                                    </div>
+                                    <div style="margin-top:4px; height:3px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+                                        <div style="width:${Math.min(100, (displaySupplierCost / (displayTotalExpense || 1) * 100)).toFixed(0)}%; height:100%; background:#ef4444; border-radius:2px;"></div>
+                                    </div>
                                 </div>
                                 ` : ''}
                                 ${displayProductionCost > 0 ? `
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="color: var(--text-muted);">Beban Metode Perakitan (${ops.production.toUpperCase()})</span>
-                                    <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayProductionCost)}</span>
+                                <div style="border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="color: var(--text-muted);">Beban Metode Perakitan (${ops.production.toUpperCase()})</span>
+                                        <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayProductionCost)}</span>
+                                    </div>
+                                    <div style="margin-top:4px; height:3px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+                                        <div style="width:${Math.min(100, (displayProductionCost / (displayTotalExpense || 1) * 100)).toFixed(0)}%; height:100%; background:#ef4444; border-radius:2px;"></div>
+                                    </div>
                                 </div>
                                 ` : ''}
                                 ${displayCampaignCost > 0 ? `
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="color: var(--text-muted);">Biaya Kampanye Iklan & Humas</span>
-                                    <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayCampaignCost)}</span>
+                                <div style="border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="color: var(--text-muted);">Biaya Kampanye Iklan & Humas</span>
+                                        <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayCampaignCost)}</span>
+                                    </div>
+                                    <div style="margin-top:4px; height:3px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+                                        <div style="width:${Math.min(100, (displayCampaignCost / (displayTotalExpense || 1) * 100)).toFixed(0)}%; height:100%; background:#ef4444; border-radius:2px;"></div>
+                                    </div>
                                 </div>
                                 ` : ''}
                                 ${displayExecutiveCost > 0 ? `
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="color: var(--text-muted);">Tunjangan Eksekutif (COO/CMO/CTO)</span>
-                                    <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayExecutiveCost)}</span>
+                                <div style="border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="color: var(--text-muted);">Tunjangan Eksekutif (COO/CMO/CTO)</span>
+                                        <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayExecutiveCost)}</span>
+                                    </div>
+                                    <div style="margin-top:4px; height:3px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+                                        <div style="width:${Math.min(100, (displayExecutiveCost / (displayTotalExpense || 1) * 100)).toFixed(0)}%; height:100%; background:#ef4444; border-radius:2px;"></div>
+                                    </div>
                                 </div>
                                 ` : ''}
                                 ${displayStartupBurn > 0 ? `
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="color: var(--text-muted);">Beban Burn Rate & Teknologi Startup</span>
-                                    <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayStartupBurn)}</span>
+                                <div style="border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="color: var(--text-muted);">Beban Burn Rate & Teknologi Startup</span>
+                                        <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayStartupBurn)}</span>
+                                    </div>
+                                    <div style="margin-top:4px; height:3px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+                                        <div style="width:${Math.min(100, (displayStartupBurn / (displayTotalExpense || 1) * 100)).toFixed(0)}%; height:100%; background:#ef4444; border-radius:2px;"></div>
+                                    </div>
                                 </div>
                                 ` : ''}
                                 ${displayUMKMRatioCost > 0 ? `
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
-                                    <span style="color: var(--text-muted);">Rasio Operasional & Bahan Baku UMKM</span>
-                                    <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayUMKMRatioCost)}</span>
+                                <div style="border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="color: var(--text-muted);">Rasio Operasional & Bahan Baku UMKM</span>
+                                        <span style="font-weight: 800; color: #ef4444;">-$ ${financeManager.formatCurrency(displayUMKMRatioCost)}</span>
+                                    </div>
+                                    <div style="margin-top:4px; height:3px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+                                        <div style="width:${Math.min(100, (displayUMKMRatioCost / (displayTotalExpense || 1) * 100)).toFixed(0)}%; height:100%; background:#ef4444; border-radius:2px;"></div>
+                                    </div>
                                 </div>
                                 ` : ''}
-                                ${industryCostRows}
+                                ${industryCostRows.replace(/border-bottom: 1px dashed rgba\(255,255,255,0\.05\); padding-bottom: 6px;/g, 'padding-bottom: 2px;').split('</div>').filter(Boolean).map(rowDiv => {
+                                    if (!rowDiv.trim()) return '';
+                                    const matchVal = rowDiv.match(/-\$\s*([\d,.]+)/);
+                                    if (matchVal) {
+                                        const cleanVal = parseFloat(matchVal[1].replace(/,/g, ''));
+                                        const pct = displayTotalExpense > 0 ? ((cleanVal / displayTotalExpense) * 100).toFixed(0) : 0;
+                                        return `
+                                        <div style="border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 6px;">
+                                            ${rowDiv}
+                                            <div style="margin-top:4px; height:3px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+                                                <div style="width:${pct}%; height:100%; background:#ef4444; border-radius:2px;"></div>
+                                            </div>
+                                        </div>`;
+                                    }
+                                    return rowDiv + '</div>';
+                                }).join('')}
                                 <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 900; font-size: 0.95rem; margin-top: 0.5rem; color: #fff;">
                                     <span>Subtotal Pengeluaran</span>
                                     <span style="color: #ef4444;">-$ ${financeManager.formatCurrency(displayTotalExpense)}</span>
@@ -645,6 +695,37 @@ class BusinessPage {
                             </div>
                         </div>
                     </div>
+
+                    <!-- Net Profit Banner & Income/Expense Ratio Stacked Bar -->
+                    <div style="border-top: 1px solid rgba(255,255,255,0.07); margin-top: 1.5rem; padding-top: 1.5rem;">
+                        ${(() => {
+                            const totalFlow = displayTotalInflow + displayTotalExpense;
+                            if (totalFlow <= 0) return '';
+                            const inflowPct = ((displayTotalInflow / totalFlow) * 100).toFixed(0);
+                            const outflowPct = ((displayTotalExpense / totalFlow) * 100).toFixed(0);
+                            return `
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.5rem;">
+                                <span>Pemasukan: ${inflowPct}%</span>
+                                <span>Pengeluaran: ${outflowPct}%</span>
+                            </div>
+                            <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; display: flex; overflow: hidden; margin-bottom: 1.5rem;">
+                                <div style="width: ${inflowPct}%; height: 100%; background: #10b981;"></div>
+                                <div style="width: ${outflowPct}%; height: 100%; background: #ef4444;"></div>
+                            </div>
+                            `;
+                        })()}
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.2rem; background: ${netProfitColor}12; border: 1px solid ${netProfitColor}33; border-radius: 10px;">
+                            <div>
+                                <div style="font-weight: 800; font-size: 0.95rem; color: #fff;">Laba Bersih Bulan Ini (Net Profit)</div>
+                                <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 2px;">Selisih antara pendapatan total dan seluruh biaya operasional</div>
+                            </div>
+                            <div style="font-size: 1.6rem; font-weight: 900; color: ${netProfitColor}; text-shadow: 0 0 10px ${netProfitColor}33;">
+                                ${displayNetProfit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(displayNetProfit)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
@@ -660,7 +741,7 @@ class BusinessPage {
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--border-color);">
                             <div>
                                 <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; display:block; margin-bottom: 6px;">Alokasi Nominal Dana ($)</label>
-                                <input type="number" id="treasury-amount-input" placeholder="Masukkan jumlah dana..." 
+                                <input type="text" id="treasury-amount-input" placeholder="Masukkan jumlah dana..." 
                                     style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: #fff; font-size: 1rem; font-weight: 700; border-radius: 8px; outline: none;">
                             </div>
                             <div style="display: flex; flex-direction: column; justify-content: flex-end; gap: 0.5rem;">

@@ -1,6 +1,6 @@
 /**
  * RetailOpsPanel.js - Premium Retail Operations Workspace
- * Handles store expansions, deconstructions, warehouse storage meters, and supplier inventory restocking.
+ * Refactored to feature slider-based Auto-Restock and Price adjustments.
  */
 import gameState from '../../../core/GameState.js';
 import financeManager from '../../../finance/FinanceManager.js';
@@ -25,11 +25,15 @@ export const RetailOpsPanel = {
         const capacity = retail.warehouseCapacity || 5000;
         const stockPercent = Math.max(0, Math.min(100, Math.round((currentStock / capacity) * 100)));
         
-        let stockColor = '#10b981'; // Green
+        const sellingPrice = retail.sellingPrice || 5.50;
+        const restockThreshold = retail.restockThreshold || 50;
+        const lastTick = retail.lastTickInfo || { sold: 0, revenue: 0, restocked: 0, cost: 0 };
+
+        let stockColor = '#10b981';
         if (stockPercent < 15) {
-            stockColor = '#ef4444'; // Red
+            stockColor = '#ef4444';
         } else if (stockPercent < 40) {
-            stockColor = '#f59e0b'; // Orange
+            stockColor = '#f59e0b';
         }
 
         // 1. Calculate active total stats
@@ -57,7 +61,7 @@ export const RetailOpsPanel = {
             `;
         }).join('');
 
-        // 3. Render Built active stores deconstruction HTML
+        // 3. Render Built active stores list
         const builtStoresHtml = retail.stores.length === 0 ? `
             <div style="padding: 2rem 1rem; text-align: center; color: var(--text-dim); font-size: 0.75rem; border: 1px dashed var(--border-color); border-radius: 8px;">
                 🏪 Tidak ada toko ritel aktif. Segera bangun toko pertama Anda di atas!
@@ -78,7 +82,7 @@ export const RetailOpsPanel = {
         }).join('');
 
         return `
-            <div class="retail-ops-workspace">
+            <div class="retail-ops-workspace" style="animation: fadeIn 0.3s ease-out;">
                 <!-- Top Overview Metrics Box -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
                     <div class="card" style="border-left: 4px solid var(--accent-primary); padding: 1.25rem; background: rgba(255,255,255,0.015);">
@@ -99,12 +103,12 @@ export const RetailOpsPanel = {
                     <div class="card" style="border-left: 4px solid #ef4444; padding: 1.25rem; background: rgba(255,255,255,0.015);">
                         <div class="text-muted" style="font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.25rem; font-weight: 800;">Biaya Pemeliharaan Toko</div>
                         <div style="font-size: 1.85rem; font-weight: 900; color: #ef4444;">$ ${totalMaintenance.toLocaleString()}/bln</div>
-                        <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Dipotong otomatis dari dividen bulanan</div>
+                        <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Biaya sewa & listrik outlet</div>
                     </div>
                 </div>
 
                 <!-- Two columns Workspace -->
-                <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 2rem;">
+                <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 2rem;">
                     
                     <!-- LEFT COLUMN: RETAIL STORE CONSTRUCTIONS -->
                     <div>
@@ -117,7 +121,7 @@ export const RetailOpsPanel = {
                             ${storeTiersHtml}
                         </div>
 
-                        <!-- Active built stores list deconstruction -->
+                        <!-- Active built stores list -->
                         <h3 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; font-weight: 900; color: #f87171;">🏢 Toko Aktif & Area Dekonstruksi</h3>
                         <p class="text-muted" style="font-size: 0.78rem; line-height: 1.45; margin-bottom: 1rem;">
                             Robohkan toko retail Anda yang kurang aktif atau merugi untuk mendapatkan **50% pengembalian dana tunai** dari harga pembangunan awal.
@@ -128,10 +132,10 @@ export const RetailOpsPanel = {
                         </div>
                     </div>
 
-                    <!-- RIGHT COLUMN: LOGISTICS STORAGE & SUPPLIER PROCUREMENTS -->
-                    <div>
+                    <!-- RIGHT COLUMN: LOGISTICS STORAGE & AUTO PROCUREMENTS SLIDERS -->
+                    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                         <!-- Warehouse meter storage card -->
-                        <div class="card" style="padding: 1.5rem; background: rgba(255,255,255,0.015); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+                        <div class="card" style="padding: 1.5rem; background: rgba(255,255,255,0.015); border: 1px solid var(--border-color);">
                             <h3 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; font-weight: 900; color: #fff;">📦 Logistik Gudang Penyimpanan</h3>
                             <p class="text-muted" style="font-size: 0.72rem; line-height: 1.45; margin-bottom: 1rem;">
                                 Barang dagangan akan dikonsumsi oleh pembeli ritel setiap bulannya. Jika stok gudang Anda habis (0%), pendapatan retail Anda juga akan terhenti sepenuhnya!
@@ -151,36 +155,42 @@ export const RetailOpsPanel = {
                             </button>
                         </div>
 
-                        <!-- Supplier stock procurement card -->
-                        <div class="card" style="padding: 1.5rem; background: rgba(255,255,255,0.015); border: 1px solid var(--border-color);">
-                            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; font-weight: 900; color: #fff;">🤝 Pasokan Bahan Baku & Grosir Supplier</h3>
-                            <p class="text-muted" style="font-size: 0.72rem; line-height: 1.45; margin-bottom: 1rem;">
-                                Beli stok barang grosiran langsung dari **Mitra Supplier** Anda. Membeli dalam jumlah banyak (bulk buy) memotong biaya per unit hingga **15% off**!
-                            </p>
+                        <!-- Auto-Restock and Price Settings -->
+                        <div class="card" style="padding: 1.5rem; background: rgba(255,255,255,0.015); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1.25rem;">
+                            <h3 style="margin: 0; font-size: 1.05rem; font-weight: 900; color: #fff;">⚙️ Kontrol Pengadaan & Harga</h3>
                             
-                            <div style="background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px; font-size: 0.7rem; margin-bottom: 1.25rem;">
-                                <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-                                    <span style="color:var(--text-dim);">Harga Pasokan Unit Supplier:</span>
-                                    <span style="font-weight:800; color:#fff;">$ 2.20 / unit</span>
+                            <!-- Price Slider -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 4px; color: var(--text-muted);">
+                                    <span>Harga Jual Eceran: <strong style="color: #fff;">$ ${sellingPrice.toFixed(2)} / unit</strong></span>
+                                    <span>Pasar Wajar: $ 5.50</span>
                                 </div>
-                                <div style="display:flex; justify-content:space-between; border-top:1px dashed rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;">
-                                    <span style="color:var(--text-dim);">Diskon Grosir Supplier:</span>
-                                    <span style="font-weight:800; color:#10b981;">Min 5.000 (10% off) | 10.000 (15% off)</span>
-                                </div>
+                                <input type="range" id="slider-retail-price" min="3.0" max="15.0" step="0.1" value="${sellingPrice}" style="width: 100%; cursor: pointer;">
                             </div>
 
-                            <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem;">
-                                <select id="supplier-restock-qty" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); background: #111; color: #fff; font-size: 0.8rem; font-weight: 800; border-radius: 6px; cursor: pointer;">
-                                    <option value="1000">🛒 Pasok 1.000 Unit ($ 2.200)</option>
-                                    <option value="2500">🛒 Pasok 2.500 Unit ($ 5.500)</option>
-                                    <option value="5000">📦 Pasok 5.000 Unit ($ 9.900 — 10% OFF)</option>
-                                    <option value="10000">🚚 Pasok 10.000 Unit ($ 18.700 — 15% OFF)</option>
-                                </select>
+                            <!-- Auto-Restock Slider -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 4px; color: var(--text-muted);">
+                                    <span>Target Auto-Restock: <strong style="color: #10b981;">${restockThreshold}%</strong></span>
+                                    <span>Penuhi hingga: ${Math.round(capacity * (restockThreshold/100)).toLocaleString()} unit</span>
+                                </div>
+                                <input type="range" id="slider-retail-restock" min="0" max="100" step="5" value="${restockThreshold}" style="width: 100%; cursor: pointer;">
                             </div>
-                            
-                            <button class="btn btn-primary btn-sm" id="btn-supplier-restock" style="width: 100%; font-weight: 850; font-size: 0.72rem; background: linear-gradient(135deg, #10b981, #059669); border: none;">
-                                📦 PESAN DARI SUPPLIER
-                            </button>
+
+                            <p style="font-size: 0.65rem; color: var(--text-dim); margin: 0; line-height: 1.4;">
+                                💡 Setiap akhir bulan, sistem akan otomatis memesan stok tambahan dari supplier grosir untuk memenuhi target persen di atas. Diskon bulk grosir hingga 15% otomatis berlaku saat restok besar.
+                            </p>
+                        </div>
+
+                        <!-- Last Cycle Report -->
+                        <div class="card" style="padding: 1.25rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px;">
+                            <h4 style="margin: 0 0 0.5rem 0; font-size: 0.8rem; text-transform: uppercase; color: var(--accent-primary); font-weight: 800; letter-spacing: 0.05em;">Laporan Penjualan Bulan Lalu</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.75rem;">
+                                <div>Unit Terjual: <strong>${lastTick.sold.toLocaleString()} unit</strong></div>
+                                <div style="color: #10b981;">Omset: <strong>+$ ${lastTick.revenue.toLocaleString()}</strong></div>
+                                <div>Restok Otomatis: <strong>${lastTick.restocked.toLocaleString()} unit</strong></div>
+                                <div style="color: #ef4444;">Biaya Restok: <strong>-$ ${lastTick.cost.toLocaleString()}</strong></div>
+                            </div>
                         </div>
                     </div>
 
@@ -248,18 +258,21 @@ export const RetailOpsPanel = {
             });
         };
 
-        // Restock Stock inventory from suppliers click
-        const btnRestock = container.querySelector('#btn-supplier-restock');
-        const selectQty = container.querySelector('#supplier-restock-qty');
-        if (btnRestock && selectQty) {
-            btnRestock.addEventListener('click', () => {
-                const qty = parseInt(selectQty.value);
-                try {
-                    businessManager.purchaseStock(qty);
-                    if (parentPage) parentPage.render();
-                } catch (e) {
-                    ui.error(e.message);
-                }
+        // Price Slider Change
+        const sliderPrice = container.querySelector('#slider-retail-price');
+        if (sliderPrice) {
+            sliderPrice.addEventListener('change', () => {
+                businessManager.updateRetailSlider('price', sliderPrice.value);
+                if (parentPage) parentPage.render();
+            });
+        }
+
+        // Restock Slider Change
+        const sliderRestock = container.querySelector('#slider-retail-restock');
+        if (sliderRestock) {
+            sliderRestock.addEventListener('change', () => {
+                businessManager.updateRetailSlider('restock', sliderRestock.value);
+                if (parentPage) parentPage.render();
             });
         }
     }

@@ -10,8 +10,11 @@ import ui from '../../ui/UIManager.js';
 import globalEconomy from '../../core/GlobalEconomy.js';
 
 export const VEHICLE_CATALOG = [
-    { id: 'ride_hailing_car', name: 'Avanza Ride-Hailing Spec', type: 'Ride-Hailing', price: 12000, monthlyCost: 800, baseProfit: 2200, crewRequired: 1, wearRate: 2.0 },
-    { id: 'rental_car', name: 'Alphard VIP Rental Spec', type: 'Rental Car', price: 30000, monthlyCost: 600, baseProfit: 3800, crewRequired: 0, wearRate: 1.2 }
+    { id: 'lcgc', name: 'Mobil LCGC', type: 'LCGC', price: 12000, monthlyCost: 400, baseProfit: 1500, crewRequired: 1, wearRate: 2.2 },
+    { id: 'sedan', name: 'Mobil Sedan', type: 'Sedan', price: 22000, monthlyCost: 700, baseProfit: 2800, crewRequired: 1, wearRate: 1.6 },
+    { id: 'suv', name: 'Mobil SUV', type: 'SUV', price: 35000, monthlyCost: 1100, baseProfit: 4600, crewRequired: 1, wearRate: 1.4 },
+    { id: 'truck', name: 'Cargo Truk', type: 'Truk', price: 80000, monthlyCost: 2500, baseProfit: 11500, crewRequired: 2, wearRate: 1.1 },
+    { id: 'semitruck', name: 'Semi Truk Container', type: 'Semi Truk', price: 190000, monthlyCost: 5500, baseProfit: 29000, crewRequired: 2, wearRate: 0.8 }
 ];
 
 export const TransportationSector = {
@@ -27,8 +30,11 @@ export const TransportationSector = {
                     {
                         id: 'vh_' + Math.random().toString(36).substr(2, 9),
                         ...(sub === 'ride_hailing' ? VEHICLE_CATALOG[0] : VEHICLE_CATALOG[1]),
+                        engineType: 'ice',
+                        engineLabel: 'BBM',
                         condition: 100,
-                        ageMonths: 0
+                        ageMonths: 0,
+                        mileage: 0
                     }
                 ],
                 demandFluctuation: 1.0
@@ -38,7 +44,7 @@ export const TransportationSector = {
         return biz.transportation;
     },
 
-    buyVehicles(modelId, quantity, manager) {
+    buyVehicles(modelId, quantity, engineType = 'ice', manager) {
         const biz = gameState.get('business');
         if (!biz || !biz.active) throw new Error('Perusahaan tidak aktif');
         const trans = this.getTransportationState(manager);
@@ -49,7 +55,28 @@ export const TransportationSector = {
         const qty = parseInt(quantity);
         if (isNaN(qty) || qty <= 0) throw new Error('Jumlah pembelian harus valid!');
 
-        const totalCost = model.price * qty;
+        let priceMult = 1.0;
+        let costMult = 1.0;
+        let profitMult = 1.0;
+        let engineLabel = 'BBM';
+
+        if (engineType === 'hybrid') {
+            priceMult = 1.20;
+            costMult = 0.85;
+            profitMult = 1.05;
+            engineLabel = 'Hybrid';
+        } else if (engineType === 'ev') {
+            priceMult = 1.40;
+            costMult = 0.65;
+            profitMult = 1.10;
+            engineLabel = 'EV';
+        }
+
+        const adjustedPrice = Math.round(model.price * priceMult);
+        const adjustedMonthlyCost = Math.round(model.monthlyCost * costMult);
+        const adjustedProfit = Math.round(model.baseProfit * profitMult);
+
+        const totalCost = adjustedPrice * qty;
         if (biz.cash < totalCost) {
             throw new Error(`Kas Treasury Perusahaan tidak mencukupi untuk membeli ${qty} unit ($ ${financeManager.formatCurrency(biz.cash)} / Butuh $ ${financeManager.formatCurrency(totalCost)})`);
         }
@@ -60,8 +87,14 @@ export const TransportationSector = {
             trans.fleet.push({
                 id: 'vh_' + Math.random().toString(36).substr(2, 9),
                 ...model,
+                price: adjustedPrice,
+                monthlyCost: adjustedMonthlyCost,
+                baseProfit: adjustedProfit,
+                engineType: engineType,
+                engineLabel: engineLabel,
                 condition: 100,
-                ageMonths: 0
+                ageMonths: 0,
+                mileage: 0
             });
         }
 
@@ -75,7 +108,7 @@ export const TransportationSector = {
             transportation: trans
         }));
 
-        ui.success(`Berhasil membeli ${qty} unit "${model.name}" untuk memperkuat armada!`, '🚗 Pembelian Armada');
+        ui.success(`Berhasil membeli ${qty} unit "${model.name} (${engineLabel})" untuk memperkuat armada!`, '🚗 Pembelian Armada');
         return true;
     },
 
@@ -188,6 +221,7 @@ export const TransportationSector = {
         trans.fleet.forEach(v => {
             if (v.condition === undefined) v.condition = 100;
             if (v.ageMonths === undefined) v.ageMonths = 0;
+            if (v.mileage === undefined) v.mileage = 0;
 
             v.ageMonths += 1;
 
@@ -232,6 +266,10 @@ export const TransportationSector = {
             }
 
             totalRevenue += tripRev;
+
+            // Add odometer mileage per month
+            const tripDistance = Math.floor(2500 + Math.random() * 2000);
+            v.mileage += tripDistance;
         });
 
         gameState.update('business', b => ({

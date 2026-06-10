@@ -69,7 +69,7 @@ class BusinessTycoonGame {
 
             // BUG-05 FIX: Handle session expiry with non-blocking notification
             document.addEventListener('sessionExpired', (e) => {
-                ui.warning(e.detail?.message || 'Sesi Anda telah berakhir. Silakan login kembali.', '⏰ Sesi Berakhir');
+                ui.warning(e.detail?.message || 'Sesi Anda telah berakhir. Silakan login kembali.', '⏰ Sesi Berakhir', { deviceNotify: true });
             }, { once: true });
             
             // If not a first-time player, finish loading immediately
@@ -394,7 +394,7 @@ class BusinessTycoonGame {
     save() {
         const saved = gameState.save();
         if (saved) {
-            ui.success('Game tersimpan!');
+            ui.success('Game tersimpan!', null, { deviceNotify: true });
         } else {
             ui.error('Gagal menyimpan game!');
         }
