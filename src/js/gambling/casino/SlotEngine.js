@@ -499,8 +499,17 @@ export class SlotEngine {
         if (stopBtn) stopBtn.style.display = 'none';
     }
 
-    weightedRandom(luck) {
-        const weights = SYMBOLS.map(s => s.baseWeight * (s.multiplier3x >= 20 ? luck : 1));
+    weightedRandom(luck, betAmount = 0) {
+        const weights = SYMBOLS.map(s => {
+            let w = s.baseWeight * (s.multiplier3x >= 20 ? luck : 1);
+            if (s.multiplier3x >= 20) {
+                if (betAmount >= 10000000) w *= 0.02;
+                else if (betAmount >= 5000000) w *= 0.05;
+                else if (betAmount >= 1000000) w *= 0.15;
+                else if (betAmount >= 500000) w *= 0.4;
+            }
+            return w;
+        });
         const total = weights.reduce((a, b) => a + b, 0);
         let r = Math.random() * total;
         for (let i = 0; i < SYMBOLS.length; i++) {
@@ -729,13 +738,6 @@ export class SlotEngine {
 
         const donations = gameState.get('donations') || { luckMultiplier: 1.0 };
         let luck = donations.luckMultiplier || 1.0;
-
-        // Anti-whale mechanic: Higher bets gradually reduce the luck multiplier
-        if (betAmount >= 500000) {
-            const penalty = 1.0 - (Math.log10(betAmount) - 5) * 0.15;
-            luck = luck * Math.max(0.3, penalty);
-        }
-
         if (rateOn) {
             luck = Math.max(luck, 3.5);
         }
@@ -745,7 +747,7 @@ export class SlotEngine {
         for (let col = 0; col < 6; col++) {
             const colSymbols = [];
             for (let row = 0; row < 3; row++) {
-                colSymbols.push(this.weightedRandom(luck).emoji);
+                colSymbols.push(this.weightedRandom(luck, betAmount).emoji);
             }
             resultMatrix.push(colSymbols);
         }
@@ -820,7 +822,7 @@ export class SlotEngine {
         let hasDynamite = false;
         const symbolsToHighlight = []; // list of DOM element IDs to highlight
 
-        // Check each payline (Left-to-Right starting from Reel 1)
+        // Check each payline (horizontal and V-shapes)
         PAYLINES.forEach((line) => {
             const lineSymbols = [];
             for (let col = 0; col < 6; col++) {
@@ -828,70 +830,79 @@ export class SlotEngine {
                 lineSymbols.push(this.grid[col][row]);
             }
 
-            let length = 1;
-            while (length < lineSymbols.length && lineSymbols[length] === lineSymbols[0]) {
-                length++;
-            }
-
-            const emoji = lineSymbols[0];
-            const spec = SYMBOLS.find(s => s.emoji === emoji);
-            if (spec) {
-                let lineMultiplier = 0;
-                if (length >= 3) {
-                    if (length === 3) lineMultiplier = spec.multiplier3x;
-                    else if (length === 4) lineMultiplier = Math.round(spec.multiplier3x * 2.5);
-                    else if (length === 5) lineMultiplier = Math.round(spec.multiplier3x * 6);
-                    else if (length >= 6) lineMultiplier = Math.round(spec.multiplier3x * 15);
-                } else if (length === 2 && spec.multiplier2x > 0) {
-                    lineMultiplier = spec.multiplier2x;
+            // Find all contiguous matching segments in this line
+            let start = 0;
+            while (start < lineSymbols.length) {
+                let end = start + 1;
+                while (end < lineSymbols.length && lineSymbols[end] === lineSymbols[start]) {
+                    end++;
                 }
+                const length = end - start;
+                const emoji = lineSymbols[start];
+                const spec = SYMBOLS.find(s => s.emoji === emoji);
+                if (spec) {
+                    let lineMultiplier = 0;
+                    if (length >= 3) {
+                        if (length === 3) lineMultiplier = spec.multiplier3x;
+                        else if (length === 4) lineMultiplier = Math.round(spec.multiplier3x * 2.5);
+                        else if (length === 5) lineMultiplier = Math.round(spec.multiplier3x * 6);
+                        else if (length >= 6) lineMultiplier = Math.round(spec.multiplier3x * 15);
+                    } else if (length === 2 && spec.multiplier2x > 0) {
+                        lineMultiplier = spec.multiplier2x;
+                    }
 
-                if (lineMultiplier > 0) {
-                    const lineWin = Math.round(lineBet * lineMultiplier);
-                    totalPayout += lineWin;
-                    winsList.push(`${line.name}: ${length}x ${emoji} (+$${lineWin.toLocaleString()})`);
+                    if (lineMultiplier > 0) {
+                        const lineWin = Math.round(lineBet * lineMultiplier);
+                        totalPayout += lineWin;
+                        winsList.push(`${line.name} (${start + 1}-${end}): ${length}x ${emoji} (+$${lineWin.toLocaleString()})`);
 
-                    // Mark coordinates for visual highlight
-                    for (let col = 0; col < length; col++) {
-                        const row = line.coordinates[col];
-                        symbolsToHighlight.push(`slot-reel-${col}-${row}`);
+                        // Mark coordinates for visual highlight
+                        for (let col = start; col < end; col++) {
+                            const row = line.coordinates[col];
+                            symbolsToHighlight.push(`slot-reel-${col}-${row}`);
+                        }
                     }
                 }
+                start = end;
             }
         });
 
-        // Check each column (vertical - Top-to-Bottom starting from row 1)
+        // Check each column (vertical - up & down)
         for (let col = 0; col < 6; col++) {
             const colSymbols = [];
             for (let row = 0; row < 3; row++) {
                 colSymbols.push(this.grid[col][row]);
             }
 
-            let length = 1;
-            while (length < colSymbols.length && colSymbols[length] === colSymbols[0]) {
-                length++;
-            }
-
-            const emoji = colSymbols[0];
-            const spec = SYMBOLS.find(s => s.emoji === emoji);
-            if (spec) {
-                let colMultiplier = 0;
-                if (length === 3) {
-                    colMultiplier = spec.multiplier3x;
-                } else if (length === 2 && spec.multiplier2x > 0) {
-                    colMultiplier = spec.multiplier2x;
+            let start = 0;
+            while (start < colSymbols.length) {
+                let end = start + 1;
+                while (end < colSymbols.length && colSymbols[end] === colSymbols[start]) {
+                    end++;
                 }
+                const length = end - start;
+                const emoji = colSymbols[start];
+                const spec = SYMBOLS.find(s => s.emoji === emoji);
+                if (spec) {
+                    let colMultiplier = 0;
+                    if (length === 3) {
+                        colMultiplier = spec.multiplier3x;
+                    } else if (length === 2 && spec.multiplier2x > 0) {
+                        colMultiplier = spec.multiplier2x;
+                    }
 
-                if (colMultiplier > 0) {
-                    const colWin = Math.round(lineBet * colMultiplier);
-                    totalPayout += colWin;
-                    winsList.push(`Kolom ${col + 1} Vertikal: ${length}x ${emoji} (+$${colWin.toLocaleString()})`);
+                    if (colMultiplier > 0) {
+                        const colWin = Math.round(lineBet * colMultiplier);
+                        totalPayout += colWin;
+                        winsList.push(`Kolom ${col + 1} Vertikal: ${length}x ${emoji} (+$${colWin.toLocaleString()})`);
 
-                    // Mark coordinates for visual highlight
-                    for (let row = 0; row < length; row++) {
-                        symbolsToHighlight.push(`slot-reel-${col}-${row}`);
+                        // Mark coordinates for visual highlight
+                        for (let row = start; row < end; row++) {
+                            symbolsToHighlight.push(`slot-reel-${col}-${row}`);
+                        }
                     }
                 }
+                start = end;
             }
         }
 
