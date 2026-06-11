@@ -503,10 +503,10 @@ export class SlotEngine {
         const weights = SYMBOLS.map(s => {
             let w = s.baseWeight * (s.multiplier3x >= 20 ? luck : 1);
             if (s.multiplier3x >= 20) {
-                if (betAmount >= 10000000) w *= 0.02;
-                else if (betAmount >= 5000000) w *= 0.05;
-                else if (betAmount >= 1000000) w *= 0.15;
-                else if (betAmount >= 500000) w *= 0.4;
+                if (betAmount >= 50000000) w *= 0.01;
+                else if (betAmount >= 10000000) w *= 0.05;
+                else if (betAmount >= 5000000) w *= 0.15;
+                else if (betAmount >= 1000000) w *= 0.4;
             }
             return w;
         });
