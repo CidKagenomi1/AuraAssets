@@ -511,6 +511,14 @@ export class ZeusSlotEngine {
                 else if (betAmount >= 10000000) w *= 0.05;
                 else if (betAmount >= 5000000) w *= 0.15;
                 else if (betAmount >= 1000000) w *= 0.4;
+                else if (betAmount >= 100000) w *= 0.8;
+                
+                if (betAmount <= 10000) w *= 2.0;
+                else if (betAmount <= 50000) w *= 1.5;
+            } else {
+                if (betAmount >= 10000000) w *= 1.5;
+                if (betAmount <= 10000) w *= 0.6;
+                else if (betAmount <= 50000) w *= 0.8;
             }
             return w;
         });

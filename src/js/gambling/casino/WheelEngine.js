@@ -536,10 +536,25 @@ export class WheelEngine {
 
         // Determine winning sector clockwise weights
         const weights = SECTORS.map((s) => {
-            if (s.type === 'freespin') return 0.2;          // Lowered weight to prevent infinite loop (expected free spins < 1)
-            if (s.type === 'bonusspin') return 0.02 * luck; // 50 bonus spins (3x) is super rare!
-            if (s.multiplier >= 25.0) return 0.05 * luck;    // 50x multiplier is rare!
-            return 1.0;
+            let w = 1.0;
+            if (s.type === 'freespin') w = 0.2;
+            else if (s.type === 'bonusspin') w = 0.02 * luck;
+            else if (s.multiplier >= 25.0) w = 0.05 * luck;
+            else if (s.type === 'crypto') w = 0.1 * luck;
+            else if (s.multiplier > 1.0) w = 0.8 * luck;
+            else w = 2.0;
+
+            if (s.multiplier > 1.0 || s.type === 'bonusspin' || s.type === 'freespin' || s.type === 'crypto') {
+                if (betAmount >= 50000000) w *= 0.01;
+                else if (betAmount >= 10000000) w *= 0.05;
+                else if (betAmount >= 5000000) w *= 0.15;
+                else if (betAmount >= 1000000) w *= 0.4;
+                else if (betAmount >= 100000) w *= 0.8;
+                
+                if (betAmount <= 10000) w *= 2.0;
+                else if (betAmount <= 50000) w *= 1.5;
+            }
+            return w;
         });
 
         const totalWeight = weights.reduce((a, b) => a + b, 0);
