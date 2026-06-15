@@ -216,9 +216,11 @@ export class WheelEngine {
         <style>
             .wheel-container-wrapper {
                 position:relative; 
-                width:260px; 
-                height:260px; 
-                margin: 0 auto 1rem auto;
+                width:360px; 
+                height:180px; 
+                margin: 1rem auto 1.5rem auto;
+                overflow: hidden;
+                border-bottom: 3px solid #3c2419;
             }
             .wheel-pointer {
                 position: absolute; 
@@ -227,22 +229,22 @@ export class WheelEngine {
                 transform: translateX(-50%);
                 width: 0; 
                 height: 0; 
-                border-left: 12px solid transparent; 
-                border-right: 12px solid transparent;
-                border-top: 24px solid #ec4899; 
+                border-left: 14px solid transparent; 
+                border-right: 14px solid transparent;
+                border-top: 28px solid #ec4899; 
                 z-index: 5;
                 filter: drop-shadow(0 3px 4px rgba(0,0,0,0.5));
             }
             .wheel-svg-box {
-                width: 240px; 
-                height: 240px; 
+                width: 340px; 
+                height: 340px; 
                 border-radius: 50%;
                 border: 6px solid #3c2419; 
                 box-shadow: 0 0 20px rgba(168,85,247,0.25), inset 0 0 10px rgba(0,0,0,0.8);
                 transition: transform 4s cubic-bezier(0.1, 0.8, 0.1, 1);
                 transform: rotate(0deg); 
                 overflow: hidden; 
-                margin: 10px; 
+                margin: 10px auto 0 auto; 
                 background: #111;
             }
             .wheel-win-box {
@@ -321,21 +323,21 @@ export class WheelEngine {
 
             @media (max-width: 600px) {
                 .wheel-container-wrapper {
-                    width: 210px;
-                    height: 210px;
-                    margin: 0 auto 0.5rem auto;
+                    width: 300px;
+                    height: 150px;
+                    margin: 0.5rem auto 1rem auto;
                 }
                 .wheel-pointer {
                     top: -6px;
-                    border-left-width: 10px;
-                    border-right-width: 10px;
-                    border-top-width: 20px;
+                    border-left-width: 12px;
+                    border-right-width: 12px;
+                    border-top-width: 24px;
                 }
                 .wheel-svg-box {
-                    width: 190px;
-                    height: 190px;
+                    width: 280px;
+                    height: 280px;
                     border-width: 4px;
-                    margin: 5px;
+                    margin: 8px auto 0 auto;
                 }
                 .wheel-controls-box {
                     padding: 0.5rem;
