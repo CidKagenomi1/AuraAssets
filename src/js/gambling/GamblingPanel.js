@@ -6,6 +6,8 @@
 import financeManager from '../finance/FinanceManager.js';
 import gameState from '../core/GameState.js';
 import { SlotEngine } from '../gambling/casino/SlotEngine.js';
+import { MahjongSlotEngine } from '../gambling/casino/MahjongSlotEngine.js';
+import { ZeusSlotEngine } from '../gambling/casino/ZeusSlotEngine.js';
 import { LotteryEngine } from '../gambling/casino/LotteryEngine.js';
 import { WheelEngine } from '../gambling/casino/WheelEngine.js';
 import { ParlayEngine } from '../gambling/casino/ParlayEngine.js';
@@ -14,10 +16,12 @@ class GamblingPanel {
     constructor() {
         const refresh = () => this.refreshBalanceDisplay();
         this.slot = new SlotEngine(refresh);
+        this.mahjong = new MahjongSlotEngine(refresh);
+        this.zeus = new ZeusSlotEngine(refresh);
         this.lottery = new LotteryEngine(refresh);
         this.wheel = new WheelEngine(refresh);
         this.parlay = new ParlayEngine(refresh);
-        this.activeTab = 'slot'; // 'slot' | 'lottery' | 'wheel' | 'parlay'
+        this.activeTab = 'slot'; // 'slot' | 'mahjong' | 'zeus' | 'lottery' | 'wheel' | 'parlay'
     }
 
     show() {
@@ -82,6 +86,16 @@ class GamblingPanel {
                         background: ${this.activeTab === 'slot' ? 'var(--accent-primary-soft)' : 'transparent'};
                         color: ${this.activeTab === 'slot' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.6)'};
                     ">🎰 Goldy Crush Slot</button>
+                    <button class="casino-tab-btn" data-tab-id="mahjong" style="
+                        flex: 1; min-width: 100px; padding: 0.65rem; border-radius: 10px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+                        background: ${this.activeTab === 'mahjong' ? 'var(--accent-primary-soft)' : 'transparent'};
+                        color: ${this.activeTab === 'mahjong' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.6)'};
+                    ">🀄 Mahjong Ways</button>
+                    <button class="casino-tab-btn" data-tab-id="zeus" style="
+                        flex: 1; min-width: 100px; padding: 0.65rem; border-radius: 10px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+                        background: ${this.activeTab === 'zeus' ? 'var(--accent-primary-soft)' : 'transparent'};
+                        color: ${this.activeTab === 'zeus' ? 'var(--accent-primary)' : 'rgba(255,255,255,0.6)'};
+                    ">⚡ Zeus Slot</button>
                     <button class="casino-tab-btn" data-tab-id="lottery" style="
                         flex: 1; min-width: 100px; padding: 0.65rem; border-radius: 10px; border: none; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
                         background: ${this.activeTab === 'lottery' ? 'var(--accent-primary-soft)' : 'transparent'};
@@ -138,6 +152,8 @@ class GamblingPanel {
     getActiveTabHTML() {
         switch (this.activeTab) {
             case 'slot': return this.slot.getHTML();
+            case 'mahjong': return this.mahjong.getHTML();
+            case 'zeus': return this.zeus.getHTML();
             case 'lottery': return this.lottery.getHTML();
             case 'wheel': return this.wheel.getHTML();
             case 'parlay': return this.parlay.getHTML();
@@ -155,8 +171,22 @@ class GamblingPanel {
                 const tabId = btn.dataset.tabId;
                 if (tabId === this.activeTab) return;
                 
-                // Stop any running animations / spins
+                // Cek apakah ada game yang sedang berjalan
+                if ((this.slot && (this.slot.isSpinning || this.slot.isAutoSpinning)) ||
+                    (this.mahjong && (this.mahjong.isSpinning || this.mahjong.isAutoSpinning)) ||
+                    (this.zeus && (this.zeus.isSpinning || this.zeus.isAutoSpinning)) ||
+                    (this.wheel && (this.wheel.isSpinning || this.wheel.isAutoSpinning))) {
+                    
+                    import('../ui/UIManager.js').then(m => {
+                        m.default.error("Harap hentikan spin terlebih dahulu sebelum berpindah tab!");
+                    });
+                    return;
+                }
+                
+                // Stop any running animations / spins (should be safe now)
                 this.slot.stopAutoSpin();
+                this.mahjong.stopAutoSpin();
+                this.zeus.stopAutoSpin();
                 this.wheel.stopAutoSpin();
                 this.activeTab = tabId;
                 
@@ -186,6 +216,10 @@ class GamblingPanel {
     bindActiveTabEvents(gamePanel) {
         if (this.activeTab === 'slot') {
             this.slot.bindEvents(gamePanel, () => this.refreshBalanceDisplay());
+        } else if (this.activeTab === 'mahjong') {
+            this.mahjong.bindEvents(gamePanel, () => this.refreshBalanceDisplay());
+        } else if (this.activeTab === 'zeus') {
+            this.zeus.bindEvents(gamePanel, () => this.refreshBalanceDisplay());
         } else if (this.activeTab === 'lottery') {
             this.lottery.bindEvents(gamePanel, () => this.refreshBalanceDisplay());
         } else if (this.activeTab === 'wheel') {

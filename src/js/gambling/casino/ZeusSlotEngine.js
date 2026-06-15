@@ -1,5 +1,5 @@
 /**
- * SlotEngine.js - Premium Gold Digger 6x3 Multi-Line Slot Engine
+ * ZeusSlotEngine.js - Premium Gates of Olympus 6x5 Slot Engine
  * Handles 6 columns x 3 rows grid mechanics, 5 payline checking,
  * cascading visual animations, canvas particle effects, and auto spin.
  * Mobile responsive optimized (preventing vertical scrolling).
@@ -11,20 +11,22 @@ import ui from '../../ui/UIManager.js';
 import { getSlotSVG } from './SlotIcons.js';
 
 const SYMBOLS = [
-    { emoji: '💎', name: 'Berlian Mulia',  baseWeight: 4,  multiplier3x: 50, multiplier2x: 3 },
-    { emoji: '💰', name: 'Kantung Emas',   baseWeight: 8,  multiplier3x: 25, multiplier2x: 2 },
-    { emoji: '🪙', name: 'Koin Emas',      baseWeight: 12, multiplier3x: 7,  multiplier2x: 0 },
-    { emoji: '⛏️', name: 'Beliung Tambang',baseWeight: 18, multiplier3x: 5,  multiplier2x: 0 },
-    { emoji: '🧨', name: 'Dinamit',        baseWeight: 25, multiplier3x: 3,  multiplier2x: 0 },
-    { emoji: '🪨', name: 'Batu Bara',      baseWeight: 32, multiplier3x: 1,  multiplier2x: 0 },
+    { emoji: '👑', name: 'Mahkota Zeus', baseWeight: 4,  multiplier3x: 50, multiplier2x: 3 },
+    { emoji: '⚡', name: 'Petir',       baseWeight: 8,  multiplier3x: 25, multiplier2x: 2 },
+    { emoji: '🏛️', name: 'Kuil',        baseWeight: 12, multiplier3x: 10,  multiplier2x: 0 },
+    { emoji: '🏺', name: 'Vas Suci',    baseWeight: 18, multiplier3x: 5,  multiplier2x: 0 },
+    { emoji: '🧿', name: 'Mata Biru',   baseWeight: 25, multiplier3x: 3,  multiplier2x: 0 },
+    { emoji: '💠', name: 'Batu Permata',baseWeight: 32, multiplier3x: 1,  multiplier2x: 0 },
 ];
 
 const PAYLINES = [
-    { name: 'Line 1 (Top Horizontal)', coordinates: [0, 0, 0, 0, 0, 0], color: '#3b82f6' },
-    { name: 'Line 2 (Middle Horizontal)', coordinates: [1, 1, 1, 1, 1, 1], color: '#ec4899' },
-    { name: 'Line 3 (Bottom Horizontal)', coordinates: [2, 2, 2, 2, 2, 2], color: '#10b981' },
-    { name: 'Line 4 (V-Shape)', coordinates: [0, 1, 2, 2, 1, 0], color: '#fbbf24' },
-    { name: 'Line 5 (Inverted V-Shape)', coordinates: [2, 1, 0, 0, 1, 2], color: '#a855f7' }
+    { name: 'Baris 1', coordinates: [0, 0, 0, 0, 0, 0], color: '#ef4444' },
+    { name: 'Baris 2', coordinates: [1, 1, 1, 1, 1, 1], color: '#f97316' },
+    { name: 'Baris 3', coordinates: [2, 2, 2, 2, 2, 2], color: '#f59e0b' },
+    { name: 'Baris 4', coordinates: [3, 3, 3, 3, 3, 3], color: '#84cc16' },
+    { name: 'Baris 5', coordinates: [4, 4, 4, 4, 4, 4], color: '#10b981' },
+    { name: 'V-Shape Atas', coordinates: [0, 1, 2, 3, 2, 0], color: '#ec4899' },
+    { name: 'V-Shape Bawah', coordinates: [4, 3, 2, 1, 2, 4], color: '#f43f5e' }
 ];
 
 class GoldParticle {
@@ -60,7 +62,7 @@ class GoldParticle {
     }
 }
 
-export class SlotEngine {
+export class ZeusSlotEngine {
     constructor(onBalanceRefresh) {
         this.isSpinning = false;
         this.onBalanceRefresh = onBalanceRefresh;
@@ -70,8 +72,8 @@ export class SlotEngine {
         this.isAutoSpinning = false;
         this.isSpeedUp = false;
         this.skipRequested = false;
-        // Matrix 6x3
-        this.grid = Array.from({length: 6}, () => ['🪨', '🪨', '🪨']);
+        // Matrix 6x5
+        this.grid = Array.from({length: 6}, () => Array(5).fill('💠'));
     }
 
     getRateStatusHTML() {
@@ -86,21 +88,19 @@ export class SlotEngine {
         // Render 6 columns, each having 3 rows
         let colsHTML = '';
         for (let col = 0; col < 6; col++) {
-            colsHTML += `
-                <div class="slot-reel-wrap">
-                    <div id="slot-reel-${col}-0" class="slot-symbol-block">${getSlotSVG('🪨')}</div>
-                    <div id="slot-reel-${col}-1" class="slot-symbol-block">${getSlotSVG('🪨')}</div>
-                    <div id="slot-reel-${col}-2" class="slot-symbol-block">${getSlotSVG('🪨')}</div>
-                </div>
-            `;
+            colsHTML += '\n                <div class="slot-reel-wrap">';
+            for (let row = 0; row < 5; row++) {
+                colsHTML += '\n                    <div id="slot-reel-' + col + '-' + row + '" class="slot-symbol-block">${getSlotSVG('💠')}</div>';
+            }
+            colsHTML += '\n                </div>\n            ';
         }
 
         return `
         <div style="max-width: 720px; margin: 0 auto; text-align: center;">
             <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.35rem; font-size: 1.4rem; letter-spacing: -0.03em;">
-                🎰 <span style="background: linear-gradient(90deg,#fbbf24,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">GOLDY CRUSH</span> SLOT
+                🎰 <span style="background: linear-gradient(90deg,#fbbf24,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">GATES OF ZEUS</span> SLOT
             </h3>
-            <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">6 Kolom, 3 Baris &amp; 5 Garis Payout (Kemenangan Ganda!)</p>
+            <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">6 Kolom, 5 Baris &amp; 7 Garis Payout (Kemenangan Ganda!)</p>
             <div id="slot-rate-badge-container">${this.getRateStatusHTML()}</div>
 
             <!-- Slot Machine Cabinet -->
@@ -126,7 +126,7 @@ export class SlotEngine {
 
                 <!-- Win Display -->
                 <div id="slot-win-display" class="slot-win-display-box">
-                    <span style="color:rgba(255,255,255,0.25); font-size:0.75rem; font-style:italic; text-transform:uppercase; letter-spacing:0.08em;">Tekan Gali Tambang Untuk Memulai...</span>
+                    <span style="color:rgba(255,255,255,0.25); font-size:0.75rem; font-style:italic; text-transform:uppercase; letter-spacing:0.08em;">Tekan Spin Zeus Untuk Memulai...</span>
                 </div>
             </div>
 
@@ -164,14 +164,14 @@ export class SlotEngine {
             <div style="display:flex; gap:0.4rem; margin-top:0.5rem; justify-content:center; width:100%;">
                 <button id="btn-slot-speedup" class="bet-chip" style="flex:1; border-radius:10px; font-weight:800; font-size:0.9rem; height:46px; background:rgba(251,191,36,0.05); border-color:rgba(251,191,36,0.2); color:rgba(255,255,255,0.7); cursor:pointer; transition:all 0.2s;">⚡ CEPAT</button>
                 <button id="btn-slot-spin" class="spin-btn-action" style="flex:2.2; height:46px; padding:0; display:flex; align-items:center; justify-content:center; margin:0;">
-                    ⛏️ GALI TAMBANG
+                    ⛏️ SPIN ZEUS
                 </button>
                 <button id="btn-slot-skip" class="bet-chip" style="flex:1; border-radius:10px; font-weight:800; font-size:0.9rem; height:46px; background:rgba(168,85,247,0.05); border-color:rgba(168,85,247,0.2); color:rgba(255,255,255,0.4); cursor:pointer; transition:all 0.2s;" disabled>⏭️ LEWATI</button>
             </div>
 
             <!-- Paytable Info -->
             <div class="slot-paytable-container">
-                <div style="font-size:0.65rem; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.08em; font-weight:700; margin-bottom:0.5rem; text-align:center;">— TABEL KELIPATAN MULTIPLIER (6x3) —</div>
+                <div style="font-size:0.65rem; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:0.08em; font-weight:700; margin-bottom:0.5rem; text-align:center;">— TABEL KELIPATAN MULTIPLIER (6x5) —</div>
                 <div class="slot-paytable-grid">
                     ${SYMBOLS.map(s => `
                     <div style="background:rgba(255,255,255,0.02); padding:0.3rem 0.5rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
@@ -204,7 +204,7 @@ export class SlotEngine {
             }
             .slot-reel-wrap {
                 overflow:hidden; 
-                height: 180px; 
+                height: 300px; 
                 border-radius:8px; 
                 background:#1c130e; 
                 border:1px solid #3c2419; 
@@ -363,7 +363,7 @@ export class SlotEngine {
                     margin-bottom: 0.4rem;
                 }
                 .slot-reel-wrap {
-                    height: 120px;
+                    height: 200px;
                     border-radius: 6px;
                     padding: 1px 0;
                 }
@@ -629,7 +629,7 @@ export class SlotEngine {
     async _animateReel(colIdx, finalEmojis, delay) {
         return new Promise(resolve => {
             if (this.skipRequested) {
-                for (let r = 0; r < 3; r++) {
+                for (let r = 0; r < 5; r++) {
                     const el = document.getElementById(`slot-reel-${colIdx}-${r}`);
                     if (el) {
                         el.innerHTML = getSlotSVG(finalEmojis[r]);
@@ -648,7 +648,7 @@ export class SlotEngine {
             const interval = setInterval(() => {
                 if (this.skipRequested) {
                     clearInterval(interval);
-                    for (let r = 0; r < 3; r++) {
+                    for (let r = 0; r < 5; r++) {
                         const el = document.getElementById(`slot-reel-${colIdx}-${r}`);
                         if (el) {
                             el.innerHTML = getSlotSVG(finalEmojis[r]);
@@ -659,7 +659,7 @@ export class SlotEngine {
                     return;
                 }
 
-                for (let r = 0; r < 3; r++) {
+                for (let r = 0; r < 5; r++) {
                     const el = document.getElementById(`slot-reel-${colIdx}-${r}`);
                     if (el) {
                         el.innerHTML = getSlotSVG(SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)].emoji);
@@ -669,7 +669,7 @@ export class SlotEngine {
                 ticks++;
                 if (ticks >= maxTicks) {
                     clearInterval(interval);
-                    for (let r = 0; r < 3; r++) {
+                    for (let r = 0; r < 5; r++) {
                         const el = document.getElementById(`slot-reel-${colIdx}-${r}`);
                         if (el) {
                             el.innerHTML = getSlotSVG(finalEmojis[r]);
@@ -721,14 +721,14 @@ export class SlotEngine {
         const spinBtn = document.getElementById('btn-slot-spin');
         if (spinBtn) {
             spinBtn.disabled = true;
-            spinBtn.innerHTML = '<span style="animation:spin 0.5s linear infinite;display:inline-block;">⛏️</span> MENGGALI TAMBANG...';
+            spinBtn.innerHTML = '<span style="animation:spin 0.5s linear infinite;display:inline-block;">⛏️</span> MENGSPIN ZEUS...';
         }
 
         const winDisplay = document.getElementById('slot-win-display');
-        if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.75rem; font-style:italic;">Mesin Gali Sedang Bekerja...</span>`;
+        if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.75rem; font-style:italic;">Gerbang Olympus Sedang Bekerja...</span>`;
 
         // Deduct bet
-        financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Slot 6x3');
+        financeManager.addExpense(betAmount, 'Lainnya', 'Taruhan Slot 6x5');
         this.onBalanceRefresh?.();
 
         // Increment rate plays
@@ -743,11 +743,11 @@ export class SlotEngine {
             luck = Math.max(luck, 3.5);
         }
 
-        // Generate final matrix 6x3
+        // Generate final matrix 6x5
         const resultMatrix = [];
         for (let col = 0; col < 6; col++) {
             const colSymbols = [];
-            for (let row = 0; row < 3; row++) {
+            for (let row = 0; row < 5; row++) {
                 colSymbols.push(this.weightedRandom(luck, betAmount).emoji);
             }
             resultMatrix.push(colSymbols);
@@ -759,7 +759,7 @@ export class SlotEngine {
             if (this.skipRequested) {
                 // Instantly resolve remaining reels
                 for (let c = col; c < 6; c++) {
-                    for (let r = 0; r < 3; r++) {
+                    for (let r = 0; r < 5; r++) {
                         const el = document.getElementById(`slot-reel-${c}-${r}`);
                         if (el) {
                             el.innerHTML = getSlotSVG(resultMatrix[c][r]);
@@ -781,7 +781,7 @@ export class SlotEngine {
         this.isSpinning = false;
         if (spinBtn) {
             spinBtn.disabled = false;
-            spinBtn.innerHTML = '⛏️ GALI TAMBANG';
+            spinBtn.innerHTML = '⛏️ SPIN ZEUS';
         }
 
         // Disable skip button and reset style
@@ -871,7 +871,7 @@ export class SlotEngine {
         // Check each column (vertical - up & down)
         for (let col = 0; col < 6; col++) {
             const colSymbols = [];
-            for (let row = 0; row < 3; row++) {
+            for (let row = 0; row < 5; row++) {
                 colSymbols.push(this.grid[col][row]);
             }
 
@@ -909,8 +909,8 @@ export class SlotEngine {
 
         // Check if dynamite is anywhere on the screen
         for (let col = 0; col < 6; col++) {
-            for (let row = 0; row < 3; row++) {
-                if (this.grid[col][row] === '🧨') {
+            for (let row = 0; row < 5; row++) {
+                if (this.grid[col][row] === '⚡') {
                     hasDynamite = true;
                 }
             }
@@ -930,7 +930,7 @@ export class SlotEngine {
 
         // Payout award and text report
         if (totalPayout > 0) {
-            financeManager.addIncome(totalPayout, 'Investasi', `Kemenangan Slot 6x3: ${winsList.length} Payline`);
+            financeManager.addIncome(totalPayout, 'Investasi', `Kemenangan Slot 6x5: ${winsList.length} Payline`);
             this.onBalanceRefresh?.();
 
             const isJackpot = totalPayout >= bet * 5;
@@ -944,7 +944,7 @@ export class SlotEngine {
                 this.spawnPraiseText('GOLD RUSH! 🤩');
                 this.spawnParticles(40, 'gold');
                 this.spawnParticles(35, 'diamond');
-                ui.success(`MEGA WIN 6x3! Total menang +$ ${totalPayout.toLocaleString()}`, '🎰 Mega Goldy Crush!');
+                ui.success(`MEGA WIN 6x5! Total menang +$ ${totalPayout.toLocaleString()}`, '🎰 Mega Goldy Crush!');
                 import('../../ui/AuraSound.js').then(m => m.default.playCasinoWin());
             } else {
                 this.spawnPraiseText('STRIKE! 🪙');
@@ -963,7 +963,7 @@ export class SlotEngine {
             }
         } else {
             if (winDisplay) winDisplay.innerHTML = `<span style="color:rgba(255,255,255,0.3); font-size:0.75rem; font-style:italic;">Tidak ada kombinasi baris. Gali terus!</span>`;
-            ui.toast({ type: 'warning', title: 'Tambang Kosong', message: 'Tidak ada baris yang cocok!' });
+            ui.toast({ type: 'warning', title: 'Gunung Kosong', message: 'Tidak ada baris yang cocok!' });
             import('../../ui/AuraSound.js').then(m => m.default.playCasinoLose());
         }
     }
