@@ -90,7 +90,7 @@ export class ZeusSlotEngine {
         for (let col = 0; col < 6; col++) {
             colsHTML += '\n                <div class="slot-reel-wrap">';
             for (let row = 0; row < 5; row++) {
-                colsHTML += '\n                    <div id="slot-reel-' + col + '-' + row + '" class="slot-symbol-block">${getSlotSVG('💠')}</div>';
+                colsHTML += `\n                    <div id="slot-reel-${col}-${row}" class="slot-symbol-block">${getSlotSVG('💠')}</div>`;
             }
             colsHTML += '\n                </div>\n            ';
         }
