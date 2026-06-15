@@ -944,13 +944,15 @@ export class MahjongSlotEngine {
             // Spawn floating text and particles
             if (isJackpot) {
                 this.shakeCabinet();
-                this.spawnPraiseText('GOLD RUSH! 🤩');
+                const jackpotTexts = ["MAHJONG MASTER! 🀄", "DRAGON WIN! 🐲", "EPIC MAHJONG! 🀄"];
+                this.spawnPraiseText(jackpotTexts[Math.floor(Math.random() * jackpotTexts.length)]);
                 this.spawnParticles(40, 'gold');
                 this.spawnParticles(35, 'diamond');
-                ui.success(`MEGA WIN 6x8! Total menang +$ ${totalPayout.toLocaleString()}`, '🎰 Mega Goldy Crush!');
+                ui.success(`MEGA WIN 6x8! Total menang +$ ${totalPayout.toLocaleString()}`, '🀄 Mega Mahjong Ways!');
                 import('../../ui/AuraSound.js').then(m => m.default.playCasinoWin());
             } else {
-                this.spawnPraiseText('STRIKE! 🪙');
+                const strikeTexts = ["HU! 🐉", "NICE TILE! 🎋", "MATCH! 💮"];
+                this.spawnPraiseText(strikeTexts[Math.floor(Math.random() * strikeTexts.length)]);
                 this.spawnParticles(20, 'gold');
                 import('../../ui/AuraSound.js').then(m => m.default.playClaimMoney());
             }

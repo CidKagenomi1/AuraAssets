@@ -941,13 +941,15 @@ export class ZeusSlotEngine {
             // Spawn floating text and particles
             if (isJackpot) {
                 this.shakeCabinet();
-                this.spawnPraiseText('GOLD RUSH! 🤩');
+                const jackpotTexts = ["ZEUS STRIKE! ⚡", "OLYMPUS WIN! ⚡", "THUNDERSTORM! ⛈️"];
+                this.spawnPraiseText(jackpotTexts[Math.floor(Math.random() * jackpotTexts.length)]);
                 this.spawnParticles(40, 'gold');
                 this.spawnParticles(35, 'diamond');
-                ui.success(`MEGA WIN 6x5! Total menang +$ ${totalPayout.toLocaleString()}`, '🎰 Mega Goldy Crush!');
+                ui.success(`MEGA WIN 6x5! Total menang +$ ${totalPayout.toLocaleString()}`, '⚡ Mega Gates of Olympus!');
                 import('../../ui/AuraSound.js').then(m => m.default.playCasinoWin());
             } else {
-                this.spawnPraiseText('STRIKE! 🪙');
+                const strikeTexts = ["DIVINE! ✨", "GODLY! 🏛️", "BLESSED! 🏺"];
+                this.spawnPraiseText(strikeTexts[Math.floor(Math.random() * strikeTexts.length)]);
                 this.spawnParticles(20, 'gold');
                 import('../../ui/AuraSound.js').then(m => m.default.playClaimMoney());
             }
