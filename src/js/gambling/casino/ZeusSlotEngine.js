@@ -43,13 +43,13 @@ class GoldParticle {
         this.rotationSpeed = (Math.random() - 0.5) * 15;
         
         if (type === 'gold') {
-            this.color = '#fbbf24';
+            this.color = '#bae6fd';
         } else if (type === 'diamond') {
-            this.color = '#a5f3fc';
+            this.color = '#e0f2fe';
         } else if (type === 'spark') {
-            this.color = '#f97316';
+            this.color = '#38bdf8';
         } else {
-            this.color = '#78716c'; // dust
+            this.color = '#1e3a8a'; // dust
         }
     }
 
@@ -98,20 +98,23 @@ export class ZeusSlotEngine {
         return `
         <div style="max-width: 720px; margin: 0 auto; text-align: center;">
             <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.35rem; font-size: 1.4rem; letter-spacing: -0.03em;">
-                🎰 <span style="background: linear-gradient(90deg,#fbbf24,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">GATES OF ZEUS</span> SLOT
+                🎰 <span style="background: linear-gradient(90deg,#38bdf8,#0284c7); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">GATES OF OLYMPUS</span> SLOT
             </h3>
             <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">6 Kolom, 5 Baris &amp; 7 Garis Payout (Kemenangan Ganda!)</p>
             <div id="slot-rate-badge-container">${this.getRateStatusHTML()}</div>
 
             <!-- Slot Machine Cabinet -->
             <div class="slot-cabinet">
+                <!-- Greek Ornaments -->
+                <div style="position:absolute; top:-10px; left:-10px; font-size:4rem; opacity:0.15; transform:rotate(-15deg); pointer-events:none;">⚡</div>
+                <div style="position:absolute; bottom:-10px; right:-10px; font-size:4rem; opacity:0.15; transform:rotate(15deg); pointer-events:none;">🏛️</div>
                 
                 <!-- Particle overlay canvas -->
                 <canvas id="slot-particle-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10;"></canvas>
 
-                <!-- Top lights row (Industrial Gold Theme) -->
+                <!-- Top lights row (Olympus Blue Theme) -->
                 <div style="display:flex; justify-content:center; gap:0.4rem; margin-bottom:0.6rem;">
-                    ${Array.from({length:9}, (_,i) => `<div class="slot-light" style="width:8px;height:8px;border-radius:50%;background:${i%2===0?'#fbbf24':'#f97316'};box-shadow:0 0 6px ${i%2===0?'#fbbf24':'#f97316'};animation:lightBlink ${0.5+i*0.1}s ease-in-out infinite alternate;"></div>`).join('')}
+                    ${Array.from({length:9}, (_,i) => `<div class="slot-light" style="width:8px;height:8px;border-radius:50%;background:${i%2===0?'#38bdf8':'#bae6fd'};box-shadow:0 0 6px ${i%2===0?'#38bdf8':'#bae6fd'};animation:lightBlink ${0.5+i*0.1}s ease-in-out infinite alternate;"></div>`).join('')}
                 </div>
 
                 <!-- Reels Window -->
@@ -185,17 +188,17 @@ export class ZeusSlotEngine {
         <style>
             .slot-cabinet {
                 position:relative; 
-                background: linear-gradient(180deg, #2d1e18 0%, #170f0b 100%); 
-                border: 3px solid #fbbf24; 
+                background: linear-gradient(180deg, #0f172a 0%, #1e3a8a 100%); 
+                border: 3px solid #38bdf8; 
                 border-radius: 20px; 
                 padding: 1.25rem; 
                 margin-bottom: 0.75rem; 
-                box-shadow: 0 0 30px rgba(251,191,36,0.2), inset 0 0 20px rgba(0,0,0,0.7); 
+                box-shadow: 0 0 30px rgba(56,189,248,0.3), inset 0 0 20px rgba(0,0,0,0.7); 
                 overflow: hidden;
             }
             .slot-window {
-                background:#0a0705; 
-                border:3px solid #513629; 
+                background:#020617; 
+                border:3px solid #0369a1; 
                 border-radius:14px; 
                 padding:0.5rem; 
                 margin-bottom:0.6rem; 
@@ -206,8 +209,8 @@ export class ZeusSlotEngine {
                 overflow:hidden; 
                 height: 300px; 
                 border-radius:8px; 
-                background:#1c130e; 
-                border:1px solid #3c2419; 
+                background:#0f172a; 
+                border:1px solid #0284c7; 
                 position:relative; 
                 display: flex; 
                 flex-direction: column; 
@@ -254,14 +257,14 @@ export class ZeusSlotEngine {
                 margin-bottom:0.75rem;
             }
             .spin-btn-action {
-                background:linear-gradient(135deg,#fbbf24 0%,#d97706 100%); 
+                background:linear-gradient(135deg,#38bdf8 0%,#0284c7 100%); 
                 border:none; 
                 font-weight:900; 
                 font-size:1.15rem; 
                 padding:0.8rem 2rem; 
                 width:100%; 
                 border-radius:10px; 
-                box-shadow:0 4px 12px rgba(251,191,36,0.25); 
+                box-shadow:0 4px 12px rgba(56,189,248,0.4); 
                 cursor:pointer; 
                 transition:all 0.25s; 
                 color:#fff; 
@@ -291,8 +294,8 @@ export class ZeusSlotEngine {
                 50% { text-shadow: 0 0 24px currentColor, 0 0 48px currentColor; }
             }
             @keyframes jackpotFlash {
-                0%, 100% { background: linear-gradient(135deg,#fbbf24 0%,#d97706 100%); }
-                50% { background: linear-gradient(135deg,#f43f5e 0%,#e11d48 100%); }
+                0%, 100% { background: linear-gradient(135deg,#38bdf8 0%,#0284c7 100%); }
+                50% { background: linear-gradient(135deg,#bae6fd 0%,#e0f2fe 100%); box-shadow: 0 0 30px #ffffff; }
             }
             @keyframes rateGlow {
                 from { box-shadow: 0 0 4px rgba(239,68,68,0.4), 0 0 10px rgba(251,191,36,0.2); transform: scale(1); }

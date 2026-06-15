@@ -101,20 +101,25 @@ export class MahjongSlotEngine {
         return `
         <div style="max-width: 720px; margin: 0 auto; text-align: center;">
             <h3 style="font-weight: 900; color: #fff; margin-bottom: 0.35rem; font-size: 1.4rem; letter-spacing: -0.03em;">
-                🎰 <span style="background: linear-gradient(90deg,#fbbf24,#f59e0b); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">MAHJONG WAYS</span> SLOT
+                🎰 <span style="background: linear-gradient(90deg,#ef4444,#fbbf24); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">MAHJONG WAYS MACAU</span> SLOT
             </h3>
             <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-bottom:0.75rem; text-transform:uppercase; letter-spacing:0.1em;">6 Kolom, 8 Baris &amp; 10 Garis Payout (Kemenangan Ganda!)</p>
             <div id="slot-rate-badge-container">${this.getRateStatusHTML()}</div>
 
             <!-- Slot Machine Cabinet -->
             <div class="slot-cabinet">
-                
+                <!-- Chinese Ornaments -->
+                <div style="position:absolute; top:-5px; left:-5px; font-size:4rem; opacity:0.15; transform:rotate(-15deg); pointer-events:none;">🏮</div>
+                <div style="position:absolute; bottom:-10px; right:-10px; font-size:4rem; opacity:0.15; transform:rotate(15deg); pointer-events:none;">🐉</div>
+                <div style="position:absolute; top:40%; left:5px; font-size:2rem; font-weight:900; color:#fbbf24; opacity:0.1; transform:translateY(-50%); pointer-events:none; writing-mode:vertical-rl;">澳門</div>
+                <div style="position:absolute; top:40%; right:5px; font-size:2rem; font-weight:900; color:#fbbf24; opacity:0.1; transform:translateY(-50%); pointer-events:none; writing-mode:vertical-rl;">發財</div>
+
                 <!-- Particle overlay canvas -->
                 <canvas id="slot-particle-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10;"></canvas>
 
-                <!-- Top lights row (Industrial Gold Theme) -->
+                <!-- Top lights row (Chinese Red Theme) -->
                 <div style="display:flex; justify-content:center; gap:0.4rem; margin-bottom:0.6rem;">
-                    ${Array.from({length:9}, (_,i) => `<div class="slot-light" style="width:8px;height:8px;border-radius:50%;background:${i%2===0?'#fbbf24':'#f97316'};box-shadow:0 0 6px ${i%2===0?'#fbbf24':'#f97316'};animation:lightBlink ${0.5+i*0.1}s ease-in-out infinite alternate;"></div>`).join('')}
+                    ${Array.from({length:9}, (_,i) => `<div class="slot-light" style="width:8px;height:8px;border-radius:50%;background:${i%2===0?'#ef4444':'#fbbf24'};box-shadow:0 0 6px ${i%2===0?'#ef4444':'#fbbf24'};animation:lightBlink ${0.5+i*0.1}s ease-in-out infinite alternate;"></div>`).join('')}
                 </div>
 
                 <!-- Reels Window -->
@@ -188,17 +193,17 @@ export class MahjongSlotEngine {
         <style>
             .slot-cabinet {
                 position:relative; 
-                background: linear-gradient(180deg, #2d1e18 0%, #170f0b 100%); 
-                border: 3px solid #fbbf24; 
+                background: linear-gradient(180deg, #7f1d1d 0%, #450a0a 100%); 
+                border: 3px solid #f59e0b; 
                 border-radius: 20px; 
                 padding: 1.25rem; 
                 margin-bottom: 0.75rem; 
-                box-shadow: 0 0 30px rgba(251,191,36,0.2), inset 0 0 20px rgba(0,0,0,0.7); 
+                box-shadow: 0 0 30px rgba(245,158,11,0.3), inset 0 0 20px rgba(0,0,0,0.7); 
                 overflow: hidden;
             }
             .slot-window {
-                background:#0a0705; 
-                border:3px solid #513629; 
+                background:#2e0505; 
+                border:3px solid #b45309; 
                 border-radius:14px; 
                 padding:0.5rem; 
                 margin-bottom:0.6rem; 
@@ -209,8 +214,8 @@ export class MahjongSlotEngine {
                 overflow:hidden; 
                 height: 480px; 
                 border-radius:8px; 
-                background:#1c130e; 
-                border:1px solid #3c2419; 
+                background:#450a0a; 
+                border:1px solid #78350f; 
                 position:relative; 
                 display: flex; 
                 flex-direction: column; 
@@ -257,14 +262,14 @@ export class MahjongSlotEngine {
                 margin-bottom:0.75rem;
             }
             .spin-btn-action {
-                background:linear-gradient(135deg,#fbbf24 0%,#d97706 100%); 
+                background:linear-gradient(135deg,#dc2626 0%,#991b1b 100%); 
                 border:none; 
                 font-weight:900; 
                 font-size:1.15rem; 
                 padding:0.8rem 2rem; 
                 width:100%; 
                 border-radius:10px; 
-                box-shadow:0 4px 12px rgba(251,191,36,0.25); 
+                box-shadow:0 4px 12px rgba(220,38,38,0.4); 
                 cursor:pointer; 
                 transition:all 0.25s; 
                 color:#fff; 
@@ -294,8 +299,8 @@ export class MahjongSlotEngine {
                 50% { text-shadow: 0 0 24px currentColor, 0 0 48px currentColor; }
             }
             @keyframes jackpotFlash {
-                0%, 100% { background: linear-gradient(135deg,#fbbf24 0%,#d97706 100%); }
-                50% { background: linear-gradient(135deg,#f43f5e 0%,#e11d48 100%); }
+                0%, 100% { background: linear-gradient(135deg,#dc2626 0%,#991b1b 100%); }
+                50% { background: linear-gradient(135deg,#fbbf24 0%,#f59e0b 100%); box-shadow: 0 0 30px #fbbf24; }
             }
             @keyframes rateGlow {
                 from { box-shadow: 0 0 4px rgba(239,68,68,0.4), 0 0 10px rgba(251,191,36,0.2); transform: scale(1); }
