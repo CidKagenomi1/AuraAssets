@@ -13,7 +13,6 @@ import earnManager from '../core/EarnManager.js';
 import roleManager from '../core/RoleManager.js';
 import timeManager from '../core/TimeManager.js';
 import ui from './UIManager.js';
-import RoleModules from '../career/RoleModules.js';
 import { countUp, pulseElement, staggerFadeUp, createFloatingText } from './Animations.js';
 
 class HomeScreen {
@@ -26,7 +25,8 @@ class HomeScreen {
         this.bindEvents();
         this.updateBalanceCard();
         this.updateStatusBar();
-        RoleModules.updateAll();
+        this.renderMarketPulse();
+        this.renderMilestones();
         this.updateRecentTransactions();
 
         // Initialize dashboard main chart
@@ -37,24 +37,20 @@ class HomeScreen {
             this.updateBalanceCard();
             this.updateDashboardChart();
         });
-        gameState.on('economyUpdate', () => RoleModules.InvestorModule.renderMarketPulse());
-        gameState.on('earnTick', (data) => RoleModules.BusinessModule.updateEarnUI(data));
-        gameState.on('earnClaim', () => {
-            this.updateBalanceCard();
-            this.updateDashboardChart();
-        });
-        gameState.on('earnUpgrade', () => RoleModules.BusinessModule.updateEarnUI());
+        gameState.on('economyUpdate', () => this.renderMarketPulse());
         gameState.on('dayPass', () => this.updateStatusBar());
         gameState.on('monthPass', () => {
             this.updateStatusBar();
-            RoleModules.updateAll();
+            this.renderMarketPulse();
+            this.renderMilestones();
             this.updateRecentTransactions();
             this.updateDashboardChart();
         });
         gameState.on('roleChange', () => {
             roleManager.applyVisibility();
             this.updateBalanceCard();
-            RoleModules.updateAll();
+            this.renderMarketPulse();
+            this.renderMilestones();
             this.updateDashboardChart();
         });
         gameState.on('transaction', () => {
@@ -179,8 +175,6 @@ class HomeScreen {
             changePercent.style.fontWeight = '700';
             changePercent.textContent = Math.abs(monthlyChange).toFixed(1) + '%';
         }
-
-        this.updateEarnUI();
     }
 
     formatCompact(num) {
@@ -240,8 +234,117 @@ class HomeScreen {
         }).join('');
     }
 
-    updateEarnUI(data) {
-        RoleModules.BusinessModule.updateEarnUI(data);
+    renderMarketPulse() {
+        const status = globalEconomy.getMarketStatus();
+        const fearGreed = globalEconomy.getFearGreedIndex();
+        
+        const valueEl = document.getElementById('fear-greed-value');
+        const statusEl = document.getElementById('fear-greed-status');
+        const needleEl = document.getElementById('fear-greed-needle');
+        const newsEl = document.getElementById('market-pulse-news-text');
+        
+        if (valueEl && statusEl) {
+            let label = 'Neutral';
+            let color = '#eab308';
+            
+            if (fearGreed < 25) {
+                label = 'Extreme Fear';
+                color = '#ef4444';
+            } else if (fearGreed < 45) {
+                label = 'Fear';
+                color = '#f97316';
+            } else if (fearGreed <= 55) {
+                label = 'Neutral';
+                color = '#eab308';
+            } else if (fearGreed <= 75) {
+                label = 'Greed';
+                color = '#22c55e';
+            } else {
+                label = 'Extreme Greed';
+                color = '#10b981';
+            }
+            
+            valueEl.textContent = fearGreed;
+            statusEl.textContent = label;
+            statusEl.style.color = color;
+        }
+
+        if (needleEl) {
+            const angle = (fearGreed - 50) * 1.8;
+            needleEl.style.transform = `rotate(${angle}deg)`;
+        }
+
+        if (newsEl) {
+            const trendMessages = {
+                RECOVERY: [
+                    'Sinyal pemulihan terdeteksi! Rantai pasok mulai stabil dan volume pasar naik.',
+                    'Pasar mulai bergeliat kembali seiring meningkatnya akumulasi institusi.',
+                    'Sentimen negatif mereda, harga aset mulai merangkak naik perlahan.'
+                ],
+                BULL: [
+                    'Ekspansi pasar modal terkonfirmasi! Keuntungan portofolio melesat.',
+                    'Likuiditas investor melimpah, transaksi bursa saham melonjak drastis.',
+                    'Indeks bursa mencatat rekor tertinggi baru ditopang optimisme pasar.'
+                ],
+                PEAK: [
+                    'Ekonomi mencapai puncak siklus. Waspadai aksi koreksi jangka pendek.',
+                    'Volume transaksi berada di level ekstrem. Rawan profit-taking.',
+                    'Valuasi pasar berada di tingkat tertinggi. Pertimbangkan ambil profit.'
+                ],
+                BEAR: [
+                    'Koreksi dalam terjadi di pasar modal. Investor disarankan bersikap defensif.',
+                    'Ketidakpastian ekonomi memicu perlambatan transaksi pasar aset.',
+                    'Diskon harga aset meluas, peluang mencari saham dan kripto potensial.'
+                ],
+                TROUGH: [
+                    'Ekonomi menyentuh titik terendah. Momentum akumulasi aset murah.',
+                    'Pasar sangat sepi, waktu terbaik untuk dollar-cost averaging.',
+                    'Valuasi historis sangat murah, potensi rebound di depan mata.'
+                ]
+            };
+
+            const messages = trendMessages[status.trend] || ['Pasar bergerak stabil dalam rentang sempit.'];
+            const day = gameState.get('gameTime.day') || 1;
+            const msgIdx = day % messages.length;
+            newsEl.textContent = messages[msgIdx];
+        }
+    }
+
+    renderMilestones() {
+        const el = document.getElementById('milestones-list');
+        if (!el) return;
+
+        const balance = gameState.getBalance();
+        const milestones = [
+            { label: 'Modal Awal', target: 100_000, icon: '💵' },
+            { label: 'Portofolio Mapan', target: 500_000, icon: '🛡️' },
+            { label: 'Jutawan Finansial', target: 1_000_000, icon: '💼' },
+            { label: 'Empire Real Estate', target: 10_000_000, icon: '🏛️' },
+            { label: 'Bilioner & Sovereign Wealth', target: 100_000_000, icon: '👑' },
+            { label: 'Financial Freedom Tycoon', target: 1_000_000_000, icon: '🏆' }
+        ];
+
+        el.innerHTML = milestones.map(m => {
+            const done = balance >= m.target;
+            const progress = Math.min(100, (balance / m.target) * 100);
+            return `
+                <div class="milestone-item ${done ? 'achieved' : ''}" style="
+                    display:flex;align-items:center;gap:0.875rem;padding:0.75rem 1rem;
+                    background:${done ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.02)'};
+                    border:1px solid ${done ? 'rgba(16,185,129,0.25)' : 'var(--border-color)'};
+                    border-radius:var(--radius-md);
+                ">
+                    <span style="font-size:1.25rem;opacity:${done ? 1 : 0.4};">${m.icon}</span>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:600;font-size:0.9rem;color:${done ? '#10b981' : 'var(--text-muted)'};">${m.label}</div>
+                        <div style="font-size:0.75rem;color:var(--text-dim);">Target: $ ${this.formatCompact(m.target)}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        ${done ? '<span style="color:#10b981;font-size:0.85rem;font-weight:700;">✓</span>' : `<span style="font-size:0.8rem;color:var(--text-dim);">${progress.toFixed(0)}%</span>`}
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     handleClaim() {
@@ -392,12 +495,6 @@ class HomeScreen {
 
     handleQuickAction(action) {
         switch (action) {
-            case 'gambling':
-                import('../gambling/GamblingPanel.js').then(m => m.default.show());
-                break;
-            case 'work':
-                import('../career/WorkPage.js').then(m => m.default.open());
-                break;
             case 'invest':
             case 'crypto':
                 import('./ViewManager.js').then(m => {
@@ -409,12 +506,6 @@ class HomeScreen {
                 break;
             case 'marketplace':
                 import('../marketplace/panels/MarketplacePanel.js').then(m => m.default.show());
-                break;
-            case 'career':
-                import('../career/panels/CareerPanel.js').then(m => m.default.show());
-                break;
-            case 'business':
-                import('../business/BusinessPage.js').then(m => m.default.open());
                 break;
             case 'loan':
                 import('../finance/panels/LoanPanel.js').then(m => m.default.show());
@@ -739,7 +830,7 @@ class HomeScreen {
             </div>
 
             <div style="margin-bottom:1.25rem;">
-                <div style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.04em;">Ubah Peran</div>
+                <div style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.04em;">Profil Risiko Investor</div>
                 ${roleOptionsHTML}
             </div>
             <hr style="border-color:var(--border-color);margin:1rem 0;">
@@ -858,16 +949,16 @@ class HomeScreen {
                         const newRole = card.dataset.role;
                         if (newRole === roleManager.getRole()) return;
                         const confirmed = await ui.confirm({
-                            title: 'Ganti Peran?',
-                            message: 'Fitur yang tersedia akan berubah sesuai peran baru. Progress tidak hilang.',
-                            confirmText: 'Ya, Ganti',
+                            title: 'Ubah Profil Risiko?',
+                            message: 'Profil risiko investor Anda akan diperbarui. Progres dan portofolio tidak hilang.',
+                            confirmText: 'Ya, Ubah',
                             danger: false
                         });
                         if (confirmed) {
                             roleManager.setRole(newRole);
                             roleManager.applyVisibility();
                             ui.closeModal();
-                            ui.success(`Peran diubah menjadi: ${roleManager.getRoleData()?.label}`);
+                            ui.success(`Profil Risiko diubah menjadi: ${roleManager.getRoleData()?.label}`);
                         }
                     });
                 });
@@ -1034,9 +1125,9 @@ class HomeScreen {
                 </div>
                 ${role ? `
                 <div class="planning-card" style="margin-bottom:1rem;border-color:${role.color}40;">
-                    <h4 style="margin-bottom:0.5rem;">${role.icon} Peran Aktif: ${role.label}</h4>
+                    <h4 style="margin-bottom:0.5rem;">${role.icon} Profil Risiko Aktif: ${role.label}</h4>
                     <p style="color:var(--text-muted);font-size:0.875rem;">${role.detail}</p>
-                    <p style="color:var(--text-muted);font-size:0.875rem;margin-top:0.5rem;">${role.monthlyEvent}</p>
+                    <p style="color:var(--text-muted);font-size:0.875rem;margin-top:0.5rem;">${role.strategy || role.monthlyEvent}</p>
                 </div>
                 ` : ''}
                 <div class="planning-card" style="margin-bottom:1rem;">

@@ -17,7 +17,6 @@ import stockMarket from './trading/StockMarket.js';
 import cryptoMarket from './trading/CryptoMarket.js';
 import bankSystem from './finance/BankSystem.js';
 import taxSystem from './finance/TaxSystem.js';
-import businessManager from './business/BusinessManager.js';
 import savingsManager from './finance/SavingsManager.js';
 import propertyManager from './property/PropertyManager.js';
 import passiveIncomeManager from './trading/PassiveIncomeManager.js';
@@ -27,10 +26,8 @@ import ui from './ui/UIManager.js';
 import homeScreen from './ui/HomeScreen.js';
 import viewManager from './ui/ViewManager.js';
 import { fadeIn, staggerFadeUp } from './ui/Animations.js';
-import workTaskManager from './core/databases/WorkTaskManager.js';
 import loginPortal from './ui/LoginPortal.js';
 import keyboardNavigation from './ui/KeyboardNavigation.js';
-import politicsManager from './core/PoliticsManager.js';
 
 class BusinessTycoonGame {
     constructor() {
@@ -54,7 +51,6 @@ class BusinessTycoonGame {
 
             homeScreen.init();
             viewManager.init();
-            workTaskManager.ensureInit();
             keyboardNavigation.init();
 
             // Apply role-based visibility after UI is ready
@@ -77,14 +73,17 @@ class BusinessTycoonGame {
                 this.finishLoading();
             }
 
-            // First-time player: show welcome → role selection
+            // First-time player: show welcome → risk profile questionnaire
             if (!gameState.get('player.createdAt') || !gameState.get('player.role')) {
                 // Finish loading first so modal is visible on top of app shell
                 this.finishLoading();
                 await this.showWelcomeScreen();
             }
 
-            console.log('✅ Game initialized! Role:', roleManager.getRole());
+            // Navigate directly to the Trading Dashboard
+            viewManager.switchView('market');
+
+            console.log('✅ Game initialized! Risk Profile:', roleManager.getRole());
             this.isInitialized = true;
         } catch (error) {
             console.error('❌ Critical Initialization Error:', error);
@@ -107,14 +106,15 @@ class BusinessTycoonGame {
     }
 
     // ==========================================
-    // WELCOME & ROLE SELECTION ONBOARDING
+    // WELCOME & INVESTOR RISK PROFILE ASSESSMENT
     // ==========================================
 
     async showWelcomeScreen() {
         return new Promise((resolve) => {
+            const defaultName = gameState.activeCharacter || gameState.currentUser || 'Player';
             const nameStep = `
                 <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 1.5rem;">
-                    <h3 class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">💼 Inisialisasi Profil</h3>
+                    <h3 class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">💼 Inisialisasi Profil Investor</h3>
                 </div>
                 <div class="modal-body" style="text-align:center; padding: 2rem 1.5rem;">
                     <div style="margin-bottom:1.5rem; display: flex; justify-content: center;">
@@ -124,16 +124,16 @@ class BusinessTycoonGame {
                     </div>
                     <h2 style="margin-bottom:0.5rem;font-size:1.75rem;font-weight:800;letter-spacing:-0.02em;">AuraAssets</h2>
                     <p style="color:var(--text-muted);margin-bottom:2rem;font-size:0.85rem;line-height:1.5;">
-                        Workspace profesional untuk pemantauan portofolio terpadu, analitis karir, dan operasi korporat.
+                        Terminal perdagangan saham & manajemen portofolio terpadu. Mari tentukan profil risiko investasi Anda sebelum masuk ke lantai bursa.
                     </p>
                     <div class="form-group" style="text-align:left;">
-                        <label class="form-label">Nama Pengguna / ID</label>
-                        <input type="text" id="player-name" class="form-input" placeholder="Masukkan nama..." value="Player" autocomplete="off">
+                        <label class="form-label">Nama Investor / Trader ID</label>
+                        <input type="text" id="player-name" class="form-input" placeholder="Masukkan nama..." value="${defaultName}" autocomplete="off">
                     </div>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid var(--border-color); padding: 1rem 1.5rem;">
                     <button class="btn btn-primary" style="width:100%" id="btn-next-role">
-                        Lanjut →
+                        Mulai Analisis Profil Risiko →
                     </button>
                 </div>
             `;
@@ -141,122 +141,179 @@ class BusinessTycoonGame {
             ui.openModal(nameStep);
 
             document.getElementById('btn-next-role').addEventListener('click', () => {
-                const name = document.getElementById('player-name').value.trim() || 'Player';
+                const name = document.getElementById('player-name').value.trim() || defaultName;
                 gameState.set('player.name', name);
-                this.showRoleSelection(resolve);
+                this.showRiskAssessment(resolve, 0, []);
             });
         });
     }
 
-    showRoleSelection(resolve) {
-        const roles = roleManager.getAllRoles();
+    showRiskAssessment(resolve, stepIndex = 0, answers = []) {
+        const questions = roleManager.getQuestions();
+        if (stepIndex >= questions.length) {
+            const concludedId = roleManager.evaluateRiskProfile(answers);
+            this.showRiskConclusion(concludedId, answers, resolve);
+            return;
+        }
 
-        const roleCardsHTML = roles.map(role => `
-            <div class="role-card" data-role="${role.id}" style="
+        const q = questions[stepIndex];
+        const progressPct = Math.round(((stepIndex + 1) / questions.length) * 100);
+
+        const optionsHTML = q.options.map((opt, idx) => `
+            <div class="risk-option-card" data-score="${opt.score}" style="
                 background: var(--bg-surface);
                 border: 2px solid var(--border-color);
                 border-radius: var(--radius-lg);
-                padding: 1.25rem;
+                padding: 1rem 1.15rem;
                 cursor: pointer;
                 transition: all 0.2s ease;
                 margin-bottom: 0.75rem;
+                display: flex;
+                align-items: flex-start;
+                gap: 0.85rem;
             ">
-                <div style="display:flex;align-items:center;gap:0.875rem;margin-bottom:0.5rem;">
-                    <span style="font-size:1.75rem;">${role.icon}</span>
-                    <div style="flex:1;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div style="font-weight:700;font-size:1rem;color:var(--text-main);">${role.label}</div>
-                            ${role.id === 'survivor' ? '<span style="font-size:0.6rem; background:#ec4899; color:white; padding:2px 6px; border-radius:4px; font-weight:800; letter-spacing:0.05em;">BUSY / HARD MODE</span>' : ''}
-                        </div>
-                        <div style="font-size:0.75rem;color:${role.color};font-weight:600;">
-                            Modal awal: $ ${(role.startingBalance / 1000).toFixed(0)} K
-                        </div>
+                <div style="
+                    width: 28px; height: 28px; border-radius: 50%;
+                    background: rgba(255,255,255,0.06);
+                    border: 1px solid var(--border-color);
+                    display: flex; align-items: center; justify-content: center;
+                    font-weight: 800; font-size: 0.8rem; color: var(--accent-primary);
+                    flex-shrink: 0; margin-top: 2px;
+                ">${String.fromCharCode(65 + idx)}</div>
+                <div style="flex: 1;">
+                    <div style="font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-primary); margin-bottom: 0.2rem;">
+                        ${opt.tag}
+                    </div>
+                    <div style="font-size: 0.88rem; color: var(--text-main); line-height: 1.45; font-weight: 600;">
+                        ${opt.text}
                     </div>
                 </div>
-                <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.4;">${role.desc}</div>
             </div>
         `).join('');
 
         const content = `
-            <div class="modal-header">
-                <h3 class="modal-title">🎯 Pilih Peran Kamu</h3>
+            <div class="modal-header" style="flex-direction: column; align-items: stretch; gap: 0.65rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 class="modal-title" style="font-size: 1.05rem;">🧭 Kuesioner Profil Risiko</h3>
+                    <span style="font-size: 0.75rem; font-weight: 800; color: var(--accent-primary); background: rgba(16,185,129,0.12); padding: 3px 10px; border-radius: 20px;">
+                        Pertanyaan ${stepIndex + 1} / ${questions.length}
+                    </span>
+                </div>
+                <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden;">
+                    <div style="width: ${progressPct}%; height: 100%; background: var(--accent-primary); transition: width 0.3s ease;"></div>
+                </div>
             </div>
             <div class="modal-body">
-                <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.25rem;">
-                    Peran menentukan fitur yang tersedia dan gaya bermainmu. Bisa diubah nanti di Pengaturan.
+                <p style="color: var(--text-main); font-size: 0.96rem; font-weight: 700; line-height: 1.5; margin-bottom: 1.25rem;">
+                    ${q.question}
                 </p>
-                ${roleCardsHTML}
+                ${optionsHTML}
             </div>
+            ${stepIndex > 0 ? `
+            <div class="modal-footer" style="justify-content: flex-start;">
+                <button class="btn btn-secondary btn-sm" id="btn-prev-question" style="width: auto;">← Pertanyaan Sebelumnya</button>
+            </div>
+            ` : ''}
         `;
 
         ui.openModal(content);
 
-        // Hover & select role cards
-        document.querySelectorAll('.role-card').forEach(card => {
+        document.querySelectorAll('.risk-option-card').forEach(card => {
             card.addEventListener('mouseenter', () => {
                 card.style.borderColor = 'var(--accent-primary)';
                 card.style.background = 'var(--bg-surface-hover)';
+                card.style.transform = 'translateY(-1px)';
             });
             card.addEventListener('mouseleave', () => {
-                if (!card.classList.contains('selected')) {
-                    card.style.borderColor = 'var(--border-color)';
-                    card.style.background = 'var(--bg-surface)';
-                }
+                card.style.borderColor = 'var(--border-color)';
+                card.style.background = 'var(--bg-surface)';
+                card.style.transform = '';
             });
             card.addEventListener('click', () => {
-                const roleId = card.dataset.role;
-                this.confirmRoleSelection(roleId, resolve);
+                const score = Number(card.dataset.score);
+                const nextAnswers = [...answers.slice(0, stepIndex), score];
+                this.showRiskAssessment(resolve, stepIndex + 1, nextAnswers);
             });
+        });
+
+        document.getElementById('btn-prev-question')?.addEventListener('click', () => {
+            this.showRiskAssessment(resolve, stepIndex - 1, answers.slice(0, stepIndex - 1));
         });
     }
 
-    confirmRoleSelection(roleId, resolve) {
-        const role = roleManager.getRoleData(roleId);
+    showRiskConclusion(profileId, answers, resolve) {
+        const profile = roleManager.getRoleData(profileId);
+        const totalScore = answers.reduce((a, b) => a + b, 0);
 
         const content = `
             <div class="modal-header">
-                <h3 class="modal-title">${role.icon} Mulai sebagai ${role.label}?</h3>
+                <h3 class="modal-title">📊 Hasil Analisis Profil Risiko</h3>
             </div>
             <div class="modal-body" style="text-align:center;">
-                <p style="color:var(--text-muted);margin-bottom:1rem;font-size:0.9rem;">${role.detail}</p>
-                <div style="background:var(--bg-surface-hover);border-radius:var(--radius-md);padding:1rem;margin-bottom:1.25rem;">
-                    <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.25rem;">Modal Awal</div>
-                    <div style="font-size:1.5rem;font-weight:800;color:var(--text-main);">
-                        $ ${role.startingBalance.toLocaleString('en-US')}
+                <div style="
+                    display: inline-flex; align-items: center; justify-content: center;
+                    width: 68px; height: 68px; border-radius: 20px;
+                    background: ${profile.color}18; border: 2px solid ${profile.color}55;
+                    font-size: 2.25rem; margin-bottom: 0.85rem;
+                ">${profile.icon}</div>
+
+                <div style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.25rem;">
+                    Kesimpulan Karakteristik Anda (Skor Risiko: ${totalScore}/9)
+                </div>
+                <h2 style="font-size: 1.5rem; font-weight: 900; color: ${profile.color}; margin-bottom: 0.65rem;">
+                    ${profile.label}
+                </h2>
+
+                <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.88rem; line-height: 1.55;">
+                    ${profile.detail}
+                </p>
+
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1rem; text-align: left;">
+                    <div style="font-size: 0.7rem; font-weight: 800; color: ${profile.color}; text-transform: uppercase; margin-bottom: 0.25rem;">
+                        🧭 Strategi Portofolio Disarankan
+                    </div>
+                    <div style="font-size: 0.82rem; color: var(--text-main); font-weight: 600;">
+                        ${profile.strategy}
                     </div>
                 </div>
-                <p style="font-size:0.8rem;color:var(--accent-primary);font-weight:600;">${role.id === 'survivor' ? '🔥 EKSTRIM: Semua sumber pendapatan aktif!' : role.monthlyEvent}</p>
+
+                <div style="background:var(--bg-surface-hover);border-radius:var(--radius-md);padding:0.9rem;margin-bottom:0.5rem;">
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.2rem;">Modal Awal Akun Trading</div>
+                    <div style="font-size:1.45rem;font-weight:800;color:var(--text-main);">
+                        $ ${profile.startingBalance.toLocaleString('en-US')}
+                    </div>
+                </div>
             </div>
             <div class="modal-footer" style="gap:0.75rem;">
-                <button class="btn btn-secondary" id="btn-back-role">← Kembali</button>
-                <button class="btn btn-primary" id="btn-confirm-role">🚀 Mulai!</button>
+                <button class="btn btn-secondary" id="btn-retake-risk">↺ Ulangi Kuesioner</button>
+                <button class="btn btn-primary" id="btn-confirm-role">📈 Masuk ke Dashboard Trading</button>
             </div>
         `;
 
         ui.openModal(content);
 
-        document.getElementById('btn-back-role').addEventListener('click', () => {
-            this.showRoleSelection(resolve);
+        document.getElementById('btn-retake-risk').addEventListener('click', () => {
+            this.showRiskAssessment(resolve, 0, []);
         });
 
         document.getElementById('btn-confirm-role').addEventListener('click', () => {
-            // Apply role
-            roleManager.setRole(roleId);
-            
+            roleManager.setRole(profile.id);
+            roleManager.applyVisibility();
+
             const cheatBonus = this.checkCheatCode(gameState.get('player.name'));
-            const startingBalance = role.startingBalance + cheatBonus;
-            
+            const startingBalance = profile.startingBalance + cheatBonus;
+
             gameState.set('player.balance', startingBalance);
             gameState.set('player.monthStartBalance', startingBalance);
             gameState.set('player.createdAt', Date.now());
 
             ui.closeModal();
-            
+
             if (cheatBonus > 0) {
                 ui.success(`Cheat Activated! Saldo awal +$ 1 Triliun`, '💰 ULTRA RICH');
             }
-            
-            ui.success(`Selamat datang, ${gameState.get('player.name')}! Peran: ${role.label}`, '🎉');
+
+            ui.success(`Profil Anda: ${profile.label}. Selamat bertransaksi di Bursa!`, '📈 Terminal Siap');
             resolve();
         });
     }
@@ -279,22 +336,9 @@ class BusinessTycoonGame {
         stockMarket.startUpdates(6000);
         cryptoMarket.startUpdates(4000);
 
-        // Daily economy fluctuation & Corporate holding M&A auctions & Donasi/Luck tick
+        // Daily economy fluctuation & Donasi/Luck tick
         timeManager.onDay(() => {
             globalEconomy.naturalFluctuation();
-            businessManager.tickAuctions();
-            businessManager.processDailyUpdate();
-
-            // Process presidential politics daily effects
-            politicsManager.tickDailyEffects();
-
-            // Process assistant work for the day
-            const assistantResult = workTaskManager.tickAssistant();
-            if (assistantResult?.acted && assistantResult?.description) {
-                ui.info(assistantResult.description, '🧑‍💼 Asisten Kantor');
-            } else if (assistantResult?.acted === false && assistantResult?.description) {
-                ui.warning(assistantResult.description, '⚠️ Asisten');
-            }
 
             // Decrement luck ticks
             const donations = gameState.get('donations') || { totalDonated: 0, luckMultiplier: 1.0, luckTicksRemaining: 0 };
@@ -311,19 +355,8 @@ class BusinessTycoonGame {
             }
         });
 
-        // Monthly: salary + business income + work career bonus
+        // Monthly: dividends & portfolio evaluations
         timeManager.onMonth(() => {
-            const economyIndex = globalEconomy.getIndex();
-            businessManager.processMonthlyUpdate(economyIndex);
-
-            // Career level salary for Karyawan & Survivor
-            const careerSalary = workTaskManager.getMonthlyBonus();
-            const currentRole = roleManager.getRole();
-            if (careerSalary > 0 && (currentRole === 'karyawan' || currentRole === 'survivor')) {
-                financeManager.addIncome(careerSalary, 'Gaji', 'Gaji bulanan');
-                ui.success(`💰 Gaji bulanan +$ ${financeManager.formatCurrency(careerSalary, true)} diterima!`);
-            }
-
             // Fluctuate Rolex price in marketplace
             const marketplace = gameState.get('marketplace') || { inventory: [], purchasedUpgrades: [], rolexMarketPrice: 15000 };
             const changePercent = (Math.random() - 0.5) * 0.2; // -10% to +10%

@@ -20,36 +20,36 @@ class MarketplacePanel {
 
         const upgrades = [
             {
-                id: 'executive_suit',
-                name: 'Executive Suit Setelan Jas',
-                icon: '👔',
-                cost: 10000,
-                desc: 'Jas wol Italia berkualitas tinggi. Memberikan bonus gaji bulanan +15% di pekerjaan tetap Anda secara permanen.',
-                benefit: 'Permanen Gaji Karir +15%'
+                id: 'bloomberg_terminal',
+                name: 'Bloomberg Terminal Pro',
+                icon: '💻',
+                cost: 25000,
+                desc: 'Akses terminal data analitik pasar modal premium dan feed kuantitatif real-time.',
+                benefit: 'Akses Analitik Pasar Pro'
             },
             {
-                id: 'erp_software',
-                name: 'Cloud ERP System Software',
-                icon: '🖥️',
+                id: 'private_wealth_manager',
+                name: 'Private Wealth Advisor License',
+                icon: '🏛️',
                 cost: 50000,
-                desc: 'Sistem ERP terpadu untuk efisiensi bisnis. Mengurangi biaya operasional/pengeluaran bulanan bisnis Anda sebesar 10% secara permanen.',
-                benefit: 'Pengeluaran Bisnis -10%'
+                desc: 'Lisensi penasihat kekayaan pribadi. Mengoptimalkan imbal hasil simpanan dan portofolio perbankan.',
+                benefit: 'Status Nasabah Prioritas'
+            },
+            {
+                id: 'quant_trading_bot',
+                name: 'High-Frequency Trading Algorithm',
+                icon: '🤖',
+                cost: 75000,
+                desc: 'Algoritma bot otomatis untuk memaksimalkan yield arbitrase dan staking aset digital.',
+                benefit: 'Efisiensi Trading Pasif'
             },
             {
                 id: 'gayo_coffee',
                 name: 'Kopi Premium Gayo (Booster)',
                 icon: '☕',
                 cost: 500,
-                desc: 'Kopi arabika berkualitas untuk stamina ekstra. Menambah performa kerja kantor (+25% XP harian) instan untuk 3 hari game berikutnya.',
-                benefit: '+25% XP Karir Selama 3 Hari'
-            },
-            {
-                id: 'viral_bot_campaign',
-                name: 'Viral Bot Campaign (Booster)',
-                icon: '🤖',
-                cost: 25000,
-                desc: 'Kampanye promosi viral berbasis bot AI. Meningkatkan loyalitas pelanggan dan kualitas produk bisnis Anda (+1 Kualitas) secara instan.',
-                benefit: '+1 Kualitas Produk Bisnis'
+                desc: 'Kopi arabika berkualitas untuk stamina ekstra saat memantau pasar finansial.',
+                benefit: 'Stamina Fokus Trading'
             }
         ];
 
@@ -284,16 +284,13 @@ class MarketplacePanel {
 
                         // Apply boosters instantly
                         if (itemId === 'gayo_coffee') {
-                            gameState.set('work.performance', Math.min(100, (gameState.get('work.performance') || 100) + 15));
-                            ui.success('Kopi Gayo diminum! Performa kerja Anda langsung meningkat instan.');
-                        } else if (itemId === 'viral_bot_campaign') {
-                            const biz = gameState.get('business');
-                            if (biz && biz.active) {
-                                gameState.set('business.productQuality', Math.min(10, (biz.productQuality || 1) + 1));
-                                ui.success('Kampanye Bot AI sukses! Kualitas produk bisnis Anda meningkat +1.');
-                            } else {
-                                ui.warning('Anda belum mendirikan bisnis, booster disimpan.');
-                            }
+                            ui.success('☕ Kopi Gayo diminum! Anda siap menganalisis grafik pasar modal.');
+                        } else if (itemId === 'bloomberg_terminal') {
+                            ui.success('💻 Bloomberg Terminal Pro aktif! Feed data pasar institusional terhubung.');
+                        } else if (itemId === 'private_wealth_manager') {
+                            ui.success('🏛️ Lisensi Private Wealth Advisor aktif! Status nasabah prioritas terbuka.');
+                        } else if (itemId === 'quant_trading_bot') {
+                            ui.success('🤖 Algoritma High-Frequency Trading aktif untuk eksekusi sinyal.');
                         }
 
                         gameState.set('marketplace', marketplace);

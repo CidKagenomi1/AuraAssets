@@ -9,7 +9,6 @@ import stockMarket from '../../trading/StockMarket.js';
 import cryptoMarket from '../../trading/CryptoMarket.js';
 import propertyManager from '../../property/PropertyManager.js';
 import roleManager from '../../core/RoleManager.js';
-import workTaskManager from '../../core/databases/WorkTaskManager.js';
 import viewManager from '../../ui/ViewManager.js';
 
 class FinancePanel {
@@ -990,10 +989,8 @@ class FinancePanel {
         const sourcesEl = document.getElementById('wealth-sources');
         if (!sourcesEl) return;
 
-        const workState = gameState.get('work');
-        const jobName = (workState && workState.careerPath)
-            ? workTaskManager.getCareerLevelData().title
-            : 'Tidak bekerja';
+        const roleData = roleManager.getRoleData();
+        const jobName = roleData ? roleData.label : 'Capital Investor';
         const transactions = financeManager.getRecentTransactions(100);
 
         const tradingProfit = transactions

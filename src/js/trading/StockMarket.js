@@ -5,6 +5,7 @@
 
 import gameState from '../core/GameState.js';
 import financeManager from '../finance/FinanceManager.js';
+import marketClient from './MarketClient.js';
 
 // Static config maps matching BusinessManager data (avoids circular dependency)
 const BIZ_TYPE_VAL_MULT = { umkm: 2, startup: 15 };
@@ -18,6 +19,9 @@ class StockMarket {
     constructor() {
         this.stocks = this.initializeStocks();
         this.pendingOrders = []; // Limit orders
+        this.orderBooks = {};    // Authoritative L2 order books per symbol
+        this.recentTrades = {};  // Authoritative recent trades per symbol
+        this.authoritativeMode = false;
         this.updateInterval = null;
         this.pricesLoaded = false;
     }
@@ -228,6 +232,11 @@ class StockMarket {
      * Update all stock prices
      */
     updatePrices() {
+        // When connected to authoritative multiplayer backend, prices are strictly driven by real trades
+        if (this.authoritativeMode) {
+            return;
+        }
+
         const economyIndex = gameState.get('economy.index') || 1000;
         const marketFactor = economyIndex / 1000;
 
@@ -858,6 +867,229 @@ class StockMarket {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
         }
+    }
+
+    // ========================================
+    // AUTHORITATIVE MULTIPLAYER MARKET ENGINE
+    // ========================================
+
+    /**
+     * Connect to the authoritative Node.js + Fastify + Socket.IO + Supabase backend.
+     * Disables local browser price manipulation and synchronizes state from server.
+     */
+    async connectAuthoritativeServer() {
+        try {
+            const serverStocks = await marketClient.fetchStocks();
+            this.authoritativeMode = true;
+
+            serverStocks.forEach(s => {
+                const price = marketClient.fromMinorUnit(s.last_price);
+                const prevClose = marketClient.fromMinorUnit(s.previous_close);
+                const existing = this.stocks[s.symbol] || {};
+
+                this.stocks[s.symbol] = {
+                    ...existing,
+                    name: s.name,
+                    sector: s.sector,
+                    price,
+                    basePrice: prevClose || price,
+                    previousPrice: prevClose || price,
+                    change: Number(s.change_pct || 0),
+                    high24h: marketClient.fromMinorUnit(s.high_24h),
+                    low24h: marketClient.fromMinorUnit(s.low_24h),
+                    volume24h: Number(s.volume_24h || 0),
+                    bestBid: s.best_bid !== null ? marketClient.fromMinorUnit(s.best_bid) : null,
+                    bestAsk: s.best_ask !== null ? marketClient.fromMinorUnit(s.best_ask) : null,
+                    priceHistory: existing.priceHistory?.length ? existing.priceHistory : [price]
+                };
+            });
+
+            await this.syncPortfolioFromServer().catch(() => {});
+            await this.syncOrdersFromServer().catch(() => {});
+
+            await marketClient.connect({
+                onSnapshot: (snapshot) => this.applyServerSnapshot(snapshot),
+                onTrade: (trade) => this.applyServerTrade(trade),
+                onBookUpdate: (book) => this.applyServerBookUpdate(book),
+                onTicker: (ticker) => this.applyServerTicker(ticker),
+                onOrderUpdated: (order) => this.applyServerOrderUpdate(order),
+                onConnectChange: (connected) => {
+                    if (connected) {
+                        this.syncPortfolioFromServer().catch(() => {});
+                        this.syncOrdersFromServer().catch(() => {});
+                    }
+                }
+            });
+
+            gameState.emit('stocksUpdate', this.stocks);
+            return true;
+        } catch (err) {
+            console.warn('⚠️ Authoritative Market Server not reachable, running in local simulation fallback:', err.message);
+            this.authoritativeMode = false;
+            return false;
+        }
+    }
+
+    subscribeStock(symbol) {
+        if (this.authoritativeMode) {
+            marketClient.subscribeSymbol(symbol);
+        }
+    }
+
+    unsubscribeStock(symbol) {
+        if (this.authoritativeMode) {
+            marketClient.unsubscribeSymbol(symbol);
+        }
+    }
+
+    getOrderBook(symbol) {
+        return this.orderBooks[symbol] || { symbol, bids: [], asks: [], bestBid: null, bestAsk: null };
+    }
+
+    getRecentTrades(symbol) {
+        return this.recentTrades[symbol] || [];
+    }
+
+    async syncPortfolioFromServer() {
+        if (!this.authoritativeMode) return null;
+        const data = await marketClient.fetchPortfolio();
+        if (!data) return null;
+
+        if (data.account) {
+            gameState.update('player', p => ({
+                ...p,
+                balance: marketClient.fromMinorUnit(data.account.available_balance),
+                lockedBalance: marketClient.fromMinorUnit(data.account.locked_balance)
+            }));
+        }
+
+        if (Array.isArray(data.positions)) {
+            const mappedPortfolio = {};
+            data.positions.forEach(pos => {
+                mappedPortfolio[pos.symbol] = {
+                    shares: Number(pos.total_quantity),
+                    reservedShares: Number(pos.locked_quantity),
+                    avgBuyPrice: marketClient.fromMinorUnit(pos.avg_buy_price),
+                    totalInvested: marketClient.fromMinorUnit(pos.total_invested)
+                };
+            });
+            gameState.set('stocks', mappedPortfolio);
+        }
+
+        return data;
+    }
+
+    async syncOrdersFromServer() {
+        if (!this.authoritativeMode) return [];
+        const orders = await marketClient.fetchMyOrders({ status: 'ACTIVE' });
+        this.pendingOrders = orders.map(o => ({
+            id: o.id,
+            type: o.side === 'BUY' ? 'LIMIT_BUY' : 'LIMIT_SELL',
+            symbol: o.symbol,
+            shares: Number(o.remaining_quantity),
+            originalShares: Number(o.quantity),
+            filledShares: Number(o.filled_quantity),
+            limitPrice: o.price !== null ? marketClient.fromMinorUnit(o.price) : 0,
+            totalReserved: marketClient.fromMinorUnit(o.locked_funds),
+            status: o.status,
+            createdAt: new Date(o.created_at).getTime()
+        }));
+        this.savePendingOrders();
+        return this.pendingOrders;
+    }
+
+    applyServerSnapshot(snapshot) {
+        if (!snapshot?.symbol) return;
+        if (snapshot.ticker) this.applyServerTicker(snapshot.ticker);
+        if (snapshot.orderbook) this.applyServerBookUpdate(snapshot.orderbook);
+        if (Array.isArray(snapshot.trades)) {
+            this.recentTrades[snapshot.symbol] = snapshot.trades.map(t => ({
+                ...t,
+                price: marketClient.fromMinorUnit(t.price),
+                total_amount: marketClient.fromMinorUnit(t.total_amount)
+            }));
+            gameState.emit('marketTradesUpdate', { symbol: snapshot.symbol, trades: this.recentTrades[snapshot.symbol] });
+        }
+    }
+
+    applyServerTicker(ticker) {
+        if (!ticker?.symbol) return;
+        const symbol = ticker.symbol;
+        const stock = this.stocks[symbol] || { name: ticker.name || symbol, sector: ticker.sector || 'General', priceHistory: [] };
+        const newPrice = marketClient.fromMinorUnit(ticker.last_price ?? ticker.lastPrice);
+
+        stock.previousPrice = stock.price || newPrice;
+        stock.price = newPrice;
+        stock.high24h = marketClient.fromMinorUnit(ticker.high_24h ?? ticker.high24h ?? ticker.last_price);
+        stock.low24h = marketClient.fromMinorUnit(ticker.low_24h ?? ticker.low24h ?? ticker.last_price);
+        stock.volume24h = Number(ticker.volume_24h ?? ticker.volume24h ?? 0);
+        stock.change = Number(ticker.change_pct ?? (((stock.price - (stock.basePrice || stock.previousPrice)) / (stock.basePrice || stock.previousPrice || 1)) * 100));
+
+        if (!stock.priceHistory) stock.priceHistory = [];
+        stock.priceHistory.push(newPrice);
+        if (stock.priceHistory.length > 300) stock.priceHistory.shift();
+
+        this.stocks[symbol] = stock;
+        gameState.emit('stocksUpdate', this.stocks);
+    }
+
+    applyServerBookUpdate(book) {
+        if (!book?.symbol) return;
+        const mappedBook = {
+            symbol: book.symbol,
+            bestBid: book.bestBid !== null ? marketClient.fromMinorUnit(book.bestBid) : null,
+            bestAsk: book.bestAsk !== null ? marketClient.fromMinorUnit(book.bestAsk) : null,
+            spread: book.spread !== null ? marketClient.fromMinorUnit(book.spread) : null,
+            bids: (book.bids || []).map(l => ({ ...l, price: marketClient.fromMinorUnit(l.price) })),
+            asks: (book.asks || []).map(l => ({ ...l, price: marketClient.fromMinorUnit(l.price) })),
+            timestamp: book.timestamp
+        };
+        this.orderBooks[book.symbol] = mappedBook;
+        gameState.emit('orderBookUpdate', mappedBook);
+    }
+
+    applyServerTrade(trade) {
+        if (!trade?.symbol) return;
+        const mappedTrade = {
+            ...trade,
+            price: marketClient.fromMinorUnit(trade.price),
+            total_amount: marketClient.fromMinorUnit(trade.total_amount)
+        };
+        if (!this.recentTrades[trade.symbol]) this.recentTrades[trade.symbol] = [];
+        this.recentTrades[trade.symbol].unshift(mappedTrade);
+        this.recentTrades[trade.symbol] = this.recentTrades[trade.symbol].slice(0, 100);
+
+        // Update live stock price on real trade
+        if (this.stocks[trade.symbol]) {
+            const stock = this.stocks[trade.symbol];
+            stock.previousPrice = stock.price;
+            stock.price = mappedTrade.price;
+            if (!stock.priceHistory) stock.priceHistory = [];
+            stock.priceHistory.push(mappedTrade.price);
+            gameState.emit('stocksUpdate', this.stocks);
+        }
+
+        gameState.emit('marketTrade', mappedTrade);
+    }
+
+    applyServerOrderUpdate(order) {
+        if (!order?.id) return;
+        this.syncPortfolioFromServer().catch(() => {});
+        this.syncOrdersFromServer().catch(() => {});
+        gameState.emit('orderUpdated', order);
+    }
+
+    async submitAuthoritativeOrder({ symbol, side, type, shares, limitPrice = null }) {
+        const res = await marketClient.placeOrder({
+            symbol,
+            side,
+            type,
+            quantity: shares,
+            price: limitPrice
+        });
+        await this.syncPortfolioFromServer();
+        await this.syncOrdersFromServer();
+        return res;
     }
 }
 

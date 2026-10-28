@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LoginPortal.js - Unified single-page login & character selection portal.
  * Step 1: Pilih/buat akun  →  Step 2: Pilih/buat karakter  (semuanya di satu layar)
  */
@@ -187,12 +187,17 @@ if (!document.getElementById('lp-global-style')) {
     document.head.appendChild(s);
 }
 
-// ─── Role config ──────────────────────────────────────────────────────────────
+// ─── Role / Risk Profile config ──────────────────────────────────────────────
 const ROLE_CONFIG = {
-    karyawan: { label: 'Karyawan',  color: '#6366f1', icon: '👔' },
-    investor:  { label: 'Investor', color: '#10b981', icon: '📈' },
-    pebisnis:  { label: 'Pebisnis', color: '#f59e0b', icon: '🏢' },
-    survivor:  { label: 'Survivor', color: '#ec4899', icon: '💀' }
+    conservative: { label: 'Investor Konservatif', color: '#38bdf8', icon: '🛡️' },
+    passive:      { label: 'Investor Pasif',       color: '#10b981', icon: '⚖️' },
+    aggressive:   { label: 'Investor Agresif',     color: '#f59e0b', icon: '🚀' },
+    karyawan:     { label: 'Investor Konservatif', color: '#38bdf8', icon: '🛡️' },
+    investor:     { label: 'Investor Pasif',       color: '#10b981', icon: '⚖️' },
+    pebisnis:     { label: 'Investor Pasif',       color: '#10b981', icon: '⚖️' },
+    tycoon:       { label: 'Investor Konservatif', color: '#38bdf8', icon: '🛡️' },
+    daytrader:    { label: 'Investor Agresif',     color: '#f59e0b', icon: '🚀' },
+    survivor:     { label: 'Investor Agresif',     color: '#f59e0b', icon: '🚀' }
 };
 
 const MONTHS = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
@@ -422,9 +427,9 @@ class LoginPortal {
                 }
             } catch(_) {}
 
-            const roleMeta = charInfo.role
+            const roleMeta = (charInfo.role && ROLE_CONFIG[charInfo.role])
                 ? ROLE_CONFIG[charInfo.role]
-                : { label:'Belum Memilih Peran', color:'#71717a', icon:'👤' };
+                : { label:'Belum Analisis Risiko', color:'#71717a', icon:'🧭' };
             const gameDate = `${charInfo.gameTime.day} ${MONTHS[charInfo.gameTime.month-1]} ${charInfo.gameTime.year}`;
 
             return `

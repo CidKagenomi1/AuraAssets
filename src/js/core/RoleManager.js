@@ -1,179 +1,240 @@
 /**
- * RoleManager.js - Role-Based Gameplay System (v2)
- * Defines available roles and controls feature visibility per role.
+ * RoleManager.js - Investor Risk Profile & Assessment System
+ * Classifies player into Conservative, Passive, or Aggressive investor profiles
+ * based on an interactive risk tolerance questionnaire.
  */
 
 import gameState from './GameState.js';
 
+const ALL_FEATURES = [
+    'market', 'portfolio', 'invest', 'crypto', 'property',
+    'savings', 'loan', 'finance', 'guide', 'trading-signal',
+    'quick-actions', 'marketplace', 'donate', 'tax'
+];
+
 // ==========================================
-// ROLE DEFINITIONS
+// RISK PROFILE DEFINITIONS
 // ==========================================
 export const ROLES = {
-    karyawan: {
-        id: 'karyawan',
-        label: 'Karyawan',
-        icon: '👔',
-        desc: 'Fokus pada jenjang karir, gaji bulanan, simpanan, dan pinjaman.',
-        detail: 'Cocok untuk kamu yang ingin membangun kekayaan secara stabil lewat pekerjaan tetap.',
-        allowedFeatures: ['work', 'career', 'savings', 'loan', 'donate', 'tax', 'finance', 'guide', 'quick-actions', 'marketplace', 'gambling'],
-        hiddenNav: ['market', 'portfolio', 'business', 'property', 'loan', 'savings', 'tax', 'donate', 'finance', 'guide', 'history'],
-        startingBalance: 50000,
-        monthlyEvent: 'Gaji bulanan diterima setiap awal bulan.',
-        color: '#6366f1' // Indigo
-    },
-    investor: {
-        id: 'investor',
-        label: 'Investor',
-        icon: '📈',
-        desc: 'Fokus pada saham, crypto, dan properti untuk pertumbuhan kekayaan.',
-        detail: 'Cocok untuk kamu yang ingin mengembangkan modal lewat pasar finansial.',
-        allowedFeatures: ['market', 'portfolio', 'invest', 'crypto', 'property', 'savings', 'loan', 'finance', 'guide', 'trading-signal', 'quick-actions', 'marketplace', 'gambling'],
-        hiddenNav: ['business', 'property', 'loan', 'savings', 'tax', 'finance', 'guide', 'history'],
+    conservative: {
+        id: 'conservative',
+        label: 'Investor Konservatif',
+        shortLabel: 'Konservatif',
+        icon: '🛡️',
+        desc: 'Mengutamakan keamanan modal pokok, stabilitas arus kas, dan instrumen berisiko rendah.',
+        detail: 'Anda lebih memilih kepastian imbal hasil dibandingkan spekulasi tinggi. Strategi ideal Anda berfokus pada saham blue-chip defensif, deposito berbunga, dan reksa dana pasar uang.',
+        strategy: 'Alokasi rekomendasi: 60% Kas/Deposito · 30% Saham Blue-Chip · 10% Properti',
+        allowedFeatures: ALL_FEATURES,
+        hiddenNav: [],
         startingBalance: 150000,
-        monthlyEvent: 'Dividen dan bunga portofolio dihitung setiap bulan.',
+        monthlyEvent: 'Fokus proteksi modal: dividen saham defensif & bunga deposito stabil setiap bulan.',
+        color: '#38bdf8' // Sky Blue
+    },
+    passive: {
+        id: 'passive',
+        label: 'Investor Pasif',
+        shortLabel: 'Pasif',
+        icon: '⚖️',
+        desc: 'Mengutamakan pertumbuhan terukur jangka panjang, diversifikasi seimbang, dan strategi DCA.',
+        detail: 'Anda mencari keseimbangan optimal antara risiko dan pertumbuhan aset. Anda tidak panik saat koreksi wajar dan mengandalkan pertumbuhan nilai perusahaan secara bertahap.',
+        strategy: 'Alokasi rekomendasi: 50% Saham Indeks/Growth · 30% Properti/Reksa Dana · 20% Kas',
+        allowedFeatures: ALL_FEATURES,
+        hiddenNav: [],
+        startingBalance: 150000,
+        monthlyEvent: 'Pertumbuhan portofolio terdiversifikasi & akumulasi nilai jangka panjang.',
         color: '#10b981' // Emerald
     },
-    pebisnis: {
-        id: 'pebisnis',
-        label: 'Pebisnis',
-        icon: '🏢',
-        desc: 'Fokus pada mendirikan bisnis, mengelola operasional, dan revenue.',
-        detail: 'Cocok untuk kamu yang ingin membangun imperium bisnis dari nol.',
-        allowedFeatures: ['business', 'loan', 'tax', 'savings', 'donate', 'finance', 'guide', 'property', 'marketplace', 'quick-actions', 'gambling'],
-        hiddenNav: ['market', 'portfolio'],
-        startingBalance: 50000,
-        monthlyEvent: 'Revenue bisnis masuk setiap akhir bulan.',
-        color: '#f59e0b' // Amber
-    },
-    survivor: {
-        id: 'survivor',
-        label: 'Survivor',
-        icon: '💀',
-        desc: 'Hybrid total: Menjalankan Karir, Investasi, dan Bisnis sekaligus.',
-        detail: 'Role tersulit dan tersibuk. Kamu punya akses ke SEMUA fitur, tapi harus membagi fokus di banyak lini.',
-        allowedFeatures: ['work', 'career', 'market', 'portfolio', 'invest', 'crypto', 'property', 'business', 'savings', 'loan', 'donate', 'tax', 'finance', 'guide', 'trading-signal', 'quick-actions', 'marketplace', 'gambling'],
+    aggressive: {
+        id: 'aggressive',
+        label: 'Investor Agresif',
+        shortLabel: 'Agresif',
+        icon: '🚀',
+        desc: 'Mengutamakan akselerasi modal maksimal, momentum pasar aktif, dan aset volatilitas tinggi.',
+        detail: 'Anda siap menghadapi fluktuasi harga tajam demi mengejar imbal hasil eksponensial (high-alpha) melalui eksekusi order aktif di bursa saham dan kripto.',
+        strategy: 'Alokasi rekomendasi: 70% Saham High-Beta & Trading Aktif · 20% Kripto · 10% Kas Likuid',
+        allowedFeatures: ALL_FEATURES,
         hiddenNav: [],
-        startingBalance: 250000,
-        monthlyEvent: 'Semua event bulanan (gaji, dividen, revenue) aktif sekaligus!',
-        color: '#ec4899' // Pink/Magenta
+        startingBalance: 150000,
+        monthlyEvent: 'Momentum pasar tinggi: peluang capital gain maksimal dari dinamika order book.',
+        color: '#f59e0b' // Amber / Orange
     }
 };
 
+// Legacy role mapping for backward compatibility with older saves
+const LEGACY_ROLE_MAP = {
+    investor: 'passive',
+    tycoon: 'conservative',
+    daytrader: 'aggressive',
+    karyawan: 'conservative',
+    pebisnis: 'passive',
+    survivor: 'aggressive'
+};
+
+// ==========================================
+// RISK ASSESSMENT QUESTIONNAIRE
+// ==========================================
+export const RISK_QUESTIONS = [
+    {
+        id: 'q1_drop_reaction',
+        question: 'Jika nilai portofolio saham Anda tiba-tiba turun 20% dalam seminggu karena sentimen pasar, apa tindakan Anda?',
+        options: [
+            {
+                text: 'Segera jual sebagian atau seluruh aset untuk mengamankan sisa modal',
+                score: 1,
+                tag: 'Proteksi Modal'
+            },
+            {
+                text: 'Tetap tenang menahan posisi (Hold) dan menunggu pasar pulih secara alami',
+                score: 2,
+                tag: 'Disiplin Jangka Panjang'
+            },
+            {
+                text: 'Membeli lebih banyak saham di harga bawah (Buy the Dip) untuk memaksimalkan rebound',
+                score: 3,
+                tag: 'High Conviction'
+            }
+        ]
+    },
+    {
+        id: 'q2_return_preference',
+        question: 'Manakah skenario pertumbuhan modal tahunan yang paling sesuai dengan kenyamanan Anda?',
+        options: [
+            {
+                text: 'Pertumbuhan stabil +6% hingga +10% per tahun dengan risiko penurunan hampir nol',
+                score: 1,
+                tag: 'Stabilitas Pasti'
+            },
+            {
+                text: 'Potensi tumbuh +15% hingga +25% per tahun dengan kemungkinan fluktuasi wajar ±10%',
+                score: 2,
+                tag: 'Seimbang'
+            },
+            {
+                text: 'Potensi melesat +50% hingga +100% lebih dengan risiko koreksi tajam sewaktu-waktu',
+                score: 3,
+                tag: 'Eksponensial'
+            }
+        ]
+    },
+    {
+        id: 'q3_trading_style',
+        question: 'Bagaimana gaya Anda dalam mengelola order dan transaksi di bursa pasar modal?',
+        options: [
+            {
+                text: 'Jarang transaksi, fokus menyimpan kas di instrumen aman & saham anti-krisis',
+                score: 1,
+                tag: 'Defensif'
+            },
+            {
+                text: 'Beli bertahap secara berkala di saham fundamental kuat tanpa memantau grafik tiap menit',
+                score: 2,
+                tag: 'Investasi Pasif'
+            },
+            {
+                text: 'Aktif memasang Limit/Market Order memanfaatkan spread order book dan momentum harga',
+                score: 3,
+                tag: 'Active Trader'
+            }
+        ]
+    }
+];
+
 class RoleManager {
     /**
-     * Get the active role ID from state
+     * Evaluate answers array (each 1, 2, or 3) and conclude risk profile ID
+     * Total score range for 3 questions: 3 to 9
+     * - 3–4: conservative
+     * - 5–7: passive
+     * - 8–9: aggressive
+     */
+    evaluateRiskProfile(scores = []) {
+        const total = scores.reduce((sum, s) => sum + Number(s || 2), 0);
+        if (total <= 4) return 'conservative';
+        if (total <= 7) return 'passive';
+        return 'aggressive';
+    }
+
+    /**
+     * Get the active risk profile ID from state, fallback to 'passive'
      */
     getRole() {
-        return gameState.get('player.role') || null;
+        const rawRole = gameState.get('player.role');
+        if (rawRole && ROLES[rawRole]) return rawRole;
+        if (rawRole && LEGACY_ROLE_MAP[rawRole]) return LEGACY_ROLE_MAP[rawRole];
+        return 'passive';
     }
 
     /**
-     * Get full role definition object
+     * Get full profile definition object
      */
     getRoleData(roleId = null) {
-        const id = roleId || this.getRole();
-        return ROLES[id] || null;
+        const mappedId = roleId ? (ROLES[roleId] ? roleId : LEGACY_ROLE_MAP[roleId]) : this.getRole();
+        return ROLES[mappedId] || ROLES.passive;
+    }
+
+    getAllRoles() {
+        return Object.values(ROLES);
+    }
+
+    getQuestions() {
+        return RISK_QUESTIONS;
     }
 
     /**
-     * Set a new role, emit 'roleChange' event
+     * Set a new risk profile, emit 'roleChange' event
      */
     setRole(roleId) {
-        if (!ROLES[roleId]) {
-            console.warn(`RoleManager: Unknown role "${roleId}"`);
-            return false;
-        }
-        gameState.set('player.role', roleId);
+        const resolvedId = ROLES[roleId] ? roleId : (LEGACY_ROLE_MAP[roleId] || 'passive');
+        gameState.set('player.role', resolvedId);
+        gameState.set('player.riskProfile', resolvedId);
         gameState.set('player.roleSelectedAt', Date.now());
-        gameState.emit('roleChange', roleId);
+        gameState.emit('roleChange', resolvedId);
         return true;
     }
 
     /**
-     * Check if a feature is allowed for the active role
-     * @param {string} featureId - e.g. 'market', 'career', 'business'
+     * Check if a feature is allowed
      */
     isFeatureAllowed(featureId) {
         const role = this.getRoleData();
-        if (!role) return false; // No role set → hide features until selected
-        return role.allowedFeatures.includes(featureId);
+        return role ? role.allowedFeatures.includes(featureId) : true;
     }
 
-    /**
-     * Get list of nav items to hide for the active role
-     */
     getHiddenNavItems() {
-        const role = this.getRoleData();
-        return role?.hiddenNav || [];
+        return [];
     }
 
     /**
-     * Apply role-based visibility to the DOM.
-     * Elements with [data-feature] are shown/hidden based on active role.
+     * Apply profile badge to sidebar and ensure all trading features are visible
      */
     applyVisibility() {
         const role = this.getRoleData();
-        // If no role, we still want to process and hide everything
 
-        // Handle feature cards / menu items
         document.querySelectorAll('[data-feature]').forEach(el => {
             const feature = el.dataset.feature;
-            const allowed = role ? role.allowedFeatures.includes(feature) : false;
+            const allowed = role ? role.allowedFeatures.includes(feature) : true;
             el.classList.toggle('hidden', !allowed);
         });
 
-        // Handle nav items (sidebar + bottom nav)
         document.querySelectorAll('.nav-btn[data-view]').forEach(el => {
-            const view = el.dataset.view;
-            const hidden = role ? role.hiddenNav.includes(view) : true;
-            el.classList.toggle('hidden', hidden);
+            el.classList.remove('hidden');
         });
         document.querySelectorAll('.sidebar-link[data-view]').forEach(el => {
-            const view = el.dataset.view;
-            const hidden = role ? role.hiddenNav.includes(view) : true;
-            el.classList.toggle('hidden', hidden);
+            el.classList.remove('hidden');
         });
 
-        // Show/hide earn panel — for Karyawan & Survivor
-        const earnPanel = document.getElementById('earn-panel');
-        if (earnPanel) {
-            const isEarnRole = role && (role.id === 'karyawan' || role.id === 'survivor');
-            earnPanel.classList.toggle('hidden', !isEarnRole);
-        }
-
-        // Update role badge in sidebar
         const roleBadge = document.getElementById('player-role-badge');
         if (roleBadge) {
             if (role) {
-                roleBadge.textContent = role.label.toUpperCase();
+                roleBadge.textContent = `${role.icon} ${role.label.toUpperCase()}`;
                 roleBadge.style.color = role.color;
                 roleBadge.classList.remove('hidden');
             } else {
                 roleBadge.classList.add('hidden');
             }
         }
-
-        // Handle sidebar dividers
-        document.querySelectorAll('.sidebar-divider').forEach(el => {
-            const isPebisnis = role && (role.id === 'pebisnis' || role.id === 'survivor');
-            el.classList.toggle('hidden', !isPebisnis);
-        });
-    }
-
-    /**
-     * Get all roles as array (for role picker UI)
-     */
-    getAllRoles() {
-        return Object.values(ROLES);
-    }
-
-    /**
-     * Check if role has been selected
-     */
-    hasRole() {
-        return !!this.getRole();
     }
 }
 
-export const roleManager = new RoleManager();
+const roleManager = new RoleManager();
 export default roleManager;

@@ -10,7 +10,6 @@ import gameState from '../core/GameState.js';
 import ui from './UIManager.js';
 import tradingPage from '../trading/TradingPage.js';
 import { swipeTransition, staggerFadeUp } from './Animations.js';
-import { businessPage } from '../business/BusinessPage.js';
 import propertyManager from '../property/PropertyManager.js';
 import roleManager from '../core/RoleManager.js';
 import passiveIncomeManager from '../trading/PassiveIncomeManager.js';
@@ -79,12 +78,9 @@ window.openCryptoDetail = (symbol) => {
 class ViewManager {
   constructor() {
     this.currentView = 'home';
-    // BUG-08 FIX: Standardize to CSS selectors throughout (# for IDs, . for classes)
     this.homeSections = [
       '#balance-card',
       '#market-pulse-widget',
-      '#earn-panel',
-      '#company-dashboard',
       '.quick-actions',
       '#footer-dashboard-grid'
     ];
@@ -129,10 +125,6 @@ class ViewManager {
     });
     gameState.on('roleChange', () => {
       this.updateMobileBottomNav(this.currentView);
-    });
-    // BUG-10 FIX: Refresh earn widget immediately after claim (don't wait for next earnTick)
-    gameState.on('earnClaim', () => {
-      import('../career/RoleModules.js').then(m => m.default.BusinessModule.updateEarnUI({ pendingEarn: 0 }));
     });
   }
 
@@ -180,11 +172,6 @@ class ViewManager {
     // Close trading terminal if switching to another view
     if (typeof tradingPage !== 'undefined' && tradingPage.close) {
       tradingPage.close();
-    }
-
-    // Close business page if switching to another view
-    if (businessPage && businessPage.isOpen) {
-      businessPage.close();
     }
 
     const prevView = this.currentView;
@@ -236,11 +223,6 @@ class ViewManager {
 
   loadViewContent(view) {
     switch (view) {
-      case 'gambling':
-        import('../gambling/GamblingPanel.js').then(module => {
-          module.default.show();
-        });
-        break;
       case 'marketplace':
         import('../marketplace/panels/MarketplacePanel.js').then(module => {
           module.default.show();
@@ -260,11 +242,6 @@ class ViewManager {
       case 'trading-signal':
         import('../trading/panels/TradingSignalPanel.js').then(module => {
           module.default.show();
-        });
-        break;
-      case 'business':
-        import('../business/BusinessPage.js').then(module => {
-          module.default.open();
         });
         break;
       case 'loan':
@@ -616,11 +593,11 @@ class ViewManager {
       home: { id: 'home', label: 'Beranda', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>` },
       market: { id: 'market', label: 'Pasar', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/></svg>` },
       portfolio: { id: 'portfolio', label: 'Portofolio', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>` },
-      business: { id: 'business', label: 'Bisnis', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>` }
+      property: { id: 'property', label: 'Properti', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>` }
     };
 
     // Bottom Row (Dominant) Candidates
-    const primaryIds = ['home', 'market', 'portfolio', 'business'];
+    const primaryIds = ['home', 'market', 'portfolio', 'property'];
     let bottomItems = primaryIds
       .filter(id => id === 'home' || !role.hiddenNav.includes(id))
       .map(id => navItems[id]);
