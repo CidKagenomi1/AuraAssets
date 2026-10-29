@@ -147,6 +147,7 @@ class CryptoMarket {
         };
 
         Object.keys(cryptos).forEach(symbol => {
+            cryptos[symbol].symbol = symbol;
             cryptos[symbol].priceHistory = [cryptos[symbol].price];
             cryptos[symbol].previousPrice = cryptos[symbol].price;
             cryptos[symbol].change = 0;
@@ -303,7 +304,9 @@ class CryptoMarket {
     // ========================================
 
     marketBuy(symbol, amountUSD) {
-        const crypto = this.cryptos[symbol];
+        if (!symbol) throw new Error('Crypto not found');
+        const cKey = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        const crypto = this.cryptos[cKey] || this.cryptos[symbol];
         if (!crypto) throw new Error('Crypto not found');
         if (amountUSD <= 0) throw new Error('Invalid amount');
 
@@ -330,29 +333,33 @@ class CryptoMarket {
             balance: p.balance - amountUSD
         }));
 
-        this.addToWallet(symbol, cryptoAmount, crypto.price);
+        const actualSymbol = crypto.symbol || cKey;
+        this.addToWallet(actualSymbol, cryptoAmount, crypto.price);
 
         // Accumulate 24h volume & buy order pressure
         crypto.volume24h = (crypto.volume24h || (crypto.price * 50000)) + amountUSD;
         crypto.recentBuyVolume = (crypto.recentBuyVolume || 0) + amountUSD;
 
         gameState.emit('cryptoBuy', {
-            symbol,
+            symbol: actualSymbol,
             cryptoAmount,
             price: crypto.price,
             totalCost: amountUSD,
             orderType: 'MARKET'
         });
 
-        return { symbol, cryptoAmount, price: crypto.price, totalCost: amountUSD, orderType: 'MARKET' };
+        return { symbol: actualSymbol, cryptoAmount, price: crypto.price, totalCost: amountUSD, orderType: 'MARKET' };
     }
 
     marketSell(symbol, cryptoAmount) {
-        const crypto = this.cryptos[symbol];
+        if (!symbol) throw new Error('Crypto not found');
+        const cKey = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        const crypto = this.cryptos[cKey] || this.cryptos[symbol];
         if (!crypto) throw new Error('Crypto not found');
 
+        const actualSymbol = crypto.symbol || cKey;
         const wallet = gameState.get('crypto') || {};
-        const holding = wallet[symbol];
+        const holding = wallet[actualSymbol] || wallet[symbol];
 
         if (!holding || holding.amount < cryptoAmount) {
             throw new Error('Crypto tidak cukup');
@@ -419,7 +426,9 @@ class CryptoMarket {
     // ========================================
 
     limitBuy(symbol, amountUSD, limitPrice) {
-        const crypto = this.cryptos[symbol];
+        if (!symbol) throw new Error('Crypto not found');
+        const cKey = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        const crypto = this.cryptos[cKey] || this.cryptos[symbol];
         if (!crypto) throw new Error('Crypto not found');
         if (amountUSD <= 0) throw new Error('Invalid amount');
 
@@ -432,10 +441,11 @@ class CryptoMarket {
             balance: p.balance - amountUSD
         }));
 
+        const actualSymbol = crypto.symbol || cKey;
         const order = {
             id: Date.now() + Math.random(),
             type: 'LIMIT_BUY',
-            symbol,
+            symbol: actualSymbol,
             amountUSD,
             limitPrice,
             cryptoAmount: amountUSD / limitPrice,
@@ -451,11 +461,14 @@ class CryptoMarket {
     }
 
     limitSell(symbol, cryptoAmount, limitPrice) {
-        const crypto = this.cryptos[symbol];
+        if (!symbol) throw new Error('Crypto not found');
+        const cKey = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        const crypto = this.cryptos[cKey] || this.cryptos[symbol];
         if (!crypto) throw new Error('Crypto not found');
 
+        const actualSymbol = crypto.symbol || cKey;
         const wallet = gameState.get('crypto') || {};
-        const holding = wallet[symbol];
+        const holding = wallet[actualSymbol] || wallet[symbol];
 
         if (!holding || holding.amount < cryptoAmount) {
             throw new Error('Crypto tidak cukup');
@@ -468,7 +481,7 @@ class CryptoMarket {
         const order = {
             id: Date.now() + Math.random(),
             type: 'LIMIT_SELL',
-            symbol,
+            symbol: actualSymbol,
             cryptoAmount,
             limitPrice,
             avgBuyPrice: holding.avgBuyPrice,
@@ -690,7 +703,13 @@ class CryptoMarket {
     // ========================================
 
     getCrypto(symbol) {
-        return this.cryptos[symbol];
+        if (!symbol) return null;
+        const cKey = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        const crypto = this.cryptos[cKey] || this.cryptos[symbol];
+        if (crypto && !crypto.symbol) {
+            crypto.symbol = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        }
+        return crypto;
     }
 
     getAllCryptos() {

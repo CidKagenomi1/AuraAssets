@@ -188,6 +188,7 @@ class StockMarket {
         };
 
         Object.keys(stocks).forEach(symbol => {
+            stocks[symbol].symbol = symbol;
             stocks[symbol].priceHistory = [stocks[symbol].price];
             stocks[symbol].previousPrice = stocks[symbol].price;
             stocks[symbol].change = 0;
@@ -370,7 +371,9 @@ class StockMarket {
     // ========================================
 
     marketBuy(symbol, shares) {
-        const stock = this.stocks[symbol];
+        if (!symbol) throw new Error('Stock not found');
+        const sKey = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        const stock = this.stocks[sKey] || this.stocks[symbol];
         if (!stock) throw new Error('Stock not found');
         if (shares <= 0) throw new Error('Invalid shares');
 
@@ -397,29 +400,33 @@ class StockMarket {
             balance: p.balance - totalCost
         }));
 
-        this.addToPortfolio(symbol, shares, stock.price);
+        const actualSymbol = stock.symbol || sKey;
+        this.addToPortfolio(actualSymbol, shares, stock.price);
 
         // Accumulate 24h volume & buy order pressure
         stock.volume24h = (stock.volume24h || 100000) + shares;
         stock.recentBuyVolume = (stock.recentBuyVolume || 0) + totalCost;
 
         gameState.emit('stockBuy', {
-            symbol,
+            symbol: actualSymbol,
             shares,
             price: stock.price,
             totalCost,
             orderType: 'MARKET'
         });
 
-        return { symbol, shares, price: stock.price, totalCost, orderType: 'MARKET' };
+        return { symbol: actualSymbol, shares, price: stock.price, totalCost, orderType: 'MARKET' };
     }
 
     marketSell(symbol, shares) {
-        const stock = this.stocks[symbol];
+        if (!symbol) throw new Error('Stock not found');
+        const sKey = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        const stock = this.stocks[sKey] || this.stocks[symbol];
         if (!stock) throw new Error('Stock not found');
 
+        const actualSymbol = stock.symbol || sKey;
         const portfolio = gameState.get('stocks') || {};
-        const holding = portfolio[symbol];
+        const holding = portfolio[actualSymbol] || portfolio[symbol];
 
         if (!holding || holding.shares < shares) {
             throw new Error('Saham tidak cukup');
@@ -486,7 +493,9 @@ class StockMarket {
     // ========================================
 
     limitBuy(symbol, shares, limitPrice) {
-        const stock = this.stocks[symbol];
+        if (!symbol) throw new Error('Stock not found');
+        const sKey = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        const stock = this.stocks[sKey] || this.stocks[symbol];
         if (!stock) throw new Error('Stock not found');
         if (shares <= 0) throw new Error('Invalid shares');
         if (limitPrice <= 0) throw new Error('Invalid limit price');
@@ -502,10 +511,11 @@ class StockMarket {
             balance: p.balance - totalCost
         }));
 
+        const actualSymbol = stock.symbol || sKey;
         const order = {
             id: Date.now() + Math.random(),
             type: 'LIMIT_BUY',
-            symbol,
+            symbol: actualSymbol,
             shares,
             limitPrice,
             totalReserved: totalCost,
@@ -522,11 +532,14 @@ class StockMarket {
     }
 
     limitSell(symbol, shares, limitPrice) {
-        const stock = this.stocks[symbol];
+        if (!symbol) throw new Error('Stock not found');
+        const sKey = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        const stock = this.stocks[sKey] || this.stocks[symbol];
         if (!stock) throw new Error('Stock not found');
 
+        const actualSymbol = stock.symbol || sKey;
         const portfolio = gameState.get('stocks') || {};
-        const holding = portfolio[symbol];
+        const holding = portfolio[actualSymbol] || portfolio[symbol];
 
         if (!holding || holding.shares < shares) {
             throw new Error('Saham tidak cukup');
@@ -539,7 +552,7 @@ class StockMarket {
         const order = {
             id: Date.now() + Math.random(),
             type: 'LIMIT_SELL',
-            symbol,
+            symbol: actualSymbol,
             shares,
             limitPrice,
             avgBuyPrice: holding.avgBuyPrice,
@@ -779,7 +792,13 @@ class StockMarket {
     // ========================================
 
     getStock(symbol) {
-        return this.stocks[symbol];
+        if (!symbol) return null;
+        const sKey = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        const stock = this.stocks[sKey] || this.stocks[symbol];
+        if (stock && !stock.symbol) {
+            stock.symbol = typeof symbol === 'string' ? symbol.toUpperCase() : symbol;
+        }
+        return stock;
     }
 
     getAllStocks() {

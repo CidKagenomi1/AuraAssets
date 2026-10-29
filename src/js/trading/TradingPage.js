@@ -37,9 +37,14 @@ class TradingPage {
    */
   getAsset() {
     if (!this.currentAsset) return null;
-    return this.assetType === 'stock'
+    const isStock = this.assetType === 'stock' || this.assetType === 'stocks';
+    const asset = isStock
       ? stockMarket.getStock(this.currentAsset)
       : cryptoMarket.getCrypto(this.currentAsset);
+    if (asset && !asset.symbol) {
+      asset.symbol = this.currentAsset;
+    }
+    return asset;
   }
 
   /**
@@ -49,7 +54,7 @@ class TradingPage {
    */
   open(symbol, type = 'stock') {
     this.currentAsset = symbol;
-    this.assetType = type;
+    this.assetType = type === 'stocks' ? 'stock' : type;
 
     const asset = this.getAsset();
     if (!asset) {

@@ -409,43 +409,45 @@ class OrderPanel {
   }
 
   executeStockOrder(isBuy, isLimit, asset) {
+    const symbol = asset.symbol || asset.id;
     const input = document.getElementById(isLimit ? 'limit-amount' : 'market-amount');
     const amount = input?.getNumericValue ? input.getNumericValue() : (parseInt(input?.value?.replace(/,/g, ''), 10) || 0);
     const limitPriceInput = document.getElementById('limit-price');
     const limitPrice = limitPriceInput?.getNumericValue ? limitPriceInput.getNumericValue() : (parseFloat(limitPriceInput?.value?.replace(/,/g, '')) || asset.price);
     if (isBuy) {
       if (isLimit) {
-        stockMarket.limitBuy(asset.symbol, amount, limitPrice);
+        stockMarket.limitBuy(symbol, amount, limitPrice);
         ui.success(`Limit Buy: ${amount} lot @ $ ${financeManager.formatCurrency(limitPrice)}`);
       } else {
-        const r = stockMarket.marketBuy(asset.symbol, amount);
+        const r = stockMarket.marketBuy(symbol, amount);
         ui.success(`Buy: ${amount} lot @ $ ${financeManager.formatCurrency(r.price)}`);
       }
     } else {
       if (isLimit) {
-        stockMarket.limitSell(asset.symbol, amount, limitPrice);
+        stockMarket.limitSell(symbol, amount, limitPrice);
         ui.success(`Limit Sell: ${amount} lot`);
       } else {
-        const r = stockMarket.marketSell(asset.symbol, amount);
+        const r = stockMarket.marketSell(symbol, amount);
         ui.success(`Sell: ${amount} lot. P/L: ${r.profit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(r.profit)}`);
       }
     }
   }
 
   executeCryptoOrder(isBuy, isLimit, asset) {
+    const symbol = asset.symbol || asset.id;
     const input = document.getElementById(isLimit ? 'limit-amount' : 'market-amount');
     const amountIDR = input?.getNumericValue ? input.getNumericValue() : (parseInt(input?.value?.replace(/,/g, ''), 10) || 0);
     const limitPriceInput = document.getElementById('limit-price');
     const limitPrice = limitPriceInput?.getNumericValue ? limitPriceInput.getNumericValue() : (parseFloat(limitPriceInput?.value?.replace(/,/g, '')) || asset.price);
-    const holding = (gameState.get('crypto') || {})[asset.symbol];
+    const holding = (gameState.get('crypto') || {})[symbol];
 
     if (isBuy) {
       if (isLimit) {
-        cryptoMarket.limitBuy(asset.symbol, amountIDR, limitPrice);
+        cryptoMarket.limitBuy(symbol, amountIDR, limitPrice);
         ui.success(`Limit Buy @ ${cryptoMarket.formatPrice(limitPrice)}`);
       } else {
-        const r = cryptoMarket.marketBuy(asset.symbol, amountIDR);
-        ui.success(`Buy: ${cryptoMarket.formatAmount(r.cryptoAmount)} ${asset.symbol}`);
+        const r = cryptoMarket.marketBuy(symbol, amountIDR);
+        ui.success(`Buy: ${cryptoMarket.formatAmount(r.cryptoAmount)} ${symbol}`);
       }
     } else {
       if (!holding || holding.amount <= 0) {
@@ -456,11 +458,11 @@ class OrderPanel {
       const cryptoAmountToSell = Math.min(amountIDR / targetPrice, holding.amount);
 
       if (isLimit) {
-        cryptoMarket.limitSell(asset.symbol, cryptoAmountToSell, limitPrice);
-        ui.success(`Limit Sell: ${cryptoMarket.formatAmount(cryptoAmountToSell)} ${asset.symbol} @ ${cryptoMarket.formatPrice(limitPrice)}`);
+        cryptoMarket.limitSell(symbol, cryptoAmountToSell, limitPrice);
+        ui.success(`Limit Sell: ${cryptoMarket.formatAmount(cryptoAmountToSell)} ${symbol} @ ${cryptoMarket.formatPrice(limitPrice)}`);
       } else {
-        const r = cryptoMarket.marketSell(asset.symbol, cryptoAmountToSell);
-        ui.success(`Sell: ${cryptoMarket.formatAmount(cryptoAmountToSell)} ${asset.symbol}. P/L: ${r.profit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(r.profit)}`);
+        const r = cryptoMarket.marketSell(symbol, cryptoAmountToSell);
+        ui.success(`Sell: ${cryptoMarket.formatAmount(cryptoAmountToSell)} ${symbol}. P/L: ${r.profit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(r.profit)}`);
       }
     }
   }

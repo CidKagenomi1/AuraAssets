@@ -127,7 +127,7 @@ class TradingSignalPanel {
                                         <td style="padding: 1.25rem; font-size: 0.85rem; color: var(--text-muted);">${s.risk}</td>
                                          <td style="padding: 1.25rem; text-align: right;">
                                              <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                                                 <button class="btn btn-sm btn-secondary nav-to-market" data-market="${s.type === 'crypto' ? 'crypto' : 'stocks'}" data-symbol="${s.id}">
+                                                 <button class="btn btn-sm btn-secondary nav-to-market" data-market="${s.type === 'crypto' ? 'crypto' : 'stock'}" data-symbol="${s.id}">
                                                      Analisis →
                                                  </button>
                                              </div>
