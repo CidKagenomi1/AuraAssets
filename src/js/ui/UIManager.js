@@ -5,6 +5,7 @@
 
 import timeManager from '../core/TimeManager.js';
 import gameState from '../core/GameState.js';
+import { Icons } from './Icons.js';
 
 class UIManager {
     constructor() {
@@ -69,11 +70,6 @@ class UIManager {
             import('./AuraSound.js').then(m => m.default.playClick());
         } catch (e) {}
 
-        // Auto pause game progression during transactions / modal screens
-        if (timeManager) {
-            timeManager.stop();
-        }
-
         const modalContent = document.getElementById('modal-content');
         modalContent.innerHTML = content;
 
@@ -91,14 +87,6 @@ class UIManager {
         this.modalContainer.classList.add('hidden');
         document.body.style.overflow = '';
 
-        // Auto resume game progression if speed wasn't manually paused (0)
-        if (timeManager && gameState) {
-            const speed = gameState.get('gameTime.speed');
-            if (speed !== 0) {
-                timeManager.start();
-            }
-        }
-
         // Dispatch custom event to notify view manager of modal closure
         document.dispatchEvent(new CustomEvent('modalClosed'));
     }
@@ -112,7 +100,7 @@ class UIManager {
         const modalHTML = `
             <div class="modal-header">
                 <h3 class="modal-title">${title}</h3>
-                <button class="modal-close">✕</button>
+                <button class="modal-close" style="display:inline-flex;align-items:center;justify-content:center;">${Icons.x(16)}</button>
             </div>
             <div class="modal-body">
                 ${content}
@@ -145,7 +133,7 @@ class UIManager {
             const content = `
         <div class="modal-header">
           <h3 class="modal-title">${icon} ${title}</h3>
-          <button class="modal-close">✕</button>
+          <button class="modal-close" style="display:inline-flex;align-items:center;justify-content:center;">${Icons.x(16)}</button>
         </div>
         <div class="modal-body">
           <p style="text-align: center; color: var(--text-secondary);">${message}</p>
@@ -200,7 +188,7 @@ class UIManager {
             const content = `
         <div class="modal-header">
           <h3 class="modal-title">${icon} ${title}</h3>
-          <button class="modal-close">✕</button>
+          <button class="modal-close" style="display:inline-flex;align-items:center;justify-content:center;">${Icons.x(16)}</button>
         </div>
         <div class="modal-body">
           ${message ? `<p style="color: var(--text-secondary); margin-bottom: var(--space-md);">${message}</p>` : ''}
@@ -294,7 +282,7 @@ class UIManager {
             const content = `
         <div class="modal-header">
           <h3 class="modal-title">${icon} ${title}</h3>
-          <button class="modal-close">✕</button>
+          <button class="modal-close" style="display:inline-flex;align-items:center;justify-content:center;">${Icons.x(16)}</button>
         </div>
         <div class="modal-body">
 
@@ -460,10 +448,10 @@ class UIManager {
         } = typeof options === 'string' ? { message: options } : options;
 
         const icons = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: 'ℹ️'
+            success: Icons.checkCircle(18, '#10b981'),
+            error: Icons.xCircle(18, '#ef4444'),
+            warning: Icons.shieldAlert(18, '#f59e0b'),
+            info: Icons.fileText(18, '#38bdf8')
         };
 
         const resolvedIcon = icon || icons[type] || icons.info;
@@ -527,7 +515,7 @@ class UIManager {
         ${title ? `<div class="toast-title">${title}</div>` : ''}
         <div class="toast-message">${message}</div>
       </div>
-      <button class="toast-close">✕</button>
+      <button class="toast-close" style="display:inline-flex;align-items:center;justify-content:center;">${Icons.x(12)}</button>
     `;
 
         this.toastContainer?.appendChild(toast);
@@ -659,7 +647,7 @@ class UIManager {
 
         const {
             isDecimal = false,
-            showZeroAppend = true,
+            showZeroAppend = false,
             showMax = false,
             maxAmount = null // number or function
         } = options;
@@ -754,13 +742,15 @@ class UIManager {
             `;
         }
 
-        helperContainer.innerHTML = innerHTML;
+        if (innerHTML.trim()) {
+            helperContainer.innerHTML = innerHTML;
 
         // Insert after input element
         if (inputElement.nextSibling) {
             inputElement.parentNode.insertBefore(helperContainer, inputElement.nextSibling);
         } else {
             inputElement.parentNode.appendChild(helperContainer);
+        }
         }
 
         // Bind events

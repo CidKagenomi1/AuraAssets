@@ -1,9 +1,14 @@
 /**
- * TimeManager.js - Game Time System
- * Handles day/month/year progression and periodic events
+ * TimeManager.js - Real-Time UTC Clock System
+ * Synchronizes game time with real-world UTC date and time
  */
 
 import gameState from './GameState.js';
+
+const MONTH_NAMES = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+];
 
 class TimeManager {
     constructor() {
@@ -14,104 +19,91 @@ class TimeManager {
             onMonth: [],
             onYear: []
         };
-
-        // Time settings
-        this.baseMsPerDay = 3000; // 3 seconds = 1 game day
-        this.msPerGameDay = this.baseMsPerDay; 
     }
 
     start() {
         if (this.tickInterval) return;
 
-        // Initialize lastTick if it doesn't exist
-        if (!gameState.get('gameTime.lastTick')) {
-            gameState.set('gameTime.lastTick', Date.now());
-        }
+        // Immediately sync to current UTC time on start
+        this.syncWithUTC(true);
 
         this.tickInterval = setInterval(() => this.tick(), 1000);
-        console.log(`⏰ Time started (1 day = ${this.baseMsPerDay / 1000} seconds real-time)`);
+        console.log(`⏰ Real-time UTC clock started (${this.getFormattedDate()} ${this.getFormattedTime()})`);
     }
 
     stop() {
         if (this.tickInterval) {
             clearInterval(this.tickInterval);
             this.tickInterval = null;
-            console.log('⏸️ Time stopped');
         }
     }
 
     setSpeed(speed) {
-        gameState.set('gameTime.speed', speed);
-        if (speed === 0) {
-            this.stop();
-        } else {
-            // Speed affects the calculation in tick()
-            if (!this.tickInterval) this.start();
+        // Speed is fixed to 1x real-time UTC
+        gameState.set('gameTime.speed', 1);
+        if (!this.tickInterval) this.start();
+    }
+
+    syncWithUTC(isInitial = false) {
+        const now = new Date();
+        const utcDay = now.getUTCDate();
+        const utcMonth = now.getUTCMonth() + 1;
+        const utcYear = now.getUTCFullYear();
+        const utcHours = String(now.getUTCHours()).padStart(2, '0');
+        const utcMinutes = String(now.getUTCMinutes()).padStart(2, '0');
+        const utcSeconds = String(now.getUTCSeconds()).padStart(2, '0');
+        const utcTimeString = `${utcHours}:${utcMinutes}:${utcSeconds} UTC`;
+
+        const prevDay = gameState.get('gameTime.day');
+        const prevMonth = gameState.get('gameTime.month');
+        const prevYear = gameState.get('gameTime.year');
+
+        const dayChanged = !isInitial && prevDay !== undefined && (prevDay !== utcDay || prevMonth !== utcMonth || prevYear !== utcYear);
+        const monthChanged = !isInitial && prevMonth !== undefined && (prevMonth !== utcMonth || prevYear !== utcYear);
+        const yearChanged = !isInitial && prevYear !== undefined && (prevYear !== utcYear);
+
+        if (prevDay !== utcDay) gameState.set('gameTime.day', utcDay);
+        if (prevMonth !== utcMonth) gameState.set('gameTime.month', utcMonth);
+        if (prevYear !== utcYear) gameState.set('gameTime.year', utcYear);
+        gameState.set('gameTime.utcTime', utcTimeString);
+        gameState.set('gameTime.lastTick', now.getTime());
+
+        // Monotonic day counter since Unix epoch for systems that need totalDays
+        const totalDays = Math.floor(now.getTime() / 86400000);
+        if (gameState.get('gameTime.totalDays') !== totalDays) {
+            gameState.set('gameTime.totalDays', totalDays);
         }
+
+        if (dayChanged) {
+            if (now.getUTCDay() === 1) {
+                this.triggerCallbacks('onWeek');
+            }
+            if (monthChanged) {
+                this.triggerCallbacks('onMonth');
+                gameState.emit('monthPass');
+                gameState.set('player.monthStartBalance', gameState.getBalance());
+            }
+            if (yearChanged) {
+                this.triggerCallbacks('onYear');
+            }
+            this.triggerCallbacks('onDay');
+            gameState.emit('dayPass', { day: utcDay, month: utcMonth, year: utcYear });
+            gameState.emit('timeAdvance', { day: utcDay, month: utcMonth, year: utcYear });
+        }
+
+        gameState.emit('utcTick', {
+            day: utcDay,
+            month: utcMonth,
+            year: utcYear,
+            time: utcTimeString,
+            dateFormatted: `${utcDay} ${MONTH_NAMES[utcMonth - 1]} ${utcYear}`
+        });
     }
 
     tick() {
-        const speed = gameState.get('gameTime.speed') || 1;
-        if (speed === 0) return;
-
-        const now = Date.now();
-        const lastTick = gameState.get('gameTime.lastTick') || now;
-        const elapsed = now - lastTick;
-
+        this.syncWithUTC(false);
         // Record tick-by-tick balance for 1D chart
         gameState.recordTickBalance();
-
-        // Calculate target duration based on speed
-        const targetDuration = this.baseMsPerDay / speed;
-
-        if (elapsed >= targetDuration) {
-            this.advanceDay();
-            gameState.set('gameTime.lastTick', now);
-        }
-    }
-
-    advanceDay() {
-        let day = gameState.get('gameTime.day');
-        let month = gameState.get('gameTime.month');
-        let year = gameState.get('gameTime.year');
-
-        day++;
-
-        // Check for new week (every 7 days)
-        if (day % 7 === 0) {
-            this.triggerCallbacks('onWeek');
-        }
-
-        // Check for new month (simplified: 30 days per month)
-        if (day > 30) {
-            day = 1;
-            month++;
-            this.triggerCallbacks('onMonth');
-            gameState.emit('monthPass');
-
-            // Record month start balance
-            gameState.set('player.monthStartBalance', gameState.getBalance());
-        }
-
-        // Check for new year
-        if (month > 12) {
-            month = 1;
-            year++;
-            this.triggerCallbacks('onYear');
-        }
-
-        gameState.set('gameTime.day', day);
-        gameState.set('gameTime.month', month);
-        gameState.set('gameTime.year', year);
-
-        // Track absolute total days for systems that need a monotonic counter
-        // (e.g. TradingSignalManager refresh cycle)
-        const totalDays = ((year - 2010) * 360) + ((month - 1) * 30) + day - 1;
-        gameState.set('gameTime.totalDays', totalDays);
-
-        this.triggerCallbacks('onDay');
-        gameState.emit('dayPass', { day, month, year });
-        gameState.emit('timeAdvance', { day, month, year });
     }
 
     // Event registration
@@ -151,46 +143,46 @@ class TimeManager {
     }
 
     getCurrentTime() {
+        const now = new Date();
         return {
-            day: gameState.get('gameTime.day'),
-            month: gameState.get('gameTime.month'),
-            year: gameState.get('gameTime.year')
+            day: now.getUTCDate(),
+            month: now.getUTCMonth() + 1,
+            year: now.getUTCFullYear(),
+            hours: now.getUTCHours(),
+            minutes: now.getUTCMinutes(),
+            seconds: now.getUTCSeconds()
         };
     }
 
+    getFormattedTime() {
+        const now = new Date();
+        const h = String(now.getUTCHours()).padStart(2, '0');
+        const m = String(now.getUTCMinutes()).padStart(2, '0');
+        const s = String(now.getUTCSeconds()).padStart(2, '0');
+        return `${h}:${m}:${s} UTC`;
+    }
+
     getFormattedDate() {
-        // BUG-06 FIX: Use day/month/year from gameState directly as primary source.
-        // Fall back to totalDays calculation only if direct values are unavailable (old saves).
-        const day = gameState.get('gameTime.day');
-        const month = gameState.get('gameTime.month');
-        const year = gameState.get('gameTime.year');
-
-        if (day && month && year) {
-            const monthNames = [
-                'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-                'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
-            ];
-            return `${day} ${monthNames[month - 1]} ${year}`;
-        }
-
-        // Legacy fallback: compute from totalDays
-        return this.formatDay(gameState.get('gameTime.totalDays') || 0);
+        const now = new Date();
+        const day = now.getUTCDate();
+        const month = now.getUTCMonth();
+        const year = now.getUTCFullYear();
+        return `${day} ${MONTH_NAMES[month]} ${year}`;
     }
 
     formatDay(totalDays) {
-        const day = (totalDays % 30) + 1;
-        const month = (Math.floor(totalDays / 30) % 12) + 1;
-        const year = 2010 + Math.floor(totalDays / 360);
-        
-        const monthNames = [
-            'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-            'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
-        ];
-        return `${day} ${monthNames[month - 1]} ${year}`;
+        // Convert days since Unix epoch (or fallback offset) to UTC date string
+        const ms = totalDays > 10000 ? totalDays * 86400000 : Date.now();
+        const d = new Date(ms);
+        return `${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
     }
 
     getDaysUntilEndOfMonth() {
-        return 30 - gameState.get('gameTime.day');
+        const now = new Date();
+        const year = now.getUTCFullYear();
+        const month = now.getUTCMonth() + 1;
+        const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+        return Math.max(0, lastDay - now.getUTCDate());
     }
 }
 

@@ -12,22 +12,25 @@ import financeManager from '../finance/FinanceManager.js';
 import earnManager from '../core/EarnManager.js';
 import roleManager from '../core/RoleManager.js';
 import timeManager from '../core/TimeManager.js';
+import stockMarket from '../trading/StockMarket.js';
+import cryptoMarket from '../trading/CryptoMarket.js';
+import newsManager from '../core/NewsManager.js';
+import careerManager from '../career/CareerManager.js';
+import propertyManager from '../property/PropertyManager.js';
 import ui from './UIManager.js';
+import { Icons } from './Icons.js';
 import { countUp, pulseElement, staggerFadeUp, createFloatingText } from './Animations.js';
 
 class HomeScreen {
     constructor() {
         this._lastBalance = 0;
         this.activeTimeframe = '1M';
+        this.activeMoversTab = 'gainers';
     }
 
     init() {
         this.bindEvents();
-        this.updateBalanceCard();
-        this.updateStatusBar();
-        this.renderMarketPulse();
-        this.renderMilestones();
-        this.updateRecentTransactions();
+        this.updateOverview();
 
         // Initialize dashboard main chart
         this.initDashboardChart();
@@ -35,25 +38,42 @@ class HomeScreen {
         // Listen for state changes
         gameState.on('change', () => {
             this.updateBalanceCard();
+            this.renderMilestones();
+            this.renderHomeCashflow();
             this.updateDashboardChart();
         });
-        gameState.on('economyUpdate', () => this.renderMarketPulse());
+        gameState.on('economyUpdate', () => {
+            this.renderMarketPulse();
+            this.renderTopMovers();
+        });
+        gameState.on('stocksUpdate', () => this.renderTopMovers());
+        gameState.on('cryptoUpdate', () => this.renderTopMovers());
+        gameState.on('signalsUpdate', () => this.renderTopMovers());
+        gameState.on('newsAlert', () => this.renderMarketPulse());
+        gameState.on('newsUpdate', () => this.renderMarketPulse());
+        gameState.on('careerUpdate', () => {
+            this.renderHomeCareer();
+            this.renderHomeCashflow();
+        });
+        gameState.on('utcTick', () => this.updateStatusBar());
         gameState.on('dayPass', () => this.updateStatusBar());
         gameState.on('monthPass', () => {
             this.updateStatusBar();
             this.renderMarketPulse();
+            this.renderTopMovers();
+            this.renderHomeCashflow();
+            this.renderHomeCareer();
             this.renderMilestones();
             this.updateRecentTransactions();
             this.updateDashboardChart();
         });
         gameState.on('roleChange', () => {
             roleManager.applyVisibility();
-            this.updateBalanceCard();
-            this.renderMarketPulse();
-            this.renderMilestones();
-            this.updateDashboardChart();
+            this.updateOverview();
         });
         gameState.on('transaction', () => {
+            this.renderMilestones();
+            this.renderHomeCashflow();
             this.updateRecentTransactions();
             this.updateDashboardChart();
         });
@@ -74,34 +94,33 @@ class HomeScreen {
         }, 100);
     }
 
+    updateOverview() {
+        this.updateBalanceCard();
+        this.updateStatusBar();
+        this.renderMarketPulse();
+        this.renderTopMovers();
+        this.renderHomeCashflow();
+        this.renderHomeCareer();
+        this.renderMilestones();
+        this.updateRecentTransactions();
+        this.updateDashboardChart();
+    }
+
     // ==========================================
     // STATUS BAR
     // ==========================================
 
     updateStatusBar() {
-        const day = gameState.get('gameTime.day') || 1;
-        const month = gameState.get('gameTime.month') || 1;
-        const year = gameState.get('gameTime.year') || 2010;
-        const speed = gameState.get('gameTime.speed') || 1;
-
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-
         const dateEl = document.getElementById('game-date');
-        if (dateEl) dateEl.textContent = `${day} ${months[month - 1]} ${year}`;
+        if (dateEl) dateEl.textContent = timeManager.getFormattedDate();
 
-        const speedEl = document.getElementById('game-speed');
-        if (speedEl) {
-            speedEl.textContent = speed === 0 ? 'Paused' : `${speed}x`;
+        const clockEl = document.getElementById('game-clock');
+        if (clockEl) clockEl.textContent = timeManager.getFormattedTime();
+
+        // Refresh breaking news ticker countdown smoothly if active
+        if (typeof newsManager.getActiveNews === 'function' && newsManager.getActiveNews().length > 0) {
+            this.renderMarketPulse();
         }
-
-        // Highlight active speed button
-        const btnPause = document.getElementById('btn-time-pause');
-        const btnPlay = document.getElementById('btn-time-play');
-        const btnFF = document.getElementById('btn-time-ff');
-
-        if (btnPause) btnPause.classList.toggle('active', speed === 0);
-        if (btnPlay) btnPlay.classList.toggle('active', speed === 1);
-        if (btnFF) btnFF.classList.toggle('active', speed > 1);
     }
 
     // ==========================================
@@ -132,11 +151,13 @@ class HomeScreen {
                 toggleBtn.style.border = 'none';
                 toggleBtn.style.cursor = 'pointer';
                 toggleBtn.style.fontSize = '1.2rem';
-                toggleBtn.innerHTML = hideBalance ? '👁️' : '🕶️';
+                toggleBtn.style.display = 'inline-flex';
+                toggleBtn.style.alignItems = 'center';
+                toggleBtn.innerHTML = hideBalance ? Icons.eyeOff(18, 'var(--text-muted)') : Icons.eye(18, 'var(--text-muted)');
                 toggleBtn.onclick = () => this.toggleBalanceVisibility();
                 balanceEl.parentElement.appendChild(toggleBtn);
             } else {
-                document.getElementById('btn-toggle-balance').innerHTML = hideBalance ? '👁️' : '🕶️';
+                document.getElementById('btn-toggle-balance').innerHTML = hideBalance ? Icons.eyeOff(18, 'var(--text-muted)') : Icons.eye(18, 'var(--text-muted)');
             }
 
             // Animate count-up if balance changed and NOT hidden
@@ -162,18 +183,9 @@ class HomeScreen {
             }
         }
 
-        // Monthly change indicator
-        const monthlyChange = financeManager.getMonthlyChange?.() ?? 0;
-        const changeIcon = document.getElementById('balance-change-icon');
-        const changePercent = document.getElementById('balance-change-percent');
-
-        if (changeIcon && changePercent) {
-            const isPositive = monthlyChange >= 0;
-            changeIcon.textContent = isPositive ? '▲' : '▼';
-            changeIcon.className = isPositive ? 'text-positive' : 'text-negative';
-            changePercent.className = isPositive ? 'text-positive' : 'text-negative';
-            changePercent.style.fontWeight = '700';
-            changePercent.textContent = Math.abs(monthlyChange).toFixed(1) + '%';
+        const miniCard = document.querySelector('.player-mini-card');
+        if (miniCard) {
+            miniCard.title = `${playerName} — ${sidebarDisplay}`;
         }
     }
 
@@ -242,31 +254,70 @@ class HomeScreen {
         const statusEl = document.getElementById('fear-greed-status');
         const needleEl = document.getElementById('fear-greed-needle');
         const newsEl = document.getElementById('market-pulse-news-text');
+        const barPinEl = document.getElementById('fear-greed-bar-pin');
+        const sentimentLabelEl = document.getElementById('market-sentiment-label');
+        const newsImpactLabelEl = document.getElementById('market-news-impact-label');
         
+        let label = 'Neutral';
+        let color = '#eab308';
+        
+        if (fearGreed < 25) {
+            label = 'Extreme Fear';
+            color = '#ef4444';
+        } else if (fearGreed < 45) {
+            label = 'Fear';
+            color = '#f97316';
+        } else if (fearGreed <= 55) {
+            label = 'Neutral';
+            color = '#eab308';
+        } else if (fearGreed <= 75) {
+            label = 'Greed';
+            color = '#22c55e';
+        } else {
+            label = 'Extreme Greed';
+            color = '#10b981';
+        }
+
+        const activeNews = typeof newsManager.getActiveNews === 'function' ? newsManager.getActiveNews() : [];
+        let newsContext = '';
+        if (activeNews && activeNews.length > 0) {
+            const latest = activeNews[activeNews.length - 1];
+            newsContext = latest.type === 'positive' ? ' • Market Rally' : ' • Event Shock';
+        }
+
         if (valueEl && statusEl) {
-            let label = 'Neutral';
-            let color = '#eab308';
-            
-            if (fearGreed < 25) {
-                label = 'Extreme Fear';
-                color = '#ef4444';
-            } else if (fearGreed < 45) {
-                label = 'Fear';
-                color = '#f97316';
-            } else if (fearGreed <= 55) {
-                label = 'Neutral';
-                color = '#eab308';
-            } else if (fearGreed <= 75) {
-                label = 'Greed';
-                color = '#22c55e';
-            } else {
-                label = 'Extreme Greed';
-                color = '#10b981';
-            }
-            
             valueEl.textContent = fearGreed;
-            statusEl.textContent = label;
+            statusEl.textContent = label + newsContext;
             statusEl.style.color = color;
+        }
+
+        if (barPinEl) {
+            const pct = Math.min(98, Math.max(2, fearGreed));
+            barPinEl.style.left = `${pct}%`;
+        }
+
+        if (sentimentLabelEl) {
+            const cycleLabels = {
+                'Extreme Fear': 'Panik Ekstrem ⚠️',
+                'Fear': 'Sentimen Defensif 🛡️',
+                'Neutral': 'Netral & Seimbang ⚖️',
+                'Greed': 'Optimisme Bullish 🚀',
+                'Extreme Greed': 'Euforia Pasar 🔥'
+            };
+            sentimentLabelEl.textContent = cycleLabels[label] || label;
+            sentimentLabelEl.style.color = color;
+        }
+
+        if (newsImpactLabelEl) {
+            if (activeNews && activeNews.length > 0) {
+                const latest = activeNews[activeNews.length - 1];
+                const sign = latest.impact_percent > 0 ? '+' : '';
+                newsImpactLabelEl.textContent = `${sign}${latest.impact_percent}% ${latest.type === 'positive' ? 'Rally' : 'Drop'}`;
+                newsImpactLabelEl.style.color = latest.type === 'positive' ? '#10b981' : '#ef4444';
+            } else {
+                newsImpactLabelEl.textContent = 'Stabil & Normal';
+                newsImpactLabelEl.style.color = '#10b981';
+            }
         }
 
         if (needleEl) {
@@ -275,6 +326,21 @@ class HomeScreen {
         }
 
         if (newsEl) {
+            // Prioritize active breaking news event if present
+            const activeNews = typeof newsManager.getActiveNews === 'function' ? newsManager.getActiveNews() : [];
+            if (activeNews && activeNews.length > 0) {
+                const latest = activeNews[activeNews.length - 1];
+                const isPos = latest.type === 'positive';
+                const isCrypto = latest.market === 'crypto';
+                const sign = latest.impact_percent > 0 ? '+' : '';
+                const badgeColor = isPos ? '#10b981' : '#ef4444';
+                const icon = isCrypto ? '🪙' : '📈';
+                const target = isCrypto ? (latest.target_asset || latest.sector) : (latest.ticker_target || latest.sector);
+                const countdown = typeof newsManager.getRemainingCountdown === 'function' ? newsManager.getRemainingCountdown(latest) : '';
+                newsEl.innerHTML = `<span style="display:inline-flex; align-items:center; gap:4px; font-weight:800; color:${badgeColor}; flex-shrink:0;">${icon} [${sign}${latest.impact_percent}% ${target}]</span> <span style="color:#fff; opacity:0.95; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${latest.headline}</span> <span style="color:var(--text-dim); font-size:0.7rem; flex-shrink:0;">(sisa ${countdown})</span>`;
+                return;
+            }
+
             const trendMessages = {
                 RECOVERY: [
                     'Sinyal pemulihan terdeteksi! Rantai pasok mulai stabil dan volume pasar naik.',
@@ -310,41 +376,445 @@ class HomeScreen {
         }
     }
 
+    renderTopMovers() {
+        const listEl = document.getElementById('top-movers-list');
+        if (!listEl) return;
+
+        const rawStocks = typeof stockMarket.getAllStocks === 'function' ? (stockMarket.getAllStocks() || []) : [];
+        const rawCryptos = typeof cryptoMarket.getAllCryptos === 'function' ? (cryptoMarket.getAllCryptos() || []) : [];
+
+        const stocks = rawStocks.map(s => ({
+            ...s,
+            assetType: 'stock',
+            tagLabel: s.sector || 'Stock'
+        }));
+        const cryptos = rawCryptos.map(c => ({
+            ...c,
+            assetType: 'crypto',
+            tagLabel: c.sector || c.category || 'Crypto'
+        }));
+        const allAssets = [...stocks, ...cryptos];
+
+        // Support both tradingSignals array and market.signals map
+        const tradingSignalsArr = gameState.get('tradingSignals') || [];
+        const marketSignalsMap = gameState.get('market.signals') || {};
+        const signalsBySymbol = { ...marketSignalsMap };
+        if (Array.isArray(tradingSignalsArr)) {
+            tradingSignalsArr.forEach(sig => {
+                if (sig && sig.symbol) {
+                    signalsBySymbol[sig.symbol] = {
+                        type: sig.action === 'BUY' || sig.signal === 'BUY' ? 'MOON' : (sig.type || 'HOT'),
+                        action: sig.action || sig.signal || 'SIGNAL',
+                        confidence: sig.confidence || 80
+                    };
+                }
+            });
+        }
+
+        let displayItems = [];
+        const tab = this.activeMoversTab || 'gainers';
+
+        if (tab === 'gainers') {
+            displayItems = [...allAssets]
+                .sort((a, b) => (b.change || 0) - (a.change || 0))
+                .slice(0, 4);
+        } else if (tab === 'losers') {
+            displayItems = [...allAssets]
+                .sort((a, b) => (a.change || 0) - (b.change || 0))
+                .slice(0, 4);
+        } else if (tab === 'signals') {
+            const signalPriority = { MOON: 3, HOT: 2, HEAT: 1 };
+            const withSignal = allAssets.filter(a => signalsBySymbol[a.symbol]);
+            if (withSignal.length > 0) {
+                displayItems = withSignal
+                    .sort((a, b) => {
+                        const pa = signalPriority[signalsBySymbol[a.symbol]?.type] || 0;
+                        const pb = signalPriority[signalsBySymbol[b.symbol]?.type] || 0;
+                        if (pb !== pa) return pb - pa;
+                        return Math.abs(b.change || 0) - Math.abs(a.change || 0);
+                    })
+                    .slice(0, 4);
+            } else {
+                // Fallback to highest momentum assets if no active AI signals yet
+                displayItems = [...allAssets]
+                    .sort((a, b) => Math.abs(b.change || 0) - Math.abs(a.change || 0))
+                    .slice(0, 4);
+            }
+        }
+
+        const formatAssetPrice = (price, assetType) => {
+            const p = Number(price) || 0;
+            if (assetType === 'crypto') {
+                if (p < 0.001) return p.toFixed(6);
+                if (p < 1) return p.toFixed(4);
+            }
+            return financeManager.formatCurrency(p, true);
+        };
+
+        listEl.innerHTML = displayItems.map(item => {
+            const isUp = (item.change || 0) >= 0;
+            const sig = signalsBySymbol[item.symbol];
+            let signalBadge = '';
+            if (sig) {
+                const sigMeta = {
+                    MOON: { text: `${Icons.rocket(12, '#10b981')} BUY SIGNAL`, bg: 'rgba(16, 185, 129, 0.18)', color: '#10b981', border: 'rgba(16, 185, 129, 0.4)' },
+                    HOT:  { text: `${Icons.flame(12, '#fbbf24')} HOT SIGNAL`, bg: 'rgba(245, 158, 11, 0.18)', color: '#fbbf24', border: 'rgba(245, 158, 11, 0.4)' },
+                    HEAT: { text: `${Icons.zap(12, '#f87171')} VOLATILE`,   bg: 'rgba(239, 68, 68, 0.18)',  color: '#f87171', border: 'rgba(239, 68, 68, 0.4)' }
+                }[sig.type] || { text: `${Icons.activity(12, '#60a5fa')} AI SIGNAL`, bg: 'rgba(59, 130, 246, 0.18)', color: '#60a5fa', border: 'rgba(59, 130, 246, 0.4)' };
+                signalBadge = `<span class="mover-signal-badge" style="background:${sigMeta.bg};color:${sigMeta.color};border:1px solid ${sigMeta.border};display:inline-flex;align-items:center;gap:3px;">${sigMeta.text}</span>`;
+            }
+
+            const openFn = item.assetType === 'crypto'
+                ? `window.openCryptoDetail('${item.symbol}')`
+                : `window.openStockDetail('${item.symbol}')`;
+
+            const typePill = item.assetType === 'crypto' ? `${Icons.coins(12, '#f59e0b')} Kripto` : `${Icons.chart(12, 'var(--accent-primary)')} Saham`;
+
+            return `
+                <div class="mover-card" onclick="${openFn}" title="Klik untuk trading ${item.name} (${item.symbol})">
+                    <div class="mover-card-left">
+                        <span class="mover-icon">${item.icon || '📊'}</span>
+                        <div class="mover-info">
+                            <div class="mover-symbol-row">
+                                <span class="mover-symbol">${item.symbol}</span>
+                                ${signalBadge || `<span class="mover-type-pill">${typePill}</span>`}
+                            </div>
+                            <div class="mover-sub">${item.tagLabel}</div>
+                        </div>
+                    </div>
+                    <div class="mover-card-right">
+                        <div class="mover-price">$ ${formatAssetPrice(item.price, item.assetType)}</div>
+                        <div class="mover-change ${isUp ? 'up' : 'down'}">
+                            ${isUp ? '▲ +' : '▼ '}${(item.change || 0).toFixed(2)}%
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    renderHomeCashflow() {
+        const contentEl = document.getElementById('home-cashflow-content');
+        if (!contentEl) return;
+
+        const summary = financeManager.getMonthlySummary();
+        const propertyRent = (propertyManager && typeof propertyManager.getTotalMonthlyRent === 'function') 
+            ? propertyManager.getTotalMonthlyRent() 
+            : 0;
+
+        // Current month inflow estimate
+        const estimatedInflow = Math.max(summary.totalIncome, propertyRent);
+        const estimatedOutflow = summary.totalExpense;
+        const netCashflow = estimatedInflow - estimatedOutflow;
+        const savingRate = estimatedInflow > 0 ? Math.max(0, Math.min(100, Math.round((netCashflow / estimatedInflow) * 100))) : 0;
+        const isSurplus = netCashflow >= 0;
+
+        contentEl.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:0.85rem;">
+                <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem;">
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 0.75rem 0.6rem;">
+                        <div style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Total Pemasukan</div>
+                        <div style="font-size:1.05rem; font-weight:800; color:#10b981; margin-top:2px;">+$ ${financeManager.formatCurrency(estimatedInflow, true)}</div>
+                        <div style="font-size:0.65rem; color:var(--text-dim); margin-top:1px;">per bulan</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 0.75rem 0.6rem;">
+                        <div style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Total Pengeluaran</div>
+                        <div style="font-size:1.05rem; font-weight:800; color:#ef4444; margin-top:2px;">-$ ${financeManager.formatCurrency(estimatedOutflow, true)}</div>
+                        <div style="font-size:0.65rem; color:var(--text-dim); margin-top:1px;">operasional & cicilan</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 0.75rem 0.6rem;">
+                        <div style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Arus Kas Bersih</div>
+                        <div style="font-size:1.05rem; font-weight:800; color:${isSurplus ? '#10b981' : '#ef4444'}; margin-top:2px;">
+                            ${isSurplus ? '+' : ''}$ ${financeManager.formatCurrency(netCashflow, true)}
+                        </div>
+                        <div style="font-size:0.65rem; color:#38bdf8; font-weight:700; margin-top:1px;">Rasio Tabung: ${savingRate}%</div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.18); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 0.75rem 0.85rem; display:flex; flex-direction:column; gap:0.45rem;">
+                    <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Komponen Aliran Kas</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; font-size:0.75rem;">
+                        ${propertyRent > 0 ? `
+                        <span style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.25); color:#fbbf24; padding:3px 8px; border-radius:4px; font-weight:600;">
+                            🏢 Yield Properti: +$ ${financeManager.formatCurrency(propertyRent, true)}/bln
+                        </span>
+                        ` : ''}
+                        <span style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25); color:#818cf8; padding:3px 8px; border-radius:4px; font-weight:600;">
+                            📊 Status: ${isSurplus ? 'Surplus Finansial' : 'Defisit Pengeluaran'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('btn-view-cashflow-detail')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            import('./ViewManager.js').then(m => {
+                m.default.switchView('portfolio');
+            });
+        });
+    }
+
+    renderHomeCareer() {
+        const contentEl = document.getElementById('home-career-content');
+        const badgeEl = document.getElementById('career-level-badge');
+        if (!contentEl) return;
+
+        const currentRank = careerManager.getCurrentRank();
+        const nextRank = careerManager.getNextRank();
+        const eligibility = careerManager.getRankEligibility();
+        const achievements = careerManager.getAchievementsStatus();
+
+        if (badgeEl) {
+            badgeEl.textContent = `Tingkat ${currentRank.level} • ${currentRank.title}`;
+        }
+
+        const canAdvance = eligibility.canAdvance;
+
+        contentEl.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:0.85rem;">
+                <!-- Header Rank -->
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem;">
+                    <div style="display:flex; align-items:center; gap:0.65rem;">
+                        <div style="font-size:1.85rem; width:44px; height:44px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; display:flex; align-items:center; justify-content:center;">
+                            ${currentRank.badge}
+                        </div>
+                        <div>
+                            <div style="font-size:0.95rem; font-weight:800; color:#fff;">${currentRank.title}</div>
+                            <div style="font-size:0.74rem; color:var(--text-muted); margin-top:2px;">
+                                ${currentRank.subtitle}
+                            </div>
+                        </div>
+                    </div>
+                    ${nextRank && canAdvance ? `
+                    <button id="btn-advance-rank" class="btn btn-primary btn-sm" style="font-size:0.72rem; font-weight:800; padding:5px 12px; background:linear-gradient(135deg,#10b981,#059669); color:#000; border:none; cursor:pointer; box-shadow:0 0 10px rgba(16,185,129,0.4); border-radius:6px; display:inline-flex; align-items:center; gap:4px;">
+                        ${Icons.zap(12, '#000')} Klaim Gelar Baru
+                    </button>
+                    ` : ''}
+                </div>
+
+                <!-- Progress to Next Rank -->
+                ${nextRank ? `
+                <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-muted); margin-bottom:4px;">
+                        <span>Target Berikutnya: <strong>${nextRank.title}</strong></span>
+                        <span style="font-weight:700; color:#fff;">${eligibility.progress}%</span>
+                    </div>
+                    <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden;">
+                        <div style="height:100%; width:${eligibility.progress}%; background:linear-gradient(90deg, var(--accent-primary), #059669); border-radius:4px; transition:width 0.4s ease;"></div>
+                    </div>
+                    ${!canAdvance && eligibility.unmet.length > 0 ? `
+                    <div style="font-size:0.68rem; color:#f59e0b; margin-top:4px; line-height:1.3;">
+                        Syarat: ${eligibility.unmet[0]}
+                    </div>
+                    ` : ''}
+                </div>
+                ` : `
+                <div style="font-size:0.75rem; color:#10b981; font-weight:700;">
+                    🏆 Anda telah mencapai gelar reputasi investor tertinggi!
+                </div>
+                `}
+
+                <!-- Horizontal Slideable Milestone Badges Carousel -->
+                <div>
+                    <div style="font-size:0.68rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; margin-bottom:0.4rem; display:flex; justify-content:space-between; align-items:center;">
+                        <span>Lencana Milestone Pencapaian</span>
+                        <span style="font-size:0.65rem; color:var(--text-dim);">← geser untuk melihat →</span>
+                    </div>
+                    <div class="career-milestone-slider" style="display:flex; gap:0.5rem; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; padding-bottom:4px; scrollbar-width:thin;">
+                        ${achievements.map(ach => `
+                            <div style="flex: 0 0 auto; width: 145px; scroll-snap-align: start; background: ${ach.unlocked ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.02)'}; border: 1px solid ${ach.unlocked ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.05)'}; border-radius: 8px; padding: 0.55rem 0.65rem; display:flex; flex-direction:column; justify-content:space-between; gap:4px;">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span style="font-size:1.15rem; filter:${ach.unlocked ? 'none' : 'grayscale(1)'};">${ach.icon}</span>
+                                    <span style="font-size:0.75rem; font-weight:700; color:${ach.unlocked ? '#fff' : 'rgba(255,255,255,0.4)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ach.title}</span>
+                                </div>
+                                <div style="font-size:0.65rem; color:${ach.unlocked ? '#34d399' : 'rgba(255,255,255,0.25)'}; font-weight:600; display:flex; align-items:center; gap:3px;">
+                                    ${ach.unlocked ? `${Icons.checkCircle(11, '#34d399')} Tercapai` : `${Icons.lock(11, 'rgba(255,255,255,0.35)')} Terkunci`}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('btn-advance-rank')?.addEventListener('click', () => {
+            const success = careerManager.advanceRank();
+            if (success) {
+                this.renderHomeCareer();
+            }
+        });
+    }
+
+    getMilestonesConfig() {
+        return [
+            { id: 'modal_awal',         label: 'Modal Awal',                  target: 100_000,       icon: '💵' },
+            { id: 'portofolio_mapan',   label: 'Portofolio Mapan',            target: 500_000,       icon: '🛡️' },
+            { id: 'jutawan_finansial',  label: 'Jutawan Finansial',           target: 1_000_000,     icon: '💼' },
+            { id: 'empire_real_estate', label: 'Empire Real Estate',          target: 10_000_000,    icon: '🏛️' },
+            { id: 'bilioner_sovereign', label: 'Bilioner & Sovereign Wealth', target: 100_000_000,   icon: '👑' },
+            { id: 'financial_freedom',  label: 'Financial Freedom Tycoon',    target: 1_000_000_000, icon: '🏆' }
+        ];
+    }
+
     renderMilestones() {
         const el = document.getElementById('milestones-list');
         if (!el) return;
 
         const balance = gameState.getBalance();
-        const milestones = [
-            { label: 'Modal Awal', target: 100_000, icon: '💵' },
-            { label: 'Portofolio Mapan', target: 500_000, icon: '🛡️' },
-            { label: 'Jutawan Finansial', target: 1_000_000, icon: '💼' },
-            { label: 'Empire Real Estate', target: 10_000_000, icon: '🏛️' },
-            { label: 'Bilioner & Sovereign Wealth', target: 100_000_000, icon: '👑' },
-            { label: 'Financial Freedom Tycoon', target: 1_000_000_000, icon: '🏆' }
-        ];
+        const milestones = this.getMilestonesConfig();
+        const unlockedList = gameState.get('unlockedMilestones') || [];
+        const claimedList = gameState.get('claimedMilestones') || [];
+        const unlockedSet = new Set(unlockedList);
+        const claimedSet = new Set(claimedList);
+
+        // Automatically persist newly unlocked milestones when balance reaches target
+        let newlyUnlocked = false;
+        milestones.forEach(m => {
+            if (balance >= m.target && !unlockedSet.has(m.id)) {
+                unlockedSet.add(m.id);
+                newlyUnlocked = true;
+            }
+        });
+        if (newlyUnlocked) {
+            gameState.state.unlockedMilestones = Array.from(unlockedSet);
+            gameState.save();
+        }
 
         el.innerHTML = milestones.map(m => {
-            const done = balance >= m.target;
-            const progress = Math.min(100, (balance / m.target) * 100);
+            const reward = Math.round(m.target * 0.75);
+            const isClaimed = claimedSet.has(m.id);
+            const done = isClaimed || unlockedSet.has(m.id) || balance >= m.target;
+            const canClaim = done && !isClaimed;
+            const progress = done ? 100 : Math.min(100, (balance / m.target) * 100);
+
+            let rightActionHTML = '';
+            if (canClaim) {
+                rightActionHTML = `
+                    <button class="btn-claim-milestone" data-milestone-id="${m.id}" style="
+                        padding: 6px 12px;
+                        border-radius: 8px;
+                        border: 1px solid rgba(251, 191, 36, 0.45);
+                        background: linear-gradient(135deg, #f59e0b 0%, #10b981 100%);
+                        color: #09090b;
+                        font-size: 0.75rem;
+                        font-weight: 800;
+                        cursor: pointer;
+                        white-space: nowrap;
+                        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.28);
+                        transition: transform 0.15s ease, filter 0.15s ease;
+                    " onmouseenter="this.style.transform='scale(1.04)';this.style.filter='brightness(1.1)'"
+                      onmouseleave="this.style.transform='';this.style.filter=''">
+                        🎁 Klaim +$ ${this.formatCompact(reward)}
+                    </button>
+                `;
+            } else if (isClaimed) {
+                rightActionHTML = `
+                    <span style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
+                        padding: 4px 10px;
+                        border-radius: 20px;
+                        background: rgba(16, 185, 129, 0.14);
+                        border: 1px solid rgba(16, 185, 129, 0.3);
+                        color: #10b981;
+                        font-size: 0.72rem;
+                        font-weight: 800;
+                        white-space: nowrap;
+                    ">✓ Diklaim (+$ ${this.formatCompact(reward)})</span>
+                `;
+            } else {
+                rightActionHTML = `
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px; min-width:56px;">
+                        <span style="font-size:0.78rem; font-weight:700; color:var(--text-dim);">${progress.toFixed(0)}%</span>
+                        <div style="width:52px; height:4px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden;">
+                            <div style="width:${progress.toFixed(1)}%; height:100%; background:var(--accent-primary); border-radius:4px;"></div>
+                        </div>
+                    </div>
+                `;
+            }
+
             return `
                 <div class="milestone-item ${done ? 'achieved' : ''}" style="
                     display:flex;align-items:center;gap:0.875rem;padding:0.75rem 1rem;
-                    background:${done ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.02)'};
-                    border:1px solid ${done ? 'rgba(16,185,129,0.25)' : 'var(--border-color)'};
+                    background:${canClaim ? 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(16,185,129,0.08))' : (done ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.02)')};
+                    border:1px solid ${canClaim ? 'rgba(245,158,11,0.4)' : (done ? 'rgba(16,185,129,0.25)' : 'var(--border-color)')};
                     border-radius:var(--radius-md);
+                    transition: all 0.2s ease;
                 ">
-                    <span style="font-size:1.25rem;opacity:${done ? 1 : 0.4};">${m.icon}</span>
+                    <span style="font-size:1.35rem;opacity:${done ? 1 : 0.45};">${m.icon}</span>
                     <div style="flex:1;min-width:0;">
-                        <div style="font-weight:600;font-size:0.9rem;color:${done ? '#10b981' : 'var(--text-muted)'};">${m.label}</div>
-                        <div style="font-size:0.75rem;color:var(--text-dim);">Target: $ ${this.formatCompact(m.target)}</div>
+                        <div style="font-weight:700;font-size:0.9rem;color:${canClaim ? '#fbbf24' : (done ? '#10b981' : 'var(--text-main)')}; display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+                            <span>${m.label}</span>
+                            ${canClaim ? '<span style="font-size:0.62rem; padding:1px 6px; border-radius:4px; background:rgba(245,158,11,0.2); color:#fbbf24; font-weight:800;">SIAP KLAIM</span>' : ''}
+                        </div>
+                        <div style="font-size:0.74rem;color:var(--text-dim); display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:2px;">
+                            <span>Target: <strong style="color:rgba(255,255,255,0.75);">$ ${this.formatCompact(m.target)}</strong></span>
+                            <span>•</span>
+                            <span style="color:#10b981; font-weight:600;">🎁 Hadiah 75%: +$ ${this.formatCompact(reward)}</span>
+                        </div>
                     </div>
-                    <div style="text-align:right;">
-                        ${done ? '<span style="color:#10b981;font-size:0.85rem;font-weight:700;">✓</span>' : `<span style="font-size:0.8rem;color:var(--text-dim);">${progress.toFixed(0)}%</span>`}
+                    <div class="milestone-action-wrap" style="text-align:right; flex-shrink:0;">
+                        ${rightActionHTML}
                     </div>
                 </div>
             `;
         }).join('');
+
+        // Bind claim milestone buttons
+        el.querySelectorAll('.btn-claim-milestone').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.claimMilestone(btn.dataset.milestoneId, btn);
+            });
+        });
+    }
+
+    claimMilestone(milestoneId, btnEl = null) {
+        const milestones = this.getMilestonesConfig();
+        const m = milestones.find(item => item.id === milestoneId);
+        if (!m) return;
+
+        const claimedList = gameState.get('claimedMilestones') || [];
+        if (claimedList.includes(milestoneId)) {
+            ui.info('Hadiah milestone ini sudah pernah diklaim.');
+            return;
+        }
+
+        const balance = gameState.getBalance();
+        const unlockedList = gameState.get('unlockedMilestones') || [];
+        if (balance < m.target && !unlockedList.includes(milestoneId)) {
+            ui.error('Milestone ini belum tercapai.');
+            return;
+        }
+
+        const reward = Math.round(m.target * 0.75);
+
+        // Mark as claimed BEFORE adding income so re-renders see updated state
+        const nextClaimed = [...claimedList, milestoneId];
+        gameState.set('claimedMilestones', nextClaimed);
+
+        // Credit 75% reward to player's balance and record transaction
+        financeManager.addIncome(reward, 'Bonus', `Hadiah Milestone (75%): ${m.label}`);
+
+        try {
+            import('./AuraSound.js').then(mod => mod.default.playClaimMoney());
+        } catch (e) {}
+
+        if (btnEl) {
+            createFloatingText(btnEl, `+$ ${financeManager.formatCurrency(reward)}`, 'var(--accent-primary)');
+        }
+
+        ui.success(
+            `Selamat! Anda mengklaim hadiah 75% dari milestone "${m.label}" sebesar +$ ${financeManager.formatCurrency(reward)}!`,
+            '🏆 Hadiah Milestone Diklaim'
+        );
+
+        this.updateBalanceCard();
+        this.renderMilestones();
+        this.updateRecentTransactions();
+        this.updateDashboardChart();
     }
 
     handleClaim() {
@@ -387,6 +857,36 @@ class HomeScreen {
     // ==========================================
 
     bindEvents() {
+        // Sidebar Collapse / Expand Toggle (retaining logo & icons)
+        const appShell = document.querySelector('.app-shell');
+        const toggleSidebarBtn = document.getElementById('btn-toggle-sidebar');
+        const brandLogo = document.getElementById('sidebar-brand-logo');
+
+        if (appShell && localStorage.getItem('auraAssets_sidebarCollapsed') === 'true') {
+            appShell.classList.add('sidebar-collapsed');
+        }
+
+        const toggleSidebar = () => {
+            if (!appShell) return;
+            const isCollapsed = appShell.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('auraAssets_sidebarCollapsed', isCollapsed ? 'true' : 'false');
+            setTimeout(() => {
+                if (this.dashboardChart) this.dashboardChart.resize();
+                window.dispatchEvent(new Event('resize'));
+            }, 260);
+        };
+
+        toggleSidebarBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleSidebar();
+        });
+
+        brandLogo?.addEventListener('click', () => {
+            if (appShell?.classList.contains('sidebar-collapsed')) {
+                toggleSidebar();
+            }
+        });
+
         // Show Finance Panel button on balance card
         document.getElementById('btn-show-finance')?.addEventListener('click', () => {
             import('../finance/panels/FinancePanel.js').then(m => m.default.show());
@@ -400,10 +900,21 @@ class HomeScreen {
         document.getElementById('btn-settings')?.addEventListener('click', () => this.showSettings());
         document.getElementById('btn-notifications')?.addEventListener('click', () => this.showNotifications());
 
-        // Fear & Greed widget click navigation to trading-signal
+        // Fear & Greed widget click navigation to trading-signal or breaking news tab
         const widget = document.getElementById('market-pulse-widget');
         if (widget) {
-            widget.addEventListener('click', () => {
+            widget.addEventListener('click', (e) => {
+                if (e.target.closest('#market-pulse-news-text')) {
+                    if (typeof window.openMarketNewsTab === 'function') {
+                        window.openMarketNewsTab();
+                    } else {
+                        import('./ViewManager.js').then(m => {
+                            m.default.switchView('market');
+                            window.openMarketNewsTab?.();
+                        });
+                    }
+                    return;
+                }
                 import('./ViewManager.js').then(m => m.default.switchView('trading-signal'));
             });
             widget.addEventListener('mouseenter', () => {
@@ -415,6 +926,17 @@ class HomeScreen {
                 widget.style.background = 'rgba(0, 0, 0, 0.25)';
             });
         }
+
+        // Top Movers & Signals Widget Tabs
+        document.querySelectorAll('.movers-tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.movers-tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.activeMoversTab = btn.dataset.moversTab || 'gainers';
+                this.renderTopMovers();
+            });
+        });
 
         // Speed Control Buttons (Music Player style: Pause, Play, FF with no slowing down)
         const btnPause = document.getElementById('btn-time-pause');
@@ -1196,10 +1718,21 @@ class HomeScreen {
             this.bindTimeframeButtons();
 
             const resizeHandler = () => {
-                if (this.dashboardChart) this.dashboardChart.resize();
+                if (this.dashboardChart && chartDom.clientWidth > 0) {
+                    this.dashboardChart.resize();
+                }
             };
             window.addEventListener('resize', resizeHandler);
             chartDom.resizeHandler = resizeHandler;
+
+            if (typeof ResizeObserver !== 'undefined') {
+                this._chartResizeObserver = new ResizeObserver(() => {
+                    if (this.dashboardChart && chartDom.clientWidth > 0 && chartDom.clientHeight > 0) {
+                        this.dashboardChart.resize();
+                    }
+                });
+                this._chartResizeObserver.observe(chartDom);
+            }
         });
     }
 
@@ -1249,6 +1782,13 @@ class HomeScreen {
         let labels = [];
         let bankAtEnds = [];
         let tooltipTitle = 'Tgl';
+        const periodLabels = {
+            '1D': 'kinerja hari ini (UTC)',
+            '1W': 'kinerja 7 hari terakhir',
+            '1M': 'kinerja 30 hari terakhir',
+            'YTD': 'kinerja tahun berjalan (YTD)',
+            '1Y': 'kinerja 1 tahun terakhir'
+        };
 
         if (timeframe === '1D') {
             const history = gameState.state.tickBalanceHistory || [];
@@ -1266,7 +1806,7 @@ class HomeScreen {
             bankAtEnds = history.map(h => h.balance);
             tooltipTitle = 'Tgl';
         } else if (timeframe === 'YTD') {
-            const currentYear = gameState.get('gameTime.year') || 2010;
+            const currentYear = gameState.get('gameTime.year') || new Date().getUTCFullYear();
             let history = (gameState.state.dailyBalanceHistory || []).filter(h => h.year === currentYear);
             if (history.length < 2) {
                 history = (gameState.state.dailyBalanceHistory || []).slice(-30);
@@ -1280,6 +1820,35 @@ class HomeScreen {
             bankAtEnds = history.map(h => h.balance);
             tooltipTitle = 'Tgl';
         }
+
+        // Update timeframe performance badge on Balance Card
+        const startVal = bankAtEnds[0] || 0;
+        const endVal = bankAtEnds[bankAtEnds.length - 1] ?? gameState.getBalance();
+        const tfChangePct = startVal > 0 ? ((endVal - startVal) / startVal) * 100 : 0;
+        const isPositive = tfChangePct >= 0;
+        const lineColor = isPositive ? '#10b981' : '#ef4444';
+        const areaTopColor = isPositive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)';
+
+        const changeIcon = document.getElementById('balance-change-icon');
+        const changePercent = document.getElementById('balance-change-percent');
+        const changePeriod = document.getElementById('balance-change-period');
+        if (changeIcon && changePercent) {
+            changeIcon.textContent = isPositive ? '▲' : '▼';
+            changeIcon.className = isPositive ? 'text-positive' : 'text-negative';
+            changePercent.className = isPositive ? 'text-positive' : 'text-negative';
+            changePercent.style.fontWeight = '700';
+            changePercent.textContent = `${isPositive ? '+' : '-'}${Math.abs(tfChangePct).toFixed(2)}%`;
+        }
+        if (changePeriod) {
+            changePeriod.textContent = periodLabels[timeframe] || 'kinerja periode ini';
+        }
+
+        // Calculate padded min/max so the smooth curve never clips at top or bottom
+        const minVal = bankAtEnds.length ? Math.min(...bankAtEnds) : 0;
+        const maxVal = bankAtEnds.length ? Math.max(...bankAtEnds) : 100;
+        const spread = Math.max(maxVal - minVal, maxVal * 0.005, 10);
+        const yMin = Math.max(0, minVal - spread * 0.18);
+        const yMax = maxVal + spread * 0.18;
 
         const option = {
             backgroundColor: 'transparent',
@@ -1297,7 +1866,7 @@ class HomeScreen {
                 axisPointer: {
                     type: 'line',
                     lineStyle: {
-                        color: 'rgba(255, 255, 255, 0.15)'
+                        color: 'rgba(255, 255, 255, 0.2)'
                     }
                 },
                 formatter(params) {
@@ -1305,8 +1874,8 @@ class HomeScreen {
                     const displayVal = `$ ${new Intl.NumberFormat('en-US').format(Math.round(item.value))}`;
                     return `
                         <div style="font-size: 11px;">
-                            <div style="color: #a1a1aa; margin-bottom: 2px;">${tooltipTitle} ${item.axisValue}</div>
-                            <div style="color: #10b981; font-weight: 700;">${displayVal}</div>
+                            <div style="color: #a1a1aa; margin-bottom: 2px;">${tooltipTitle}: ${item.axisValue}</div>
+                            <div style="color: ${lineColor}; font-weight: 700;">${displayVal}</div>
                         </div>
                     `;
                 }
@@ -1314,8 +1883,8 @@ class HomeScreen {
             grid: {
                 left: 0,
                 right: 0,
-                top: 15,
-                bottom: 0,
+                top: 8,
+                bottom: 4,
                 containLabel: false
             },
             xAxis: {
@@ -1327,20 +1896,23 @@ class HomeScreen {
             yAxis: {
                 type: 'value',
                 show: false,
-                scale: true
+                min: yMin,
+                max: yMax
             },
             series: [
                 {
                     name: 'Kekayaan Bersih',
                     type: 'line',
-                    smooth: true,
+                    smooth: 0.35,
                     showSymbol: false,
+                    symbol: 'circle',
+                    symbolSize: 6,
                     lineStyle: {
                         width: 2.5,
-                        color: '#10b981'
+                        color: lineColor
                     },
                     itemStyle: {
-                        color: '#10b981'
+                        color: lineColor
                     },
                     areaStyle: {
                         color: {
@@ -1350,7 +1922,7 @@ class HomeScreen {
                             x2: 0,
                             y2: 1,
                             colorStops: [
-                                { offset: 0, color: 'rgba(16, 185, 129, 0.22)' },
+                                { offset: 0, color: areaTopColor },
                                 { offset: 1, color: 'rgba(16, 185, 129, 0.0)' }
                             ],
                             global: false

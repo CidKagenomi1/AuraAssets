@@ -7,6 +7,7 @@ import viewManager from '../../ui/ViewManager.js';
 import stockPanel from './StockPanel.js';
 import cryptoPanel from './CryptoPanel.js';
 import globalEconomy from '../../core/GlobalEconomy.js';
+import { Icons } from '../../ui/Icons.js';
 
 class TradingSignalPanel {
     constructor() {
@@ -51,7 +52,7 @@ class TradingSignalPanel {
         const sortedSignals = this.getSortedSignals();
         const sortIcon = (key) => {
             if (this.sortConfig.key !== key) return '↕️';
-            return this.sortConfig.direction === 'asc' ? '🔼' : '🔽';
+            return this.sortConfig.direction === 'asc' ? Icons.chevronUp(12) : Icons.chevronDown(12);
         };
 
         const econStatus = globalEconomy.getMarketStatus();
@@ -73,10 +74,10 @@ class TradingSignalPanel {
         const content = `
             <div class="hybrid-page-container">
                 <div style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(31, 41, 55, 0.5), rgba(17, 24, 39, 0.8)); padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color); position: relative; overflow: hidden;">
-                    <div style="position: absolute; right: -20px; top: -20px; font-size: 10rem; opacity: 0.05; transform: rotate(-15deg);">📈</div>
+                    <div style="position: absolute; right: -20px; top: -20px; opacity: 0.05; transform: rotate(-15deg);">${Icons.chart(140)}</div>
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
-                            <h3 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.75rem; color: white;">AI Trading Signals 📡</h3>
+                            <h3 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.75rem; color: white; display:flex; align-items:center; gap:8px;">AI Trading Signals <span style="display:inline-flex;">${Icons.zap(20, '#8b5cf6')}</span></h3>
                             <p style="color: var(--text-muted); max-width: 650px; font-size: 0.85rem; line-height: 1.6; margin: 0;">
                                 ${bulletin}
                             </p>
@@ -84,7 +85,7 @@ class TradingSignalPanel {
                         <div style="text-align: right;">
                             <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.25rem;">Periode Sinyal</div>
                             <div style="padding: 0.5rem 1rem; background: var(--accent-primary-soft); color: var(--accent-primary); border-radius: var(--radius-md); font-weight: 700; font-size: 0.85rem; border: 1px solid var(--accent-primary-soft);">
-                                🗓️ ${tradingSignalManager.currentPeriod.from} — ${tradingSignalManager.currentPeriod.until}
+                                <span style="display:inline-flex; align-items:center; gap:4px;">${Icons.fileText(14, 'var(--accent-primary)')} ${tradingSignalManager.currentPeriod.from} — ${tradingSignalManager.currentPeriod.until}</span>
                             </div>
                         </div>
                     </div>
@@ -142,7 +143,7 @@ class TradingSignalPanel {
             </div>
 
                 <div class="card" style="margin-top: 2rem; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); padding: 1.5rem;">
-                    <h4 style="color: #3b82f6; margin-bottom: 0.75rem;">💡 Tips Strategi Investor</h4>
+                    <h4 style="color: #3b82f6; margin-bottom: 0.75rem; display:flex; align-items:center; gap:6px;">${Icons.lightbulb(16, '#3b82f6')} Tips Strategi Investor</h4>
                     <ul style="font-size: 0.85rem; color: var(--text-muted); padding-left: 1.25rem; line-height: 1.6; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 2rem;">
                         <li><strong>MOON (Rare):</strong> High risk, high reward (1000%+). Cek koin micin!</li>
                         <li><strong>HOT (Scalp):</strong> Momentum kuat, beli cepat jual cepat.</li>

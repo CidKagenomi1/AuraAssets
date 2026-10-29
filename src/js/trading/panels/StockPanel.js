@@ -7,6 +7,7 @@ import stockMarket from '../../trading/StockMarket.js';
 import financeManager from '../../finance/FinanceManager.js';
 import gameState from '../../core/GameState.js';
 import ui from '../../ui/UIManager.js';
+import { Icons } from '../../ui/Icons.js';
 
 class StockPanel {
     constructor() {
@@ -58,7 +59,7 @@ class StockPanel {
                     <div style="position: sticky; top: 1.5rem;">
                         <div class="card" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color);">
                             <h4 style="margin-bottom: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
-                                <span>⚡</span> MARKET INSIGHTS
+                                <span style="display:inline-flex; align-items:center;">${Icons.zap(14, 'var(--accent-primary)')}</span> MARKET INSIGHTS
                             </h4>
                             
                             <div style="display: flex; flex-direction: column; gap: 1rem;">
@@ -205,7 +206,7 @@ class StockPanel {
         if (portfolio.length === 0) {
             return `
                 <div style="text-align: center; padding: 4rem 1rem; opacity: 0.3;">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                    <div style="margin-bottom: 1rem;">${Icons.barChart(48, 'var(--text-muted)')}</div>
                     <p>Portofolio saham Anda masih kosong.</p>
                 </div>
             `;
@@ -215,7 +216,7 @@ class StockPanel {
             <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
                 ${portfolio.map(h => `
                     <div class="card portfolio-item-premium" data-symbol="${h.symbol}" style="cursor: pointer; background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); padding: 1.25rem; display: grid; grid-template-columns: 60px 1fr 1fr 1fr 120px; align-items: center; gap: 1rem;">
-                        <div class="asset-icon-box" style="width: 45px; height: 45px;">📊</div>
+                        <div class="asset-icon-box" style="width: 45px; height: 45px; display:flex; align-items:center; justify-content:center;">${Icons.barChart(20, 'var(--accent-primary)')}</div>
                         <div>
                             <div style="font-weight: 800; color: white;">${h.symbol}</div>
                             <div style="font-size: 0.7rem; color: var(--text-muted);">${h.shares} Lots</div>
@@ -247,7 +248,7 @@ class StockPanel {
         if (orders.length === 0) {
             return `
                 <div style="text-align: center; padding: 4rem 1rem; opacity: 0.3;">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+                    <div style="margin-bottom: 1rem;">${Icons.clipboard(48, 'var(--text-muted)')}</div>
                     <p>Tidak ada order pending saat ini.</p>
                 </div>
             `;
@@ -316,8 +317,8 @@ class StockPanel {
 
         const content = `
             <div class="modal-header">
-                <h3 class="modal-title">📈 Trade ${symbol}</h3>
-                <button class="modal-close">✕</button>
+                <h3 class="modal-title" style="display:flex;align-items:center;gap:6px;">${Icons.chart(16, 'var(--accent-primary)')} Trade ${symbol}</h3>
+                <button class="modal-close" style="display:flex;align-items:center;justify-content:center;">${Icons.x(16)}</button>
             </div>
             <div class="modal-body">
                 <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.5rem;">

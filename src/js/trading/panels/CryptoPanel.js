@@ -7,6 +7,7 @@ import cryptoMarket from '../../trading/CryptoMarket.js';
 import financeManager from '../../finance/FinanceManager.js';
 import gameState from '../../core/GameState.js';
 import ui from '../../ui/UIManager.js';
+import { Icons } from '../../ui/Icons.js';
 
 class CryptoPanel {
     constructor() {
@@ -26,7 +27,7 @@ class CryptoPanel {
                 <!-- Risk & Portfolio Header -->
                 <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1.25rem; margin-bottom: 2rem;">
                     <div class="card" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent); border-left: 4px solid #ef4444; display: flex; align-items: center; gap: 1rem;">
-                        <div style="font-size: 2rem;">⚠️</div>
+                        <div style="display:flex;align-items:center;">${Icons.shieldAlert(32, '#ef4444')}</div>
                         <div>
                             <div style="font-size: 0.7rem; color: #ef4444; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Risk Warning</div>
                             <div style="font-size: 0.9rem; color: white; font-weight: 600;">Extreme Volatility Detected. Capital at Risk.</div>
@@ -61,7 +62,7 @@ class CryptoPanel {
                     <div style="position: sticky; top: 1.5rem;">
                         <div class="card" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color);">
                             <h4 style="margin-bottom: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: #f59e0b;">
-                                <span>🐋</span> WHALE TRACKER (LIVE)
+                                <span style="display:inline-flex;align-items:center;">${Icons.activity(15, '#f59e0b')}</span> WHALE TRACKER (LIVE)
                             </h4>
                             
                             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -238,7 +239,7 @@ class CryptoPanel {
         if (orders.length === 0) {
             return `
                 <div style="text-align: center; padding: 4rem 1rem; opacity: 0.3;">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+                    <div style="margin-bottom: 1rem;">${Icons.clipboard(48, 'var(--text-muted)')}</div>
                     <p>Tidak ada order limit aktif.</p>
                 </div>
             `;
@@ -304,7 +305,7 @@ class CryptoPanel {
         const content = `
             <div class="modal-header">
                 <h3 class="modal-title">${crypto.icon} Exchange ${symbol}</h3>
-                <button class="modal-close">✕</button>
+                <button class="modal-close" style="display:flex;align-items:center;justify-content:center;">${Icons.x(16)}</button>
             </div>
             <div class="modal-body">
                 <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.5rem;">

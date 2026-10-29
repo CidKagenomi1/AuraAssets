@@ -10,6 +10,7 @@ import timeManager from './core/TimeManager.js';
 import globalEconomy from './core/GlobalEconomy.js';
 import earnManager from './core/EarnManager.js';
 import roleManager from './core/RoleManager.js';
+import newsManager from './core/NewsManager.js';
 
 // Financial Systems
 import financeManager from './finance/FinanceManager.js';
@@ -80,8 +81,10 @@ class BusinessTycoonGame {
                 await this.showWelcomeScreen();
             }
 
-            // Navigate directly to the Trading Dashboard
-            viewManager.switchView('market');
+            // Start on the Home Dashboard (Beranda)
+            viewManager.switchView('home');
+            homeScreen.updateBalanceCard();
+            homeScreen.updateDashboardChart();
 
             console.log('✅ Game initialized! Risk Profile:', roleManager.getRole());
             this.isInitialized = true;
@@ -101,6 +104,7 @@ class BusinessTycoonGame {
             tax: taxSystem,
             ui,
             role: roleManager,
+            news: newsManager,
             passiveIncome: passiveIncomeManager
         };
     }
@@ -286,7 +290,7 @@ class BusinessTycoonGame {
             </div>
             <div class="modal-footer" style="gap:0.75rem;">
                 <button class="btn btn-secondary" id="btn-retake-risk">↺ Ulangi Kuesioner</button>
-                <button class="btn btn-primary" id="btn-confirm-role">📈 Masuk ke Dashboard Trading</button>
+                <button class="btn btn-primary" id="btn-confirm-role">🏠 Masuk ke Dashboard Beranda</button>
             </div>
         `;
 
@@ -332,13 +336,19 @@ class BusinessTycoonGame {
         timeManager.start();
         earnManager.start();
 
-        // Market updates — simulated only (no real API calls)
-        stockMarket.startUpdates(6000);
-        cryptoMarket.startUpdates(4000);
+        // Market updates — Continuous micro-tick price engine
+        stockMarket.startUpdates(5000);
+        cryptoMarket.startUpdates(3500);
 
-        // Daily economy fluctuation & Donasi/Luck tick
+        // Attempt connection to authoritative multi-player server if online
+        stockMarket.connectAuthoritativeServer?.().catch(() => {});
+
+        // Daily economy fluctuation, breaking news events & Donasi/Luck tick
         timeManager.onDay(() => {
             globalEconomy.naturalFluctuation();
+            newsManager.onDayPass();
+            stockMarket.onDayPass?.();
+            cryptoMarket.onDayPass?.();
 
             // Decrement luck ticks
             const donations = gameState.get('donations') || { totalDonated: 0, luckMultiplier: 1.0, luckTicksRemaining: 0 };

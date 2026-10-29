@@ -14,6 +14,7 @@
 
 import gameState from './GameState.js';
 import ui from '../ui/UIManager.js';
+import newsManager from './NewsManager.js';
 
 // ---------------------------------------------------------------------------
 // Phase Definitions
@@ -236,16 +237,35 @@ class GlobalEconomy {
         const index = gameState.get('economy.index') || this.baseIndex;
 
         const baseMap = {
-            TROUGH:     12,
+            TROUGH:     15,
             BEAR:       32,
             CORRECTION: 44,
             RECOVERY:   52,
-            BULL:       70,
+            BULL:       72,
             PEAK:       85
         };
         const baseValue = baseMap[phase] ?? 50;
         const deviation = ((index - this.baseIndex) / this.baseIndex) * 80;
-        return Math.max(5, Math.min(95, Math.round(baseValue + deviation)));
+        let score = baseValue + deviation;
+
+        // Dynamic news & breaking market event sentiment linkage
+        try {
+            const activeNews = (newsManager && typeof newsManager.getActiveNews === 'function')
+                ? newsManager.getActiveNews()
+                : [];
+            if (activeNews && activeNews.length > 0) {
+                let totalNewsImpact = 0;
+                activeNews.forEach(news => {
+                    const impact = Number(news.impact_percent || 0);
+                    // Asymmetric fear/greed weight: negative sentiment spreads faster
+                    const multiplier = impact < 0 ? 1.35 : 1.1;
+                    totalNewsImpact += (impact * multiplier);
+                });
+                score += totalNewsImpact;
+            }
+        } catch (e) {}
+
+        return Math.max(5, Math.min(95, Math.round(score)));
     }
 
     // -------------------------------------------------------------------------

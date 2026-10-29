@@ -10,6 +10,7 @@ import cryptoMarket from '../../trading/CryptoMarket.js';
 import propertyManager from '../../property/PropertyManager.js';
 import roleManager from '../../core/RoleManager.js';
 import viewManager from '../../ui/ViewManager.js';
+import careerManager from '../../career/CareerManager.js';
 
 class FinancePanel {
     constructor() {
@@ -69,55 +70,57 @@ class FinancePanel {
         const totalDebt = loans.reduce((sum, loan) => sum + (loan.remaining || 0), 0);
         const totalAssets = balance + totalStockValue + totalCryptoValue + totalPropertyValue + savingsBalance + totalRdValue;
         const totalNetWorth = totalAssets - totalDebt;
+        const totalTrades = careerManager.getTotalTradesCount();
+        const ownedProps = propertyManager.getOwnedProperties ? propertyManager.getOwnedProperties() : [];
         
         const achievementsList = [
             {
-                name: 'Intern Survivor',
-                desc: 'Selesaikan 10 tugas kantor harian',
-                icon: '🌱',
-                unlocked: totalTasks >= 10
+                name: 'First Market Order',
+                desc: 'Eksekusi transaksi jual/beli saham atau kripto perdana',
+                icon: '🔰',
+                unlocked: totalTrades >= 1
             },
             {
-                name: 'Rising Star',
-                desc: 'Capai level karir 4 (Team Lead / Asst. Director)',
-                icon: '🌟',
+                name: 'Portfolio Specialist',
+                desc: 'Capai level karir 2 (Portfolio Analyst)',
+                icon: '📈',
+                unlocked: careerLevel >= 2
+            },
+            {
+                name: 'Senior Strategist',
+                desc: 'Capai level karir 3 (Senior Fund Strategist)',
+                icon: '📊',
+                unlocked: careerLevel >= 3
+            },
+            {
+                name: 'Managing Partner',
+                desc: 'Capai level karir 4 (Angel Investor / Principal)',
+                icon: '💼',
                 unlocked: careerLevel >= 4
             },
             {
-                name: 'Elite Executive',
-                desc: 'Capai level karir 8 (CEO / Menteri)',
+                name: 'Sovereign Tycoon',
+                desc: 'Capai level karir puncak 5 (Sovereign Capital Tycoon)',
                 icon: '👑',
-                unlocked: careerLevel >= 8
+                unlocked: careerLevel >= 5
             },
             {
-                name: 'Capital Pioneer',
-                desc: 'Mendirikan bisnis pertama',
+                name: 'Property Lord',
+                desc: 'Miliki aset properti real-estate sewa',
                 icon: '🏢',
-                unlocked: !!bizState.active
+                unlocked: ownedProps.length >= 1
             },
             {
-                name: 'Market Unicorn',
-                desc: 'Valuasi bisnis mencapai $1.000.000',
-                icon: '🦄',
-                unlocked: bizState.active && (bizState.valuation >= 1000000)
+                name: 'Crypto Pioneer',
+                desc: 'Akumulasi portofolio kripto senilai min $ 50.000',
+                icon: '🪙',
+                unlocked: totalCryptoValue >= 50000
             },
             {
-                name: 'Empire Builder',
-                desc: 'Miliki 2+ anak perusahaan holding',
-                icon: '🐙',
-                unlocked: bizState.active && bizState.subsidiaries && (bizState.subsidiaries.length >= 2)
-            },
-            {
-                name: 'Go Public Listed',
-                desc: 'Sukses melakukan IPO perusahaan',
-                icon: '🔔',
-                unlocked: bizState.active && bizState.ipo && bizState.ipo.active
-            },
-            {
-                name: 'Survivor Ultimate',
-                desc: 'Bermain menggunakan Peran Survivor',
-                icon: '💀',
-                unlocked: playerRole === 'survivor'
+                name: 'Financial Freedom',
+                desc: 'Mencapai Net Worth di atas $ 10.000.000',
+                icon: '🏆',
+                unlocked: totalNetWorth >= 10000000
             }
         ];
 
@@ -380,6 +383,14 @@ class FinancePanel {
                                 <div style="font-size:0.72rem; color:rgba(255,255,255,0.35); margin-top:1px;">12-bulan terakhir — data langsung dari transaksi</div>
                             </div>
                         </div>
+
+                        <!-- Horizontal Slideable Series Filter Legend Bar -->
+                        <div class="fp-chart-legend-wrap" style="position: relative; margin-top: 0.85rem; margin-bottom: 0.35rem;">
+                            <div id="fp-chart-legend-slider" class="fp-chart-legend-slider" style="display: flex; align-items: center; gap: 8px; overflow-x: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; padding: 4px 2px 6px 2px;">
+                                <!-- Dynamic series filter badges injected by renderChart -->
+                            </div>
+                        </div>
+
                         <div id="finance-chart" style="width: 100%; height: 440px; min-height: 380px;">
                             <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 0.9rem; gap: 0.5rem;">
                                 <span style="animation: spin 1s linear infinite; display:inline-block;">⟳</span> Memuat Grafik Analisis Keuangan...
@@ -388,7 +399,7 @@ class FinancePanel {
                     </div>
 
                     <!-- Monthly Summary Hero Stats -->
-                    <div class="fp-four-col" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                    <div class="fp-four-col">
                         <div class="fp-hero-stat net" style="border-color:rgba(99,102,241,0.25);">
                             <div style="font-size:0.68rem; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:0.1em; font-weight:700; margin-bottom:0.5rem;">👑 Kekayaan Bersih</div>
                             <div style="font-size:1.85rem; font-weight:900; color:#818cf8; letter-spacing:-0.02em; line-height:1;">$ ${financeManager.formatCurrency(totalNetWorth, true)}</div>
@@ -423,7 +434,7 @@ class FinancePanel {
                     </div>
 
                     <!-- Analysis & Transactions Row -->
-                    <div class="fp-two-col" style="display: grid; grid-template-columns: 1fr 1.1fr; gap: 1.25rem; align-items: start;">
+                    <div class="fp-two-col">
                         <!-- Category Analysis -->
                         <div class="fp-card">
                             <div class="fp-section-header">
@@ -525,7 +536,7 @@ class FinancePanel {
                                         <div style="text-align:center; padding:3rem 0; color:rgba(255,255,255,0.25);">
                                             <div style="font-size:2rem; margin-bottom:0.5rem;">📋</div>
                                             <div style="font-size:0.85rem;">Belum ada riwayat tercatat.</div>
-                                            <div style="font-size:0.75rem; margin-top:0.25rem; color:rgba(255,255,255,0.2);">Mulai jenjang karir di menu Karir!</div>
+                                            <div style="font-size:0.75rem; margin-top:0.25rem; color:rgba(255,255,255,0.2);">Promosi karir dan riset pasar kini tersedia langsung di Beranda!</div>
                                         </div>
                                     ` : careerHistory.map((item, index) => {
                                         let icon = '💼';
@@ -569,7 +580,7 @@ class FinancePanel {
                     <div id="portfolio-wealth-summary"></div>
 
                     <!-- Target & Distribution Grid -->
-                    <div class="fp-two-col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; align-items: start;">
+                    <div class="fp-two-col">
                         <!-- Distribution Table Card -->
                         <div class="fp-card">
                             <div class="fp-section-header">
@@ -607,14 +618,16 @@ class FinancePanel {
                             <div style="width:28px; height:28px; background:rgba(168,85,247,0.12); border:1px solid rgba(168,85,247,0.25); border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:0.9rem;">🪙</div>
                             <span class="fp-section-title">Kepemilikan Aset Portofolio</span>
                         </div>
-                        <div class="view-tabs" style="display:flex; gap:0.5rem; margin-bottom:1.25rem; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:0.75rem;">
-                            <button class="tab-btn active" data-portfolio-tab="stocks">Saham</button>
-                            <button class="tab-btn" data-portfolio-tab="crypto">Kripto</button>
-                            <button class="tab-btn" data-portfolio-tab="property">Properti</button>
+                        <div class="view-tabs" style="display:flex; gap:0.5rem; margin-bottom:1.25rem; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:0.75rem; overflow-x:auto;">
+                            <button class="tab-btn active" data-portfolio-tab="all">Semua Aset (<span id="count-all-assets">0</span>)</button>
+                            <button class="tab-btn" data-portfolio-tab="stocks">Saham (<span id="count-stocks-assets">0</span>)</button>
+                            <button class="tab-btn" data-portfolio-tab="crypto">Kripto (<span id="count-crypto-assets">0</span>)</button>
+                            <button class="tab-btn" data-portfolio-tab="property">Properti (<span id="count-property-assets">0</span>)</button>
                         </div>
-                        <div id="portfolio-stocks" class="asset-list"></div>
-                        <div id="portfolio-crypto" class="asset-list" style="display:none;"></div>
-                        <div id="portfolio-property" class="asset-list" style="display:none;"></div>
+                        <div id="portfolio-all" class="asset-list" style="display:flex; flex-direction:column; gap:0.65rem;"></div>
+                        <div id="portfolio-stocks" class="asset-list" style="display:none; flex-direction:column; gap:0.65rem;"></div>
+                        <div id="portfolio-crypto" class="asset-list" style="display:none; flex-direction:column; gap:0.65rem;"></div>
+                        <div id="portfolio-property" class="asset-list" style="display:none; flex-direction:column; gap:0.65rem;"></div>
                     </div>
 
                     <!-- Passive Income Sources Card -->
@@ -655,13 +668,15 @@ class FinancePanel {
                 btn.classList.add('active');
 
                 const subTab = btn.dataset.portfolioTab;
+                const allEl = document.getElementById('portfolio-all');
                 const stocksEl = document.getElementById('portfolio-stocks');
                 const cryptoEl = document.getElementById('portfolio-crypto');
                 const propertyEl = document.getElementById('portfolio-property');
 
-                if (stocksEl) stocksEl.style.display = subTab === 'stocks' ? 'block' : 'none';
-                if (cryptoEl) cryptoEl.style.display = subTab === 'crypto' ? 'block' : 'none';
-                if (propertyEl) propertyEl.style.display = subTab === 'property' ? 'block' : 'none';
+                if (allEl) allEl.style.display = subTab === 'all' ? 'flex' : 'none';
+                if (stocksEl) stocksEl.style.display = subTab === 'stocks' ? 'flex' : 'none';
+                if (cryptoEl) cryptoEl.style.display = subTab === 'crypto' ? 'flex' : 'none';
+                if (propertyEl) propertyEl.style.display = subTab === 'property' ? 'flex' : 'none';
             });
         });
 
@@ -743,6 +758,22 @@ class FinancePanel {
         const totalAssets = balance + totalStockValue + totalCryptoValue + totalPropertyValue + savingsBalance + totalRdValue;
         const totalNetWorth = totalAssets - totalDebt;
 
+        // KPI metrics
+        const stockInvested = stockPortfolio.reduce((sum, h) => sum + (h.totalInvested || 0), 0);
+        const cryptoInvested = cryptoWallet.reduce((sum, h) => sum + (h.totalInvested || 0), 0);
+        const propInvested = ownedProperties.reduce((sum, h) => sum + (h.price || 0), 0);
+        const totalInvestedCapital = stockInvested + cryptoInvested + propInvested;
+
+        const stockProfit = stockPortfolio.reduce((sum, h) => sum + (h.profit || 0), 0);
+        const cryptoProfit = cryptoWallet.reduce((sum, h) => sum + (h.profit || 0), 0);
+        const totalFloatingPL = stockProfit + cryptoProfit;
+        const totalInvestedMarket = stockInvested + cryptoInvested;
+        const floatingPLPct = totalInvestedMarket > 0 ? (totalFloatingPL / totalInvestedMarket) * 100 : 0;
+        const isFloatingProfit = totalFloatingPL >= 0;
+
+        const liquidCash = balance + savingsBalance;
+        const liquidityRatio = totalAssets > 0 ? (liquidCash / totalAssets) * 100 : 100;
+
         const planTarget = 1000000000;
         const planProgress = Math.min(100, Math.max(0, (totalNetWorth / planTarget) * 100));
 
@@ -767,18 +798,37 @@ class FinancePanel {
         const tierEl = document.getElementById('plan-tier-text');
         if (tierEl) tierEl.textContent = tierText;
 
-        // Wealth Summary
+        // Wealth Summary & KPI Header
         const summaryEl = document.getElementById('portfolio-wealth-summary');
         if (summaryEl) {
             summaryEl.innerHTML = `
                 <div class="portfolio-wealth-card">
                   <div class="wealth-header">
                     <div class="wealth-title-group">
-                      <span class="wealth-badge">💼 Ringkasan Portofolio</span>
+                      <span class="wealth-badge">💼 Ringkasan Portofolio & Aset</span>
                       <h3 class="wealth-label">Net Worth (Kekayaan Bersih)</h3>
                       <div class="wealth-value ${totalNetWorth >= 0 ? '' : 'negative'}">
                         $ ${financeManager.formatCurrency(totalNetWorth)}
                       </div>
+                    </div>
+                  </div>
+
+                  <!-- Quick KPI Dashboard Row -->
+                  <div class="portfolio-kpi-grid">
+                    <div class="portfolio-kpi-item">
+                      <div class="portfolio-kpi-label">Modal Berjalan</div>
+                      <div class="portfolio-kpi-val">$ ${financeManager.formatCurrency(totalInvestedCapital, true)}</div>
+                    </div>
+                    <div class="portfolio-kpi-item">
+                      <div class="portfolio-kpi-label">Floating P/L</div>
+                      <div class="portfolio-kpi-val ${isFloatingProfit ? 'profit' : 'loss'}">
+                        ${isFloatingProfit ? '+' : ''}$ ${financeManager.formatCurrency(totalFloatingPL, true)}
+                        <span style="font-size: 0.72rem; font-weight: 700;">(${isFloatingProfit ? '+' : ''}${floatingPLPct.toFixed(2)}%)</span>
+                      </div>
+                    </div>
+                    <div class="portfolio-kpi-item">
+                      <div class="portfolio-kpi-label">Rasio Likuiditas Kas</div>
+                      <div class="portfolio-kpi-val" style="color: #38bdf8;">${liquidityRatio.toFixed(1)}%</div>
                     </div>
                   </div>
                   
@@ -850,95 +900,212 @@ class FinancePanel {
         // Render Distribution
         this.renderWealthDistributionTable(balance, savingsBalance, totalRdValue, totalStockValue, totalCryptoValue, totalPropertyValue);
 
+        // Update badge counters
+        const countAll = stockPortfolio.length + cryptoWallet.length + ownedProperties.length;
+        const countAllEl = document.getElementById('count-all-assets');
+        const countStocksEl = document.getElementById('count-stocks-assets');
+        const countCryptoEl = document.getElementById('count-crypto-assets');
+        const countPropEl = document.getElementById('count-property-assets');
+        if (countAllEl) countAllEl.textContent = countAll;
+        if (countStocksEl) countStocksEl.textContent = stockPortfolio.length;
+        if (countCryptoEl) countCryptoEl.textContent = cryptoWallet.length;
+        if (countPropEl) countPropEl.textContent = ownedProperties.length;
+
+        // Helper to build stock card HTML
+        const renderStockCard = (h) => {
+            const isProfit = (h.profit || 0) >= 0;
+            const pnlSign = isProfit ? '+' : '';
+            return `
+              <div class="portfolio-asset-row" data-symbol="${h.symbol}" data-type="stock">
+                <div class="portfolio-asset-left">
+                  <div class="portfolio-asset-icon">📈</div>
+                  <div class="portfolio-asset-meta">
+                    <div class="portfolio-asset-symbol">
+                      <span>${h.symbol}</span>
+                      <span class="portfolio-type-pill">SAHAM</span>
+                    </div>
+                    <div class="portfolio-asset-subtitle">
+                      ${h.shares} lot @ $ ${financeManager.formatCurrency(h.avgBuyPrice, true)}
+                      <span style="opacity: 0.65; margin-left: 4px;">• Modal: $ ${financeManager.formatCurrency(h.totalInvested, true)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="portfolio-asset-center">
+                  <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">Nilai Pasar</div>
+                  <div style="font-size: 0.95rem; font-weight: 800; color: #fff;">$ ${financeManager.formatCurrency(h.currentValue, true)}</div>
+                </div>
+                <div class="portfolio-asset-right">
+                  <div style="text-align: right;">
+                    <div style="font-size: 0.85rem; font-weight: 800; color: ${isProfit ? '#10b981' : '#ef4444'};">
+                      ${pnlSign}$ ${financeManager.formatCurrency(h.profit, true)}
+                    </div>
+                    <div style="font-size: 0.7rem; font-weight: 700; color: ${isProfit ? '#10b981' : '#ef4444'};">
+                      ${pnlSign}${(h.profitPercent || 0).toFixed(2)}%
+                    </div>
+                  </div>
+                  <button class="portfolio-trade-pill" data-action="trade-stock" data-symbol="${h.symbol}">
+                    ⚡ Trade
+                  </button>
+                </div>
+              </div>
+            `;
+        };
+
+        // Helper to build crypto card HTML
+        const renderCryptoCard = (h) => {
+            const isProfit = (h.profit || 0) >= 0;
+            const pnlSign = isProfit ? '+' : '';
+            return `
+              <div class="portfolio-asset-row" data-symbol="${h.symbol}" data-type="crypto">
+                <div class="portfolio-asset-left">
+                  <div class="portfolio-asset-icon">${h.icon || '🪙'}</div>
+                  <div class="portfolio-asset-meta">
+                    <div class="portfolio-asset-symbol">
+                      <span>${h.symbol}</span>
+                      <span class="portfolio-type-pill">KRIPTO</span>
+                    </div>
+                    <div class="portfolio-asset-subtitle">
+                      ${cryptoMarket.formatAmount(h.amount)} ${h.symbol} @ $ ${financeManager.formatCurrency(h.avgBuyPrice, true)}
+                      <span style="opacity: 0.65; margin-left: 4px;">• Modal: $ ${financeManager.formatCurrency(h.totalInvested, true)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="portfolio-asset-center">
+                  <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">Nilai Pasar</div>
+                  <div style="font-size: 0.95rem; font-weight: 800; color: #fff;">$ ${financeManager.formatCurrency(h.currentValue, true)}</div>
+                </div>
+                <div class="portfolio-asset-right">
+                  <div style="text-align: right;">
+                    <div style="font-size: 0.85rem; font-weight: 800; color: ${isProfit ? '#10b981' : '#ef4444'};">
+                      ${pnlSign}$ ${financeManager.formatCurrency(h.profit, true)}
+                    </div>
+                    <div style="font-size: 0.7rem; font-weight: 700; color: ${isProfit ? '#10b981' : '#ef4444'};">
+                      ${pnlSign}${(h.profitPercent || 0).toFixed(2)}%
+                    </div>
+                  </div>
+                  <button class="portfolio-trade-pill" data-action="trade-crypto" data-symbol="${h.symbol}">
+                    ⚡ Trade
+                  </button>
+                </div>
+              </div>
+            `;
+        };
+
+        // Helper to build property card HTML
+        const renderPropertyCard = (h) => {
+            return `
+              <div class="portfolio-asset-row" data-id="${h.id}" data-type="property">
+                <div class="portfolio-asset-left">
+                  <div class="portfolio-asset-icon">${h.icon || '🏢'}</div>
+                  <div class="portfolio-asset-meta">
+                    <div class="portfolio-asset-symbol">
+                      <span>${h.name}</span>
+                      <span class="portfolio-type-pill" style="color: #f59e0b; border-color: rgba(245,158,11,0.3);">PROPERTI</span>
+                    </div>
+                    <div class="portfolio-asset-subtitle">
+                      Harga Beli: $ ${financeManager.formatCurrency(h.price, true)}
+                    </div>
+                  </div>
+                </div>
+                <div class="portfolio-asset-center">
+                  <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase;">Passive Income</div>
+                  <div style="font-size: 0.95rem; font-weight: 800; color: #10b981;">+$ ${financeManager.formatCurrency(h.monthlyRent, true)}/bln</div>
+                </div>
+                <div class="portfolio-asset-right">
+                  <button class="btn btn-sm btn-sell-portfolio-prop" data-sell="${h.id}" style="background: linear-gradient(135deg, #ef4444, #dc2626); border: none; color: #fff; font-size: 0.75rem; font-weight: 800; padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);">
+                    JUAL
+                  </button>
+                </div>
+              </div>
+            `;
+        };
+
         // Stocks portfolio list
         const stocksEl = document.getElementById('portfolio-stocks');
         if (stocksEl) {
-            if (stockPortfolio.length) {
-                stocksEl.innerHTML = stockPortfolio.map(h => `
-                  <div class="asset-item" data-symbol="${h.symbol}" data-type="stock">
-                    <div class="asset-icon">📊</div>
-                    <div class="asset-info">
-                      <div class="asset-name" style="font-weight:800; font-size:0.95rem; color:#fff;">${h.symbol}</div>
-                      <div class="asset-symbol" style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
-                        ${h.shares} lot @ $ ${financeManager.formatCurrency(h.avgBuyPrice, true)}
-                        <span style="color:var(--text-dim); margin-left: 6px;">(Modal: $ ${financeManager.formatCurrency(h.totalInvested, true)})</span>
-                      </div>
-                    </div>
-                    <div class="asset-price" style="text-align: right;">
-                      <div class="asset-current" style="font-weight: 800; font-size: 0.95rem; color: var(--accent-primary);">$ ${financeManager.formatCurrency(h.currentValue, true)}</div>
-                      <div class="asset-change ${h.profit >= 0 ? 'positive' : 'negative'}" style="font-size: 0.72rem; font-weight: 700; margin-top: 2px;">
-                        ${h.profit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(h.profit, true)} (${h.profit >= 0 ? '+' : ''}${(h.profitPercent || 0).toFixed(2)}%)
-                      </div>
-                    </div>
-                  </div>
-                `).join('');
-            } else {
-                stocksEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">Belum ada saham</div></div>';
-            }
+            stocksEl.innerHTML = stockPortfolio.length
+                ? stockPortfolio.map(renderStockCard).join('')
+                : '<div class="empty-state" style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.4);"><div class="empty-state-icon" style="font-size: 2rem; margin-bottom: 0.35rem;">📊</div><div class="empty-state-text">Belum ada saham yang dimiliki</div></div>';
         }
 
         // Crypto wallet list
         const cryptoEl = document.getElementById('portfolio-crypto');
         if (cryptoEl) {
-            if (cryptoWallet.length) {
-                cryptoEl.innerHTML = cryptoWallet.map(h => `
-                  <div class="asset-item" data-symbol="${h.symbol}" data-type="crypto">
-                    <div class="asset-icon" style="font-size: 1.5rem;">${h.icon}</div>
-                    <div class="asset-info">
-                      <div class="asset-name" style="font-weight:800; font-size:0.95rem; color:#fff;">${h.symbol}</div>
-                      <div class="asset-symbol" style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
-                        ${cryptoMarket.formatAmount(h.amount)} ${h.symbol} @ $ ${financeManager.formatCurrency(h.avgBuyPrice, true)}
-                        <span style="color:var(--text-dim); margin-left: 6px;">(Modal: $ ${financeManager.formatCurrency(h.totalInvested, true)})</span>
-                      </div>
-                    </div>
-                    <div class="asset-price" style="text-align: right;">
-                      <div class="asset-current" style="font-weight: 800; font-size: 0.95rem; color: var(--accent-primary);">$ ${financeManager.formatCurrency(h.currentValue, true)}</div>
-                      <div class="asset-change ${h.profit >= 0 ? 'positive' : 'negative'}" style="font-size: 0.72rem; font-weight: 700; margin-top: 2px;">
-                        ${h.profit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(h.profit, true)} (${h.profit >= 0 ? '+' : ''}${(h.profitPercent || 0).toFixed(2)}%)
-                      </div>
-                    </div>
-                  </div>
-                `).join('');
-            } else {
-                cryptoEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🪙</div><div class="empty-state-text">Wallet kosong</div></div>';
-            }
+            cryptoEl.innerHTML = cryptoWallet.length
+                ? cryptoWallet.map(renderCryptoCard).join('')
+                : '<div class="empty-state" style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.4);"><div class="empty-state-icon" style="font-size: 2rem; margin-bottom: 0.35rem;">🪙</div><div class="empty-state-text">Belum ada aset kripto di dompet</div></div>';
         }
 
         // Property portfolio list
         const propertyEl = document.getElementById('portfolio-property');
         if (propertyEl) {
-            if (ownedProperties.length) {
-                propertyEl.innerHTML = ownedProperties.map(h => `
-                  <div class="asset-item portfolio-prop-item" data-id="${h.id}" data-type="property">
-                    <div class="asset-icon" style="font-size: 1.5rem;">${h.icon}</div>
-                    <div class="asset-info" style="min-width: 0;">
-                      <div class="asset-name" style="font-weight: 800; font-size: 0.9rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${h.name}</div>
-                      <div class="asset-symbol" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Nilai Beli: $ ${financeManager.formatCurrency(h.price, true)}</div>
-                    </div>
-                    <div class="asset-price" style="text-align: right; margin-right: 1.25rem;">
-                      <div class="asset-current" style="color: var(--accent-primary); font-weight: 700; font-size: 0.9rem;">+$ ${financeManager.formatCurrency(h.monthlyRent, true)}/bln</div>
-                      <div class="asset-change positive" style="font-size: 0.7rem; font-weight: 600; margin-top: 2px;">Passive Yield</div>
-                    </div>
-                    <button class="btn btn-sm btn-sell-portfolio-prop" data-sell="${h.id}" style="background: linear-gradient(135deg, #ef4444, #dc2626); border: none; color: #fff; font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2); height: fit-content;">
-                      JUAL
-                    </button>
-                  </div>
-                `).join('');
+            propertyEl.innerHTML = ownedProperties.length
+                ? ownedProperties.map(renderPropertyCard).join('')
+                : '<div class="empty-state" style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.4);"><div class="empty-state-icon" style="font-size: 2rem; margin-bottom: 0.35rem;">🏘️</div><div class="empty-state-text">Belum memiliki unit properti</div></div>';
+        }
 
-                // Bind sell buttons
-                propertyEl.querySelectorAll('.btn-sell-portfolio-prop').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        e.stopPropagation();
-                        const propertyId = parseInt(btn.dataset.sell);
-                        const { propertyPanel } = await import('../../property/panels/PropertyPanel.js');
-                        await propertyPanel.handleSell(propertyId);
-                        this.renderPortfolioTabContent();
-                    });
-                });
+        // "Semua Aset" combined list
+        const allEl = document.getElementById('portfolio-all');
+        if (allEl) {
+            if (countAll === 0) {
+                allEl.innerHTML = '<div class="empty-state" style="padding: 2.5rem; text-align: center; color: rgba(255,255,255,0.4);"><div class="empty-state-icon" style="font-size: 2.5rem; margin-bottom: 0.5rem;">💼</div><div class="empty-state-text" style="font-weight: 700; color: #fff;">Belum Ada Kepemilikan Aset</div><div style="font-size: 0.8rem; margin-top: 0.25rem;">Mulai beli saham, kumpulkan kripto, atau beli properti untuk membangun kekayaan.</div></div>';
             } else {
-                propertyEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏘️</div><div class="empty-state-text">Belum ada aset properti</div></div>';
+                allEl.innerHTML = [
+                    ...stockPortfolio.map(renderStockCard),
+                    ...cryptoWallet.map(renderCryptoCard),
+                    ...ownedProperties.map(renderPropertyCard)
+                ].join('');
             }
         }
+
+        // Bind quick trade & detail click handlers across all lists
+        const bindAssetInteractions = (container) => {
+            if (!container) return;
+            container.querySelectorAll('.portfolio-asset-row').forEach(row => {
+                const type = row.dataset.type;
+                const symbol = row.dataset.symbol;
+
+                row.addEventListener('click', (e) => {
+                    if (e.target.closest('button')) return; // handled by button
+                    if (type === 'stock' && window.openStockDetail) {
+                        window.openStockDetail(symbol);
+                    } else if (type === 'crypto' && window.openCryptoDetail) {
+                        window.openCryptoDetail(symbol);
+                    }
+                });
+            });
+
+            container.querySelectorAll('[data-action="trade-stock"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const symbol = btn.dataset.symbol;
+                    if (window.openStockDetail) window.openStockDetail(symbol);
+                });
+            });
+
+            container.querySelectorAll('[data-action="trade-crypto"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const symbol = btn.dataset.symbol;
+                    if (window.openCryptoDetail) window.openCryptoDetail(symbol);
+                });
+            });
+
+            container.querySelectorAll('.btn-sell-portfolio-prop').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const propertyId = parseInt(btn.dataset.sell);
+                    const { propertyPanel } = await import('../../property/panels/PropertyPanel.js');
+                    await propertyPanel.handleSell(propertyId);
+                    this.renderPortfolioTabContent();
+                });
+            });
+        };
+
+        bindAssetInteractions(allEl);
+        bindAssetInteractions(stocksEl);
+        bindAssetInteractions(cryptoEl);
+        bindAssetInteractions(propertyEl);
 
         // Passive Income Sources
         this.renderWealthSources();
@@ -1009,8 +1176,8 @@ class FinancePanel {
           <div class="source-item">
             <div class="source-icon">💼</div>
             <div class="source-info">
-              <div class="source-name">Gaji (${jobName})</div>
-              <div class="source-desc">Pendapatan bulanan</div>
+              <div class="source-name">Inflow Modal (${jobName})</div>
+              <div class="source-desc">Aliran kas & dividen</div>
             </div>
             <div class="source-amount positive">+$ ${financeManager.formatCurrency(salary, true)}</div>
           </div>
@@ -1084,6 +1251,47 @@ class FinancePanel {
             return inflow - outflow;
         });
 
+        // Render External Horizontal Slideable Legend Chips Bar
+        const legendSlider = document.getElementById('fp-chart-legend-slider');
+        if (legendSlider) {
+            const seriesDefs = [
+                { name: 'Pemasukan (Inflow)', color: '#10b981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)' },
+                { name: 'Simpanan Deposito', color: '#06b6d4', bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.35)' },
+                { name: 'Injeksi Modal / Pinjaman', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)' },
+                { name: 'Pengeluaran (Outflow)', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.35)' },
+                { name: 'Cicilan Kewajiban', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.35)' },
+                { name: 'Saldo Kas (Balance)', color: '#818cf8', bg: 'rgba(129,140,248,0.12)', border: 'rgba(129,140,248,0.35)' },
+                { name: 'Net Cashflow', color: '#22c55e', bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.35)' }
+            ];
+
+            legendSlider.innerHTML = seriesDefs.map(s => `
+                <button type="button" class="fp-chart-pill" data-series="${s.name}" title="Klik untuk filter seri ${s.name}" style="background:${s.bg}; border:1px solid ${s.border}; color:${s.color}; border-radius:20px; padding:4px 10px; font-size:0.72rem; font-weight:700; display:inline-flex; align-items:center; gap:6px; cursor:pointer; white-space:nowrap; flex-shrink:0; transition:all 0.2s;">
+                    <span style="width:7px; height:7px; border-radius:50%; background:${s.color};"></span>
+                    <span>${s.name}</span>
+                </button>
+            `).join('');
+
+            legendSlider.querySelectorAll('.fp-chart-pill').forEach(btn => {
+                btn.onclick = () => {
+                    const sName = btn.getAttribute('data-series');
+                    if (this.chart) {
+                        this.chart.dispatchAction({
+                            type: 'legendToggleSelect',
+                            name: sName
+                        });
+                        const isMuted = btn.classList.toggle('muted');
+                        if (isMuted) {
+                            btn.style.opacity = '0.35';
+                            btn.style.filter = 'grayscale(1)';
+                        } else {
+                            btn.style.opacity = '1';
+                            btn.style.filter = 'none';
+                        }
+                    }
+                };
+            });
+        }
+
         const option = {
             backgroundColor: 'transparent',
             tooltip: {
@@ -1103,7 +1311,7 @@ class FinancePanel {
                     params.forEach(item => {
                         const val = Math.abs(item.value);
                         const sign = item.value >= 0 ? '+' : '-';
-                        const displayVal = item.seriesName === 'Cash Balance' 
+                        const displayVal = item.seriesName === 'Saldo Kas (Balance)' 
                             ? `$ ${new Intl.NumberFormat('en-US').format(Math.round(item.value))}` 
                             : `${sign}$ ${new Intl.NumberFormat('en-US').format(Math.round(val))}`;
                         
@@ -1121,20 +1329,49 @@ class FinancePanel {
                 }
             },
             legend: {
-                top: 0,
-                textStyle: {
-                    color: '#a6adc8',
-                    fontSize: 11
-                },
-                itemGap: 15
+                show: false // Dedicated external HTML slideable legend bar used above!
             },
             grid: {
-                left: '1%',
-                right: '1%',
-                top: '15%',
-                bottom: '10%',
+                left: '2%',
+                right: '2%',
+                top: 22,
+                bottom: 46,
                 containLabel: true
             },
+            dataZoom: [
+                {
+                    type: 'inside',
+                    startValue: Math.max(0, labels.length - 6),
+                    endValue: labels.length - 1,
+                    zoomLock: false
+                },
+                {
+                    type: 'slider',
+                    show: true,
+                    bottom: 6,
+                    height: 20,
+                    startValue: Math.max(0, labels.length - 6),
+                    endValue: labels.length - 1,
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    backgroundColor: 'rgba(24, 24, 27, 0.75)',
+                    fillerColor: 'rgba(16, 185, 129, 0.25)',
+                    showDetail: true,
+                    handleSize: '100%',
+                    handleStyle: {
+                        color: '#10b981',
+                        borderColor: '#10b981',
+                        shadowBlur: 4,
+                        shadowColor: 'rgba(16, 185, 129, 0.5)'
+                    },
+                    moveHandleStyle: {
+                        color: '#34d399'
+                    },
+                    textStyle: {
+                        color: '#94a3b8',
+                        fontSize: 10
+                    }
+                }
+            ],
             xAxis: {
                 type: 'category',
                 data: labels,
@@ -1170,7 +1407,7 @@ class FinancePanel {
             },
             series: [
                 {
-                    name: 'Income',
+                    name: 'Pemasukan (Inflow)',
                     type: 'bar',
                     stack: 'positive',
                     emphasis: {
@@ -1183,7 +1420,7 @@ class FinancePanel {
                     data: incomes
                 },
                 {
-                    name: 'Assets (Deposits)',
+                    name: 'Simpanan Deposito',
                     type: 'bar',
                     stack: 'positive',
                     itemStyle: {
@@ -1192,7 +1429,7 @@ class FinancePanel {
                     data: assets
                 },
                 {
-                    name: 'Injections / Loans',
+                    name: 'Injeksi Modal / Pinjaman',
                     type: 'bar',
                     stack: 'positive',
                     itemStyle: {
@@ -1201,7 +1438,7 @@ class FinancePanel {
                     data: otherIncomes
                 },
                 {
-                    name: 'Expenses',
+                    name: 'Pengeluaran (Outflow)',
                     type: 'bar',
                     stack: 'negative',
                     itemStyle: {
@@ -1211,7 +1448,7 @@ class FinancePanel {
                     data: expenses
                 },
                 {
-                    name: 'Liabilities (Repayments)',
+                    name: 'Cicilan Kewajiban',
                     type: 'bar',
                     stack: 'negative',
                     itemStyle: {
@@ -1220,7 +1457,7 @@ class FinancePanel {
                     data: liabilities
                 },
                 {
-                    name: 'Cash Balance',
+                    name: 'Saldo Kas (Balance)',
                     type: 'line',
                     smooth: true,
                     symbol: 'circle',

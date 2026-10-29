@@ -81,9 +81,9 @@ body {
   margin-bottom: 0.35rem !important;
 }
 
-/* Sparkline chart: shorter, don't waste vertical space */
+/* Sparkline chart: crisp & proportional */
 #balance-sparkline {
-  height: 60px !important; /* was 95px */
+  height: 105px !important;
   margin-top: 0.25rem !important;
 }
 
@@ -99,8 +99,9 @@ body {
   gap: 0.875rem !important;
 }
 
-/* Fear & Greed / Earn widgets: compact */
+/* Fear & Greed / Top Movers / Earn widgets: compact */
 #market-pulse-widget,
+#top-movers-widget,
 #earn-panel {
   padding: 0.875rem !important;
 }

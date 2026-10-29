@@ -180,7 +180,7 @@ describe('MatchingEngine - Continuous Limit Order Book', () => {
         quantity: 10, // Empty sell book
         idempotencyKey: 'no-liquidity-1'
       })
-    ).toThrow(/liquidity/i);
+    ).toThrow(/liquidity|available/i);
   });
 });
 

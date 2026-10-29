@@ -54,6 +54,8 @@ class GameState {
             tickBalanceHistory: [],
             income: [],
             expenses: [],
+            unlockedMilestones: [],
+            claimedMilestones: [],
 
             // Loans
             loans: [],
@@ -69,12 +71,12 @@ class GameState {
                 experience: 0
             },
 
-            // Game Time
+            // Game Time (Real-World UTC)
             gameTime: {
-                day: 1,
-                month: 1,
-                year: 2010,
-                speed: 1,  // 1 = normal, 2 = fast, 0 = paused
+                day: new Date().getUTCDate(),
+                month: new Date().getUTCMonth() + 1,
+                year: new Date().getUTCFullYear(),
+                speed: 1,
                 lastTick: Date.now()
             },
 
@@ -202,6 +204,17 @@ class GameState {
             }
         }
 
+        // Keep chart history synchronized when player balance changes
+        if (path === 'player.balance' && typeof value === 'number') {
+            const dHist = this.state.dailyBalanceHistory || [];
+            if (dHist.length === 0 || (dHist[0]?.balance <= 100 && value > 1000)) {
+                this.prepopulateDailyHistory();
+                this.prepopulateTickHistory();
+            } else {
+                dHist[dHist.length - 1].balance = Math.round(value);
+            }
+        }
+
         // Notify listeners
         this.emit(path, value, oldValue);
         this.emit('change', { path, value, oldValue });
@@ -324,18 +337,29 @@ class GameState {
             if (saved) {
                 const parsed = JSON.parse(saved);
                 this.state = this.mergeState(this.getDefaultState(), parsed);
+                // Always keep gameTime synced with real-world UTC date
+                const nowUTC = new Date();
+                this.state.gameTime.day = nowUTC.getUTCDate();
+                this.state.gameTime.month = nowUTC.getUTCMonth() + 1;
+                this.state.gameTime.year = nowUTC.getUTCFullYear();
+                this.state.gameTime.speed = 1;
                 console.log(`📂 Game loaded for user: ${this.currentUser}, Character: ${this.activeCharacter}`);
             } else {
                 this.state = this.getDefaultState();
                 this.state.player.name = this.activeCharacter;
             }
 
-            // Ensure dailyBalanceHistory is initialized & prepopulated
-            if (!this.state.dailyBalanceHistory || this.state.dailyBalanceHistory.length === 0) {
+            // Ensure dailyBalanceHistory is initialized, uses real UTC year, & matches non-zero balance
+            const dHist = this.state.dailyBalanceHistory || [];
+            const lastEntry = dHist[dHist.length - 1];
+            const currentUTCYear = new Date().getUTCFullYear();
+            const isStaleHistory = !lastEntry || lastEntry.year !== currentUTCYear || (dHist[0]?.balance <= 100 && this.getBalance() > 1000);
+            if (dHist.length === 0 || isStaleHistory) {
                 this.prepopulateDailyHistory();
             }
             // Ensure tickBalanceHistory is initialized & prepopulated
-            if (!this.state.tickBalanceHistory || this.state.tickBalanceHistory.length === 0) {
+            const tHist = this.state.tickBalanceHistory || [];
+            if (tHist.length === 0 || isStaleHistory || (tHist[0]?.balance <= 100 && this.getBalance() > 1000)) {
                 this.prepopulateTickHistory();
             }
         } catch (e) {
@@ -668,54 +692,48 @@ class GameState {
 
     prepopulateDailyHistory() {
         this.state.dailyBalanceHistory = [];
-        const currentBalance = this.getBalance();
-        const currentDay = this.get('gameTime.day') || 1;
-        const currentMonth = this.get('gameTime.month') || 1;
-        const currentYear = this.get('gameTime.year') || 2010;
-        
+        const currentBalance = Math.max(1000, this.getBalance() || 100000);
+        const now = new Date();
+
         let balance = currentBalance;
         const temp = [];
-        for (let i = 364; i >= 0; i--) {
-            let d = currentDay - i;
-            let m = currentMonth;
-            let y = currentYear;
-            while (d <= 0) {
-                d += 30;
-                m -= 1;
-                if (m <= 0) {
-                    m += 12;
-                    y -= 1;
-                }
-            }
-            // Upward drift random walk backwards
-            const drift = (Math.random() - 0.45) * 0.003;
-            balance = Math.max(100, balance * (1 - drift));
-            temp.push({
+        for (let i = 0; i <= 364; i++) {
+            const dt = new Date(now.getTime() - i * 86400000);
+            const d = dt.getUTCDate();
+            const m = dt.getUTCMonth() + 1;
+            const y = dt.getUTCFullYear();
+
+            temp.unshift({
                 day: d,
                 month: m,
                 year: y,
-                balance: Math.round(balance),
+                balance: Math.round(i === 0 ? (this.getBalance() || currentBalance) : balance),
                 label: `${d}/${m}`
             });
+
+            // Walk backwards in time with slight upward trend toward today
+            const drift = (Math.random() - 0.46) * 0.004;
+            balance = Math.max(100, balance * (1 - drift));
         }
         this.state.dailyBalanceHistory = temp;
     }
 
     prepopulateTickHistory() {
         this.state.tickBalanceHistory = [];
-        const currentBalance = this.getBalance();
+        const currentBalance = Math.max(1000, this.getBalance() || 100000);
         let balance = currentBalance;
         const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
         const temp = [];
-        for (let i = 23; i >= 0; i--) {
+        for (let i = 0; i <= 23; i++) {
             const t = new Date(now.getTime() - i * 1000);
-            const timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const drift = (Math.random() - 0.45) * 0.001;
-            balance = Math.max(100, balance * (1 - drift));
-            temp.push({
+            const timeStr = `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())} UTC`;
+            temp.unshift({
                 time: timeStr,
-                balance: Math.round(balance)
+                balance: Math.round(i === 0 ? (this.getBalance() || currentBalance) : balance)
             });
+            const drift = (Math.random() - 0.47) * 0.0012;
+            balance = Math.max(100, balance * (1 - drift));
         }
         this.state.tickBalanceHistory = temp;
     }
@@ -749,7 +767,9 @@ class GameState {
             this.state.tickBalanceHistory = [];
         }
         
-        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const timeStr = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} UTC`;
         this.state.tickBalanceHistory.push({
             time: timeStr,
             balance: this.getBalance()

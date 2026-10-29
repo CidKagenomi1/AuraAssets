@@ -6,6 +6,8 @@
 import gameState from '../core/GameState.js';
 import financeManager from '../finance/FinanceManager.js';
 import marketClient from './MarketClient.js';
+import newsManager from '../core/NewsManager.js';
+import { initMarketStateRealtime } from '../core/SupabaseClient.js';
 
 // Static config maps matching BusinessManager data (avoids circular dependency)
 const BIZ_TYPE_VAL_MULT = { umkm: 2, startup: 15 };
@@ -24,6 +26,39 @@ class StockMarket {
         this.authoritativeMode = false;
         this.updateInterval = null;
         this.pricesLoaded = false;
+
+        // Connect to Supabase Realtime for live multi-device market state synchronization
+        try {
+            initMarketStateRealtime((serverState) => {
+                if (serverState?.symbol && this.stocks[serverState.symbol]) {
+                    const s = this.stocks[serverState.symbol];
+                    if (serverState.last_price) {
+                        s.previousPrice = s.price;
+                        // Minor unit / 100 conversion if integer
+                        const p = serverState.last_price > 10000 && !s.price > 5000 
+                            ? serverState.last_price / 100 
+                            : serverState.last_price;
+                        s.price = Number(p.toFixed(2));
+                        if (serverState.previous_close) {
+                            const pc = serverState.previous_close > 10000 && !s.price > 5000
+                                ? serverState.previous_close / 100
+                                : serverState.previous_close;
+                            s.basePrice = Number(pc.toFixed(2));
+                        }
+                        if (serverState.high_24h) s.high24h = serverState.high_24h > 10000 ? serverState.high_24h / 100 : serverState.high_24h;
+                        if (serverState.low_24h) s.low24h = serverState.low_24h > 10000 ? serverState.low_24h / 100 : serverState.low_24h;
+                        if (serverState.volume_24h) s.volume24h = Number(serverState.volume_24h);
+                        s.change = parseFloat((((s.price - s.basePrice) / (s.basePrice || 1)) * 100).toFixed(2));
+                        if (!s.priceHistory) s.priceHistory = [];
+                        s.priceHistory.push(s.price);
+                        if (s.priceHistory.length > 300) s.priceHistory.shift();
+                        gameState.emit('stocksUpdate', this.stocks);
+                    }
+                }
+            }, null);
+        } catch (e) {
+            console.warn('[StockMarket] Supabase Realtime init note:', e.message);
+        }
     }
 
     initializeStocks() {
@@ -347,41 +382,66 @@ class StockMarket {
             const activeSignal = activeSignals.find(s => s.id === symbol);
             if (activeSignal) {
                 if (activeSignal.label === 'MOON 🚀') {
-                    signalBulls = 0.15; // Extreme positive trend bias (15% positive bias per tick) like massive short squeezes
-                    signalVolAdd = 0.10; // Mega volatility for astronomical moon-shots
+                    signalBulls = 0.20; // Bullish momentum impulse
+                    signalVolAdd = 0.02;
                 } else if (activeSignal.label === 'HOT 🔥') {
-                    signalBulls = 0.015; // Strong pump bias (1.5% positive bias per tick)
+                    signalBulls = 0.08;
                     signalVolAdd = 0.01;
                 } else if (activeSignal.label === 'HEAT ⚡') {
-                    signalBulls = 0.008; // Moderate pump bias
+                    signalBulls = 0.04;
                 } else if (activeSignal.label === 'COOL ❄️') {
-                    signalVolAdd = -stock.volatility * 0.5; // Dampen volatility by 50%
+                    signalVolAdd = -stock.volatility * 0.4; // Dampen volatility
                 }
             }
 
-            // 2. Calculate standard price movements with signal overlays
+            // 2. Scaled micro-tick volatility (~0.02% to ~0.08% per 6-second tick)
+            const tickScale = 0.02; // 2% of daily volatility per tick
+            const scaledVol = Math.max(0.0004, (stock.volatility + signalVolAdd) * tickScale);
+            const brownianMotion = (Math.random() - 0.5) * 2 * scaledVol;
+
+            // 3. Controlled signal drift
+            const signalDrift = signalBulls * 0.004;
+
+            // 4. Directional drift from active breaking news events (accelerated 2.5x pacing)
+            const newsDrift = newsManager.getPriceBias(symbol, stock.sector);
+
+            // 5. Gentle mean reversion towards basePrice to maintain authentic institutional trading bands
+            const meanReversion = ((stock.basePrice - stock.price) / (stock.basePrice || 1)) * 0.003;
+
+            // 6. Macro economy & luck drift
             const luckActive = (gameState.get('donations.luckTicksRemaining') || 0) > 0;
-            const luckDrift = luckActive ? 0.025 : 0; // 2.5% upward drift per tick under donation luck
+            const luckDrift = luckActive ? 0.0006 : 0;
+            const marketInfluence = (marketFactor - 1) * 0.0003;
 
-            const randomChange = (Math.random() - 0.5 + signalBulls) * 2 * (stock.volatility + signalVolAdd);
-            const meanReversion = (stock.basePrice - stock.price) / stock.basePrice * 0.02;
-            const marketInfluence = (marketFactor - 1) * 0.5;
+            // 7. Recent order flow imbalance (from player and simulated institutional block trades)
+            const orderImbalance = (stock.recentBuyVolume || 0) - (stock.recentSellVolume || 0);
+            const orderFlowDrift = Math.max(-0.003, Math.min(0.003, orderImbalance / 20000000));
+            // Decay recent order volumes
+            stock.recentBuyVolume = (stock.recentBuyVolume || 0) * 0.88;
+            stock.recentSellVolume = (stock.recentSellVolume || 0) * 0.88;
 
-            const totalChange = randomChange + meanReversion + marketInfluence + luckDrift;
-            const newPrice = stock.price * (1 + totalChange);
+            const totalChange = brownianMotion + signalDrift + newsDrift + meanReversion + marketInfluence + luckDrift + orderFlowDrift;
+            const newPrice = Math.max(0.01, parseFloat((stock.price * (1 + totalChange)).toFixed(2)));
 
             stock.previousPrice = stock.price;
-            stock.price = Math.max(0.01, parseFloat(newPrice.toFixed(2)));
-            stock.change = ((stock.price - stock.previousPrice) / stock.previousPrice) * 100;
+            stock.price = newPrice;
+
+            // Real 24h Change based on basePrice
+            stock.change = parseFloat((((stock.price - stock.basePrice) / (stock.basePrice || 1)) * 100).toFixed(2));
 
             // Track history
             if (!stock.priceHistory) stock.priceHistory = [stock.price];
             stock.priceHistory.push(stock.price);
-            if (stock.priceHistory.length > 50) stock.priceHistory.shift();
+            if (stock.priceHistory.length > 300) stock.priceHistory.shift();
 
             // Track high/low
             if (!stock.high24h || stock.price > stock.high24h) stock.high24h = stock.price;
             if (!stock.low24h || stock.price < stock.low24h) stock.low24h = stock.price;
+
+            // Track 24h Volume baseline
+            if (!stock.volume24h) {
+                stock.volume24h = Math.round((stock.sharesOutstanding || 10000000) * 0.015);
+            }
         });
 
         // Check pending orders
@@ -393,8 +453,22 @@ class StockMarket {
         gameState.emit('stocksUpdate', this.stocks);
     }
 
+    /**
+     * Daily rollover reset (resets 24h High, Low, and anchors basePrice to today's open)
+     */
+    onDayPass() {
+        Object.keys(this.stocks).forEach(sym => {
+            const s = this.stocks[sym];
+            s.basePrice = s.price;
+            s.high24h = s.price;
+            s.low24h = s.price;
+            s.change = 0;
+            s.volume24h = Math.round((s.sharesOutstanding || 10000000) * 0.015 * (0.8 + Math.random() * 0.4));
+        });
+    }
+
     // ========================================
-    // MARKET ORDER (instant execution)
+    // MARKET ORDER (Real volume & price impact)
     // ========================================
 
     marketBuy(symbol, shares) {
@@ -407,12 +481,29 @@ class StockMarket {
 
         if (totalCost > balance) throw new Error('Saldo tidak cukup');
 
+        // Immediate price impact from buy volume
+        const liquidityShares = (stock.sharesOutstanding || 10000000) * 0.005;
+        const impact = Math.min(0.025, (shares / liquidityShares) * 0.1);
+        if (impact > 0.00001) {
+            stock.previousPrice = stock.price;
+            stock.price = parseFloat((stock.price * (1 + impact)).toFixed(2));
+            stock.change = parseFloat((((stock.price - stock.basePrice) / (stock.basePrice || 1)) * 100).toFixed(2));
+            if (stock.price > (stock.high24h || stock.price)) stock.high24h = stock.price;
+            if (!stock.priceHistory) stock.priceHistory = [];
+            stock.priceHistory.push(stock.price);
+            if (stock.priceHistory.length > 300) stock.priceHistory.shift();
+        }
+
         gameState.update('player', p => ({
             ...p,
             balance: p.balance - totalCost
         }));
 
         this.addToPortfolio(symbol, shares, stock.price);
+
+        // Accumulate 24h volume & buy order pressure
+        stock.volume24h = (stock.volume24h || 100000) + shares;
+        stock.recentBuyVolume = (stock.recentBuyVolume || 0) + totalCost;
 
         gameState.emit('stockBuy', {
             symbol,
@@ -437,6 +528,20 @@ class StockMarket {
         }
 
         const totalValue = stock.price * shares;
+
+        // Immediate price impact from sell volume
+        const liquidityShares = (stock.sharesOutstanding || 10000000) * 0.005;
+        const impact = Math.min(0.025, (shares / liquidityShares) * 0.1);
+        if (impact > 0.00001) {
+            stock.previousPrice = stock.price;
+            stock.price = Math.max(0.01, parseFloat((stock.price * (1 - impact)).toFixed(2)));
+            stock.change = parseFloat((((stock.price - stock.basePrice) / (stock.basePrice || 1)) * 100).toFixed(2));
+            if (stock.price < (stock.low24h || stock.price)) stock.low24h = stock.price;
+            if (!stock.priceHistory) stock.priceHistory = [];
+            stock.priceHistory.push(stock.price);
+            if (stock.priceHistory.length > 300) stock.priceHistory.shift();
+        }
+
         const costBasis = holding.avgBuyPrice * shares;
         const profit = totalValue - costBasis;
         const profitPercent = costBasis > 0 ? (profit / costBasis) * 100 : 0;
@@ -444,6 +549,10 @@ class StockMarket {
         financeManager.addIncome(totalValue, 'Stock Sell', `Sold ${shares} shares of ${symbol}`);
 
         this.removeFromPortfolio(symbol, shares);
+
+        // Accumulate 24h volume & sell order pressure
+        stock.volume24h = (stock.volume24h || 100000) + shares;
+        stock.recentSellVolume = (stock.recentSellVolume || 0) + totalValue;
 
         // Record to trade history
         const tradeLog = {

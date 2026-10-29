@@ -142,19 +142,30 @@ export function staggerFadeUp(elements, staggerMs = 60) {
  * @param {HTMLElement} toEl - Incoming view
  * @param {'left'|'right'} direction
  */
-export function swipeTransition(fromEl, toEl, direction = 'right') {
+export function swipeTransition(fromEl, toEl, direction = 'right', onComplete = null) {
     const inX = direction === 'right' ? '24px' : '-24px';
+
+    if (fromEl) {
+        fromEl.style.display = 'none';
+        fromEl.classList.remove('active');
+    }
 
     // Bring in the new panel
     if (toEl) {
         toEl.style.display = '';
-        toEl.animate(
+        toEl.classList.add('active');
+        const anim = toEl.animate(
             [
                 { transform: `translateX(${inX})`, opacity: '0' },
                 { transform: 'translateX(0)', opacity: '1' }
             ],
             { duration: 240, easing: DEFAULT_EASING }
         );
+        if (typeof onComplete === 'function') {
+            anim.onfinish = onComplete;
+        }
+    } else if (typeof onComplete === 'function') {
+        onComplete();
     }
 }
 
