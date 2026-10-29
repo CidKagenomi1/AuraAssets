@@ -14,6 +14,7 @@ import propertyManager from '../../property/PropertyManager.js';
 import roleManager from '../../core/RoleManager.js';
 import passiveIncomeManager from '../../trading/PassiveIncomeManager.js';
 import newsManager from '../../core/NewsManager.js';
+import mutualFundManager from '../../trading/MutualFundManager.js';
 
 // Modular Sub-Views
 import { SECTOR_COLORS, buildStockRow, buildCryptoRow, buildPortfolioRow } from './MarketRows.js';
@@ -26,6 +27,9 @@ export class ViewManager {
     this.homeSections = [
       '#balance-card',
       '#market-pulse-widget',
+      '#top-movers-widget',
+      '#home-news-snapshot-widget',
+      '#home-cashflow-career-row',
       '.quick-actions',
       '#footer-dashboard-grid'
     ];
@@ -51,7 +55,7 @@ export class ViewManager {
 
     // Restore home view context when popups/modals close
     document.addEventListener('modalClosed', () => {
-      const modalViews = ['savings', 'loan', 'property', 'tax', 'finance', 'guide', 'trading-signal', 'donate'];
+      const modalViews = ['savings', 'loan', 'property', 'finance', 'guide', 'trading-signal', 'donate'];
       if (modalViews.includes(this.currentView)) {
         this.switchView('home');
       }
@@ -63,13 +67,10 @@ export class ViewManager {
     // Listen for updates
     gameState.on('stocksUpdate', () => this.updateMarketView());
     gameState.on('cryptoUpdate', () => this.updateMarketView());
+    gameState.on('mutualFundsUpdate', () => this.updateMarketView());
     gameState.on('newsUpdate', () => {
-      const badgeNews = document.getElementById('badge-news');
-      if (badgeNews && typeof newsManager.getActiveNews === 'function') {
-        badgeNews.textContent = newsManager.getActiveNews().length;
-      }
-      if (this.currentView === 'market' && this.currentMarketTab === 'news') {
-        this.renderNewsView();
+      if (this.currentView === 'news') {
+        this.renderNewsPageView();
       }
     });
 
@@ -124,7 +125,7 @@ export class ViewManager {
     let highlightedView = viewToHighlight;
     if (viewToHighlight === 'dynamic') {
       highlightedView = this.activeDynamicTab === 'portfolio' ? 'portfolio' : 'home';
-    } else if (['property', 'loan', 'savings', 'tax', 'history', 'trading-signal', 'guide', 'donate'].includes(viewToHighlight)) {
+    } else if (['property', 'loan', 'savings', 'history', 'trading-signal', 'guide', 'donate'].includes(viewToHighlight)) {
       highlightedView = 'home';
     }
 
@@ -154,19 +155,19 @@ export class ViewManager {
         return;
       case 'guide':
         import('../HomeScreen.js').then(module => {
-          module.default.showGameGuide();
-        });
-        this.updateNavState(this.currentView);
-        return;
-      case 'tax':
-        import('../../finance/panels/TaxPanel.js').then(module => {
-          module.default.show();
+          module.default.showGuide();
         });
         this.updateNavState(this.currentView);
         return;
       case 'donate':
-        import('../../finance/panels/FinancePanel.js').then(module => {
-          module.default.showDonateModal();
+        import('../HomeScreen.js').then(module => {
+          module.default.handleDonate();
+        });
+        this.updateNavState(this.currentView);
+        return;
+      case 'transfer':
+        import('../../finance/TransferManager.js').then(module => {
+          module.default.showTransferModal();
         });
         this.updateNavState(this.currentView);
         return;
@@ -205,6 +206,15 @@ export class ViewManager {
         return;
       case 'market':
         this.updateMarketView();
+        break;
+      case 'news':
+        this.renderNewsPageView();
+        break;
+      case 'settings':
+        import('./SettingsPage.js').then(module => {
+          const target = document.getElementById('view-settings');
+          if (target) module.default.render(target);
+        });
         break;
     }
 
@@ -366,22 +376,20 @@ export class ViewManager {
 
     const badgeStocks = document.getElementById('badge-stocks');
     const badgeCrypto = document.getElementById('badge-crypto');
+    const badgeReksadana = document.getElementById('badge-reksadana');
     const badgePassiveIncome = document.getElementById('badge-passive-income');
     const badgePortfolio = document.getElementById('badge-portfolio');
-    const badgeNews = document.getElementById('badge-news');
 
     if (badgeStocks) badgeStocks.textContent = allStocks.length;
     if (badgeCrypto) badgeCrypto.textContent = allCryptos.length;
+    if (badgeReksadana) badgeReksadana.textContent = mutualFundManager.getFunds().length;
     if (badgePassiveIncome) badgePassiveIncome.textContent = passiveIncomeCount;
     if (badgePortfolio) badgePortfolio.textContent = portfolioCount;
-    if (badgeNews && typeof newsManager.getActiveNews === 'function') {
-      badgeNews.textContent = newsManager.getActiveNews().length;
-    }
 
     // Toggle search controls bar visibility
     const searchBar = document.getElementById('market-search-bar-container');
     if (searchBar) {
-      if (this.currentMarketTab === 'passive-income' || this.currentMarketTab === 'news') {
+      if (this.currentMarketTab === 'passive-income' || this.currentMarketTab === 'reksadana') {
         searchBar.style.display = 'none';
       } else {
         searchBar.style.display = 'flex';
@@ -442,6 +450,12 @@ export class ViewManager {
       }
 
       cryptoList.innerHTML = cryptos.map(c => buildCryptoRow(c)).join('');
+    }
+
+    // Update Mutual Funds (Reksa Dana) list
+    const reksadanaList = document.getElementById('market-reksadana-list');
+    if (reksadanaList && this.currentMarketTab === 'reksadana') {
+      this.renderMutualFundsView(reksadanaList);
     }
 
     // Update Passive Income & Launchdrops
@@ -573,6 +587,310 @@ export class ViewManager {
   }
 
   // =========================================================================
+  // MUTUAL FUNDS (REKSA DANA) VIEW & TRADING
+  // =========================================================================
+
+  renderMutualFundsView(container) {
+    if (!container) return;
+    const funds = mutualFundManager.getFunds();
+    const totalVal = mutualFundManager.getTotalPortfolioValue();
+    const totalInvested = funds.reduce((sum, f) => sum + f.invested, 0);
+    const totalPnl = totalVal - totalInvested;
+    const totalPnlPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
+    const playerBalance = gameState.getBalance();
+
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+        
+        <!-- Mutual Funds Portfolio Header Summary -->
+        <div style="background: linear-gradient(135deg, rgba(52, 211, 153, 0.1) 0%, rgba(15, 23, 42, 0.6) 100%); border: 1px solid rgba(52, 211, 153, 0.25); border-radius: var(--radius-md); padding: 1.15rem 1.35rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Portofolio Reksa Dana Anda</span>
+            <div style="font-size: 1.75rem; font-weight: 900; color: #34d399; margin: 3px 0 2px 0;">
+              $ ${financeManager.formatCurrency(totalVal, true)}
+            </div>
+            <span style="font-size: 0.72rem; color: var(--text-dim);">
+              Modal Pokok: $ ${financeManager.formatCurrency(totalInvested, true)} · Floating P/L: 
+              <strong style="color: ${totalPnl >= 0 ? '#10b981' : '#ef4444'};">${totalPnl >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(totalPnl, true)} (${totalPnlPct >= 0 ? '+' : ''}${totalPnlPct.toFixed(2)}%)</strong>
+            </span>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 6px 12px; text-align: right;">
+              <div style="font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Saldo Kas Utama</div>
+              <div style="font-size: 0.95rem; font-weight: 800; color: #fff;">$ ${financeManager.formatCurrency(playerBalance, true)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mutual Funds Product Cards Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem;">
+          ${funds.map(f => {
+            const hasUnits = f.ownedUnits > 0;
+            const up = f.dailyChange >= 0;
+            return `
+              <div class="card" style="background: var(--bg-surface); border: 1.5px solid ${hasUnits ? 'rgba(52, 211, 153, 0.4)' : 'var(--border-color)'}; border-radius: var(--radius-lg); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem;">
+                
+                <div>
+                  <!-- Header: Icon, Name & Type -->
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.65rem;">
+                      <span style="font-size: 1.6rem;">${f.icon}</span>
+                      <div>
+                        <div style="font-weight: 800; font-size: 0.95rem; color: #fff; line-height: 1.25;">${f.name}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-dim);">${f.manager}</div>
+                      </div>
+                    </div>
+                    <span style="font-size: 0.68rem; font-weight: 800; color: ${f.riskColor}; background: ${f.riskColor}22; border: 1px solid ${f.riskColor}44; padding: 2px 7px; border-radius: 6px; white-space: nowrap;">
+                      ${f.risk}
+                    </span>
+                  </div>
+
+                  <p style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.4; margin: 0 0 0.85rem 0;">
+                    ${f.desc}
+                  </p>
+
+                  <!-- Metrics: NAV, 1D Change, 1Y Return -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 0.85rem;">
+                    <div>
+                      <div style="font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Nilai Aktiva Bersih (NAV)</div>
+                      <div style="font-size: 1.05rem; font-weight: 900; color: #fff;">
+                        $ ${f.nav.toFixed(4)}
+                        <span style="font-size: 0.72rem; font-weight: 700; color: ${up ? '#10b981' : '#ef4444'};">(${up ? '+' : ''}${f.dailyChange}%)</span>
+                      </div>
+                    </div>
+                    <div style="text-align: right;">
+                      <div style="font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Imbal Hasil 1 Tahun</div>
+                      <div style="font-size: 1.05rem; font-weight: 900; color: #34d399;">
+                        ${f.returnAnnual}% p.a.
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Portfolio Holding Box -->
+                  <div style="background: ${hasUnits ? 'rgba(52, 211, 153, 0.08)' : 'rgba(255,255,255,0.02)'}; border: 1px solid ${hasUnits ? 'rgba(52, 211, 153, 0.25)' : 'rgba(255,255,255,0.05)'}; border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.74rem;">
+                    ${hasUnits ? `
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                        <span style="color: var(--text-muted);">Kepemilikan:</span>
+                        <strong style="color: #fff;">${f.ownedUnits.toLocaleString()} Unit ($ ${financeManager.formatCurrency(f.currentValue, true)})</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-muted);">Floating P/L:</span>
+                        <strong style="color: ${f.pnl >= 0 ? '#10b981' : '#ef4444'};">
+                          ${f.pnl >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(f.pnl, true)} (${f.pnlPercent >= 0 ? '+' : ''}${f.pnlPercent.toFixed(2)}%)
+                        </strong>
+                      </div>
+                    ` : `
+                      <div style="color: var(--text-dim); text-align: center;">Belum memiliki unit reksa dana ini.</div>
+                    `}
+                  </div>
+                </div>
+
+                <!-- Buy & Sell Buttons -->
+                <div style="display: flex; gap: 0.5rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.85rem;">
+                  <button class="btn btn-primary btn-buy-rd" data-id="${f.id}" style="flex: 1; font-weight: 800; font-size: 0.78rem; padding: 8px 0; justify-content: center;">
+                    + Beli Unit
+                  </button>
+                  <button class="btn btn-secondary btn-sell-rd" data-id="${f.id}" ${hasUnits ? '' : 'disabled'} style="flex: 1; font-weight: 800; font-size: 0.78rem; padding: 8px 0; justify-content: center; ${hasUnits ? '' : 'opacity: 0.4; cursor: not-allowed;'}">
+                    - Jual Unit
+                  </button>
+                </div>
+
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+      </div>
+    `;
+
+    this.bindMutualFundsEvents(container);
+  }
+
+  bindMutualFundsEvents(container) {
+    if (!container) return;
+
+    // Buy modal
+    container.querySelectorAll('.btn-buy-rd').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const fundId = btn.dataset.id;
+        const fund = mutualFundManager.getFund(fundId);
+        if (!fund) return;
+        const playerBal = gameState.getBalance();
+
+        const modalHTML = `
+          <div style="padding: 1.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1rem;">
+              <span style="font-size: 1.8rem;">${fund.icon}</span>
+              <div>
+                <h3 style="font-size: 1.05rem; font-weight: 800; color: #fff; margin: 0;">Beli Unit: ${fund.name}</h3>
+                <span style="font-size: 0.72rem; color: var(--text-dim);">NAV: $${fund.nav.toFixed(4)} · Minimal Pembelian: $ ${financeManager.formatCurrency(fund.minBuy)}</span>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+              <label style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">
+                Nominal Investasi ($ USD)
+              </label>
+              <input type="number" id="input-rd-buy-amt" value="${Math.max(fund.minBuy, 1000)}" min="${fund.minBuy}" step="100" style="
+                width: 100%;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid var(--border-color);
+                border-radius: var(--radius-md);
+                padding: 10px 14px;
+                color: #fff;
+                font-weight: 800;
+                font-size: 1.1rem;
+              ">
+              <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">
+                <span>Saldo Kas: $ ${financeManager.formatCurrency(playerBal, true)}</span>
+                <span id="preview-rd-units">Estimasi: 0 Unit</span>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.4rem; margin-bottom: 1.25rem;">
+              <button class="btn btn-secondary btn-sm btn-rd-preset" data-amt="${fund.minBuy}" style="font-size: 0.7rem;">Min</button>
+              <button class="btn btn-secondary btn-sm btn-rd-preset" data-amt="2500" style="font-size: 0.7rem;">$ 2.5K</button>
+              <button class="btn btn-secondary btn-sm btn-rd-preset" data-amt="5000" style="font-size: 0.7rem;">$ 5K</button>
+              <button class="btn btn-secondary btn-sm btn-rd-preset" data-amt="10000" style="font-size: 0.7rem;">$ 10K</button>
+              <button class="btn btn-secondary btn-sm btn-rd-preset" data-amt="${Math.floor(playerBal)}" style="font-size: 0.7rem;">Maks</button>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem;">
+              <button class="btn btn-secondary" onclick="ui.closeModal()" style="flex: 1; font-weight: 700;">Batal</button>
+              <button class="btn btn-primary" id="btn-confirm-rd-buy" style="flex: 1; font-weight: 800;">Konfirmasi Pembelian</button>
+            </div>
+          </div>
+        `;
+
+        ui.showModal('Pembelian Unit Reksa Dana', modalHTML);
+
+        const inputAmt = document.getElementById('input-rd-buy-amt');
+        const previewEl = document.getElementById('preview-rd-units');
+
+        const updateBuyPreview = () => {
+          const val = parseFloat(inputAmt?.value) || 0;
+          const u = (val / fund.nav).toFixed(4);
+          if (previewEl) previewEl.textContent = `Estimasi: ${parseFloat(u).toLocaleString()} Unit`;
+        };
+
+        inputAmt?.addEventListener('input', updateBuyPreview);
+        updateBuyPreview();
+
+        document.querySelectorAll('.btn-rd-preset').forEach(b => {
+          b.addEventListener('click', () => {
+            if (inputAmt) {
+              inputAmt.value = b.dataset.amt;
+              updateBuyPreview();
+            }
+          });
+        });
+
+        document.getElementById('btn-confirm-rd-buy')?.addEventListener('click', () => {
+          const amt = parseFloat(inputAmt?.value) || 0;
+          try {
+            const res = mutualFundManager.buy(fundId, amt);
+            ui.closeModal();
+            ui.success(`Berhasil membeli ${res.unitsBought.toLocaleString()} unit ${res.fund.name}!`, 'Pembelian Reksa Dana');
+            this.updateMarketView();
+          } catch (err) {
+            ui.error(err.message);
+          }
+        });
+      });
+    });
+
+    // Sell modal
+    container.querySelectorAll('.btn-sell-rd').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const fundId = btn.dataset.id;
+        const fund = mutualFundManager.getFund(fundId);
+        if (!fund || fund.ownedUnits <= 0) return;
+
+        const modalHTML = `
+          <div style="padding: 1.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1rem;">
+              <span style="font-size: 1.8rem;">${fund.icon}</span>
+              <div>
+                <h3 style="font-size: 1.05rem; font-weight: 800; color: #fff; margin: 0;">Jual Unit: ${fund.name}</h3>
+                <span style="font-size: 0.72rem; color: var(--text-dim);">NAV: $${fund.nav.toFixed(4)} · Kepemilikan: ${fund.ownedUnits.toLocaleString()} Unit ($ ${financeManager.formatCurrency(fund.currentValue, true)})</span>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+              <label style="display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 700; margin-bottom: 4px;">
+                Jumlah Unit Penjualan
+              </label>
+              <input type="number" id="input-rd-sell-units" value="${fund.ownedUnits}" min="0.0001" max="${fund.ownedUnits}" step="1" style="
+                width: 100%;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid var(--border-color);
+                border-radius: var(--radius-md);
+                padding: 10px 14px;
+                color: #fff;
+                font-weight: 800;
+                font-size: 1.1rem;
+              ">
+              <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">
+                <span>Maks: ${fund.ownedUnits.toLocaleString()} Unit</span>
+                <span id="preview-rd-cash" style="color: #10b981; font-weight: 700;">Estimasi Kas: $ 0</span>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.4rem; margin-bottom: 1.25rem;">
+              <button class="btn btn-secondary btn-sm btn-rd-sell-pct" data-pct="0.25" style="font-size: 0.7rem;">25%</button>
+              <button class="btn btn-secondary btn-sm btn-rd-sell-pct" data-pct="0.5" style="font-size: 0.7rem;">50%</button>
+              <button class="btn btn-secondary btn-sm btn-rd-sell-pct" data-pct="0.75" style="font-size: 0.7rem;">75%</button>
+              <button class="btn btn-secondary btn-sm btn-rd-sell-pct" data-pct="1" style="font-size: 0.7rem;">100% (Semua)</button>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem;">
+              <button class="btn btn-secondary" onclick="ui.closeModal()" style="flex: 1; font-weight: 700;">Batal</button>
+              <button class="btn btn-danger" id="btn-confirm-rd-sell" style="flex: 1; font-weight: 800;">Jual & Cairkan ke Kas</button>
+            </div>
+          </div>
+        `;
+
+        ui.showModal('Penjualan Unit Reksa Dana', modalHTML);
+
+        const inputUnits = document.getElementById('input-rd-sell-units');
+        const previewCashEl = document.getElementById('preview-rd-cash');
+
+        const updateSellPreview = () => {
+          const u = parseFloat(inputUnits?.value) || 0;
+          const cash = Math.floor(u * fund.nav);
+          if (previewCashEl) previewCashEl.textContent = `Estimasi Kas: $ ${financeManager.formatCurrency(cash, true)}`;
+        };
+
+        inputUnits?.addEventListener('input', updateSellPreview);
+        updateSellPreview();
+
+        document.querySelectorAll('.btn-rd-sell-pct').forEach(b => {
+          b.addEventListener('click', () => {
+            const pct = parseFloat(b.dataset.pct);
+            if (inputUnits) {
+              inputUnits.value = +(fund.ownedUnits * pct).toFixed(4);
+              updateSellPreview();
+            }
+          });
+        });
+
+        document.getElementById('btn-confirm-rd-sell')?.addEventListener('click', () => {
+          const u = parseFloat(inputUnits?.value) || 0;
+          try {
+            const res = mutualFundManager.sell(fundId, u);
+            ui.closeModal();
+            ui.success(`Penjualan berhasil! Dana +$ ${financeManager.formatCurrency(res.payoutCash)} telah masuk ke kas utama.`, 'Penjualan Reksa Dana');
+            this.updateMarketView();
+          } catch (err) {
+            ui.error(err.message);
+          }
+        });
+      });
+    });
+  }
+
+  // =========================================================================
   // NEWS & ACTIONABLE TRADING ENGINE
   // =========================================================================
 
@@ -698,8 +1016,12 @@ export class ViewManager {
     }
   }
 
+  renderNewsPageView() {
+    this.renderNewsView();
+  }
+
   renderNewsView() {
-    const container = document.getElementById('market-news-list');
+    const container = document.getElementById('news-page-container') || document.getElementById('market-news-list');
     if (!container) return;
 
     const currentFilter = this.newsTabFilter || 'all';
@@ -929,9 +1251,7 @@ if (typeof window !== 'undefined') {
   };
 
   window.openMarketNewsTab = () => {
-    viewManager.switchView('market');
-    const btn = document.getElementById('tab-btn-news');
-    if (btn) btn.click();
+    viewManager.switchView('news');
   };
 
   window.setNewsFilter = (filter) => {

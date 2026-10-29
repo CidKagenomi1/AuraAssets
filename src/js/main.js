@@ -8,7 +8,6 @@
 import gameState from './core/GameState.js';
 import timeManager from './core/TimeManager.js';
 import globalEconomy from './core/GlobalEconomy.js';
-import earnManager from './core/EarnManager.js';
 import roleManager from './core/RoleManager.js';
 import newsManager from './core/NewsManager.js';
 
@@ -17,10 +16,10 @@ import financeManager from './finance/FinanceManager.js';
 import stockMarket from './trading/StockMarket.js';
 import cryptoMarket from './trading/CryptoMarket.js';
 import bankSystem from './finance/BankSystem.js';
-import taxSystem from './finance/TaxSystem.js';
 import savingsManager from './finance/SavingsManager.js';
 import propertyManager from './property/PropertyManager.js';
 import passiveIncomeManager from './trading/PassiveIncomeManager.js';
+import transferManager from './finance/TransferManager.js';
 
 // UI
 import ui from './ui/UIManager.js';
@@ -45,8 +44,8 @@ class BusinessTycoonGame {
         try {
             ui.init();
 
-            // Show portal if: not logged in, OR logged in but no character is active yet
-            if (!gameState.currentUser || !gameState.activeCharacter) {
+            // Show portal if not logged in
+            if (!gameState.currentUser) {
                 await loginPortal.show();
             }
 
@@ -86,6 +85,9 @@ class BusinessTycoonGame {
             homeScreen.updateBalanceCard();
             homeScreen.updateDashboardChart();
 
+            // Initialize P2P Transfers & Community Donation Box Realtime
+            transferManager.init();
+
             console.log('✅ Game initialized! Risk Profile:', roleManager.getRole());
             this.isInitialized = true;
         } catch (error) {
@@ -101,7 +103,6 @@ class BusinessTycoonGame {
             stocks: stockMarket,
             crypto: cryptoMarket,
             bank: bankSystem,
-            tax: taxSystem,
             ui,
             role: roleManager,
             news: newsManager,
@@ -115,7 +116,7 @@ class BusinessTycoonGame {
 
     async showWelcomeScreen() {
         return new Promise((resolve) => {
-            const defaultName = gameState.activeCharacter || gameState.currentUser || 'Player';
+            const defaultName = gameState.currentUser || 'Player';
             const nameStep = `
                 <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 1.5rem;">
                     <h3 class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">💼 Inisialisasi Profil Investor</h3>
@@ -156,7 +157,8 @@ class BusinessTycoonGame {
         const questions = roleManager.getQuestions();
         if (stepIndex >= questions.length) {
             const concludedId = roleManager.evaluateRiskProfile(answers);
-            this.showRiskConclusion(concludedId, answers, resolve);
+            const calculatedBalance = roleManager.calculateStartingBalance(concludedId, answers);
+            this.showRiskConclusion(concludedId, answers, calculatedBalance, resolve);
             return;
         }
 
@@ -198,9 +200,12 @@ class BusinessTycoonGame {
         const content = `
             <div class="modal-header" style="flex-direction: column; align-items: stretch; gap: 0.65rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 class="modal-title" style="font-size: 1.05rem;">🧭 Kuesioner Profil Risiko</h3>
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">${q.phaseLabel || 'Kuesioner Investor'}</span>
+                        <h3 class="modal-title" style="font-size: 1.05rem;">🧭 Asesmen Profil & Modal Awal</h3>
+                    </div>
                     <span style="font-size: 0.75rem; font-weight: 800; color: var(--accent-primary); background: rgba(16,185,129,0.12); padding: 3px 10px; border-radius: 20px;">
-                        Pertanyaan ${stepIndex + 1} / ${questions.length}
+                        ${stepIndex + 1} / ${questions.length}
                     </span>
                 </div>
                 <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden;">
@@ -245,13 +250,23 @@ class BusinessTycoonGame {
         });
     }
 
-    showRiskConclusion(profileId, answers, resolve) {
+    showRiskConclusion(profileId, answers, calculatedBalance, resolve) {
         const profile = roleManager.getRoleData(profileId);
-        const totalScore = answers.reduce((a, b) => a + b, 0);
+        const riskScores = answers.slice(0, 3);
+        const riskTotal = riskScores.reduce((a, b) => a + b, 0);
+        const behaviorScores = answers.slice(3, 6);
+        const behaviorTotal = behaviorScores.reduce((a, b) => a + b, 0);
+
+        let behaviorNote = 'Tier Menengah: Arus kas stabil & perencanaan terukur.';
+        if (behaviorTotal >= 5) {
+            behaviorNote = 'Tier Maksimal: Cadangan likuiditas mapan & disiplin eksekusi tinggi.';
+        } else if (behaviorTotal <= 2) {
+            behaviorNote = 'Tier Rintisan: Modal adaptif terukur untuk memulai akselerasi dari bawah.';
+        }
 
         const content = `
             <div class="modal-header">
-                <h3 class="modal-title">📊 Hasil Analisis Profil Risiko</h3>
+                <h3 class="modal-title">📊 Hasil Analisis Profil & Modal Awal</h3>
             </div>
             <div class="modal-body" style="text-align:center;">
                 <div style="
@@ -262,7 +277,7 @@ class BusinessTycoonGame {
                 ">${profile.icon}</div>
 
                 <div style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.25rem;">
-                    Kesimpulan Karakteristik Anda (Skor Risiko: ${totalScore}/9)
+                    Profil Investor Anda (Skor Toleransi: ${riskTotal}/12)
                 </div>
                 <h2 style="font-size: 1.5rem; font-weight: 900; color: ${profile.color}; margin-bottom: 0.65rem;">
                     ${profile.label}
@@ -281,16 +296,22 @@ class BusinessTycoonGame {
                     </div>
                 </div>
 
-                <div style="background:var(--bg-surface-hover);border-radius:var(--radius-md);padding:0.9rem;margin-bottom:0.5rem;">
-                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.2rem;">Modal Awal Akun Trading</div>
-                    <div style="font-size:1.45rem;font-weight:800;color:var(--text-main);">
-                        $ ${profile.startingBalance.toLocaleString('en-US')}
+                <div style="background:var(--bg-surface-hover);border-radius:var(--radius-md);padding:1rem;margin-bottom:0.5rem; border:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                        <span style="font-size:0.75rem;color:var(--text-muted);">Alokasi Modal Awal Trading</span>
+                        <span style="font-size:0.7rem; color:var(--text-dim); font-weight:600;">Rentang: $ ${profile.minStartingBalance.toLocaleString('en-US')} – $ ${profile.maxStartingBalance.toLocaleString('en-US')}</span>
+                    </div>
+                    <div style="font-size:1.75rem;font-weight:900;color:var(--text-main); letter-spacing:-0.02em;">
+                        $ ${calculatedBalance.toLocaleString('en-US')}
+                    </div>
+                    <div style="font-size:0.75rem; color:${profile.color}; margin-top:0.35rem; font-weight:600;">
+                        ${behaviorNote}
                     </div>
                 </div>
             </div>
             <div class="modal-footer" style="gap:0.75rem;">
                 <button class="btn btn-secondary" id="btn-retake-risk">↺ Ulangi Kuesioner</button>
-                <button class="btn btn-primary" id="btn-confirm-role">🏠 Masuk ke Dashboard Beranda</button>
+                <button class="btn btn-primary" id="btn-confirm-role">🏠 Masuk ke Terminal Bursa</button>
             </div>
         `;
 
@@ -305,7 +326,7 @@ class BusinessTycoonGame {
             roleManager.applyVisibility();
 
             const cheatBonus = this.checkCheatCode(gameState.get('player.name'));
-            const startingBalance = profile.startingBalance + cheatBonus;
+            const startingBalance = calculatedBalance + cheatBonus;
 
             gameState.set('player.balance', startingBalance);
             gameState.set('player.monthStartBalance', startingBalance);
@@ -317,7 +338,7 @@ class BusinessTycoonGame {
                 ui.success(`Cheat Activated! Saldo awal +$ 1 Triliun`, '💰 ULTRA RICH');
             }
 
-            ui.success(`Profil Anda: ${profile.label}. Selamat bertransaksi di Bursa!`, '📈 Terminal Siap');
+            ui.success(`Profil: ${profile.label} • Modal Awal: $ ${calculatedBalance.toLocaleString('en-US')}`, '📈 Terminal Siap');
             resolve();
         });
     }
@@ -334,7 +355,6 @@ class BusinessTycoonGame {
 
     startGameSystems() {
         timeManager.start();
-        earnManager.start();
 
         // Market updates — Continuous micro-tick price engine
         stockMarket.startUpdates(5000);

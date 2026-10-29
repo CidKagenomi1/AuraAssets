@@ -323,7 +323,7 @@ class TradingPage {
     document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
     
     // Also hide home sections if visible
-    const homeSections = ['view-home', 'balance-card', 'market-pulse-widget', 'earn-panel', '.quick-actions', 'footer-dashboard-grid'];
+    const homeSections = ['view-home', 'balance-card', 'market-pulse-widget', '.quick-actions', 'footer-dashboard-grid'];
     homeSections.forEach(sel => {
       const el = document.querySelector(sel) || document.getElementById(sel);
       if (el) el.style.display = 'none';
@@ -705,7 +705,7 @@ class TradingPage {
     // Restore previously active panels
     const activeView = document.querySelector('.nav-btn.active')?.dataset.view || 'home';
     if (activeView === 'home') {
-      const homeSections = ['view-home', 'balance-card', 'market-pulse-widget', 'top-movers-widget', 'earn-panel', '.quick-actions', 'footer-dashboard-grid'];
+      const homeSections = ['view-home', 'balance-card', 'market-pulse-widget', 'top-movers-widget', '.quick-actions', 'footer-dashboard-grid'];
       homeSections.forEach(sel => {
         const el = document.querySelector(sel) || document.getElementById(sel);
         if (el) el.style.display = '';

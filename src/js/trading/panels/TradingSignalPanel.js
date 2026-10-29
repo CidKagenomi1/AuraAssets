@@ -4,8 +4,6 @@
 
 import tradingSignalManager from '../TradingSignalManager.js';
 import viewManager from '../../ui/ViewManager.js';
-import stockPanel from './StockPanel.js';
-import cryptoPanel from './CryptoPanel.js';
 import globalEconomy from '../../core/GlobalEconomy.js';
 import { Icons } from '../../ui/Icons.js';
 

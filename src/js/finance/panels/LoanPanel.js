@@ -54,24 +54,24 @@ class LoanPanel {
                                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                                             <span style="font-weight: 800; font-size: 0.85rem; color: white;">${loan.productName}</span>
                                             <span style="color: #f87171; font-weight: 800; font-size: 0.85rem;">
-                                                ${loan.isCheat ? 'GRATIS / CHEAT' : `-$ ${financeManager.formatCurrency(loan.monthlyPayment)}/bln`}
+                                                ${loan.isCheat ? 'GRATIS / CHEAT' : `-$ ${financeManager.formatCurrency(loan.dailyPayment || Math.ceil((loan.monthlyPayment || loan.remaining) / 30))}/hari`}
                                             </span>
                                         </div>
                                         
                                         <!-- Detailed Breakdown Grid -->
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.5rem; font-size: 0.65rem; color: var(--text-muted); margin-bottom: 0.75rem;">
                                             <div>Pokok: <strong style="color: white;">$ ${financeManager.formatCurrency(loan.principal)}</strong></div>
-                                            <div>Bunga: <strong style="color: var(--accent-primary);">${(loan.interestRate * 100).toFixed(1)}%/bln</strong></div>
-                                            <div>Sisa Tenor: <strong style="color: white;">${loan.termMonths - loan.monthsPaid} bln</strong></div>
+                                            <div>Bunga: <strong style="color: var(--accent-primary);">${(loan.interestRate * 100).toFixed(1)}% total</strong></div>
+                                            <div>Sisa Tenor: <strong style="color: white;">${Math.max(0, (loan.termDays || (loan.termMonths ? loan.termMonths * 30 : 30)) - (loan.daysPaid !== undefined ? loan.daysPaid : (loan.monthsPaid || 0) * 30))} hari</strong></div>
                                             <div>Sisa Hutang: <strong style="color: #f87171;">$ ${financeManager.formatCurrency(loan.remaining)}</strong></div>
                                         </div>
 
                                         <div class="loan-mini-progress" style="height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; margin-bottom: 0.5rem;">
-                                            <div class="fill" style="width: ${(loan.monthsPaid / loan.termMonths) * 100}%; height: 100%; background: var(--accent-primary);"></div>
+                                            <div class="fill" style="width: ${Math.min(100, Math.floor(((loan.daysPaid !== undefined ? loan.daysPaid : (loan.monthsPaid || 0) * 30) / (loan.termDays || (loan.termMonths ? loan.termMonths * 30 : 30))) * 100))}%; height: 100%; background: var(--accent-primary);"></div>
                                         </div>
                                         
                                         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.65rem;">
-                                            <span style="color: var(--text-muted);">Dibayar: ${loan.monthsPaid}/${loan.termMonths} bulan</span>
+                                            <span style="color: var(--text-muted);">Dibayar: ${loan.daysPaid !== undefined ? loan.daysPaid : (loan.monthsPaid || 0) * 30}/${loan.termDays || (loan.termMonths ? loan.termMonths * 30 : 30)} hari</span>
                                             <button class="text-btn-payoff" data-payoff="${loan.id}">LUNASI SEKARANG</button>
                                         </div>
                                     </div>
@@ -147,7 +147,7 @@ class LoanPanel {
                                             <div class="product-name">${p.name}</div>
                                             <div class="interest-tag" style="color: ${isCheatActive ? '#34d399' : 'var(--accent-primary)'}; font-weight: 800;">${interestText}</div>
                                         </div>
-                                        <div class="term-tag">${p.termMonths} MO</div>
+                                        <div class="term-tag">${p.termLabel || (p.termDays + " HARI")}</div>
                                     </div>
                                     
                                     <div class="limit-box" style="${isCheatActive ? 'border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.05);' : ''}">
@@ -392,7 +392,7 @@ class LoanPanel {
                 <div class="card" style="background: rgba(0,0,0,0.2); margin-bottom: 1.5rem; text-align: center; ${isCheatActive ? 'border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.05);' : ''}">
                     <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Maksimal Pinjaman</div>
                     <div style="font-size: 2rem; font-weight: 800; color: white; margin: 0.25rem 0;">${limitDisplay}</div>
-                    <div style="font-size: 0.75rem; color: ${isCheatActive ? '#10b981' : 'var(--accent-primary)'}; font-weight: 700;">${interestText} • ${product.termMonths} BULAN</div>
+                    <div style="font-size: 0.75rem; color: ${isCheatActive ? '#10b981' : 'var(--accent-primary)'}; font-weight: 700;">${interestText} • TENOR ${product.termLabel || (product.termDays + " HARI")}</div>
                 </div>
 
                 <div style="margin-bottom: 1.5rem;">
@@ -418,7 +418,7 @@ class LoanPanel {
                         <span id="total-loan-display" style="font-size: 1.25rem; font-weight: 800; color: white;">$ 0</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 0.8rem; color: var(--text-muted);">Total Cicilan/bln</span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">Total Cicilan/hari</span>
                         <span id="monthly-payment-display" style="font-size: 1rem; font-weight: 700; color: #ef4444;">$ 0</span>
                     </div>
                 </div>
@@ -464,11 +464,12 @@ class LoanPanel {
             const mult = selectedMultiplier;
             const total = amount * mult;
             const isCheatActive = bankSystem.isCheatActive();
-            const monthlyPerLoan = isCheatActive ? 0 : ((amount + (amount * product.interestRate * product.termMonths)) / product.termMonths);
-            const totalMonthly = monthlyPerLoan * mult;
+            const termDays = product.termDays || (product.termMonths ? product.termMonths * 30 : 30);
+            const dailyPerLoan = isCheatActive ? 0 : Math.ceil((amount + (amount * product.interestRate)) / termDays);
+            const totalDaily = dailyPerLoan * mult;
 
             totalDisplay.textContent = `$ ${financeManager.formatCurrency(total, true)}`;
-            monthlyDisplay.textContent = isCheatActive ? 'GRATIS (0% BUNGA)' : `$ ${financeManager.formatCurrency(totalMonthly, true)}`;
+            monthlyDisplay.textContent = isCheatActive ? 'GRATIS (0% BUNGA)' : `$ ${financeManager.formatCurrency(totalDaily, true)}/hari`;
         };
 
         modal.querySelectorAll('.mult-btn').forEach(btn => {

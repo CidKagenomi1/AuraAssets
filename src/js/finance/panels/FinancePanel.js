@@ -11,6 +11,7 @@ import propertyManager from '../../property/PropertyManager.js';
 import roleManager from '../../core/RoleManager.js';
 import viewManager from '../../ui/ViewManager.js';
 import careerManager from '../../career/CareerManager.js';
+import savingsManager from '../../finance/SavingsManager.js';
 
 class FinancePanel {
     constructor() {
@@ -41,17 +42,14 @@ class FinancePanel {
         const transactions = financeManager.getRecentTransactions(30);
 
         const workState = gameState.get('work') || {};
-        const totalTasks = workState.totalTasksDone || 0;
         const careerLevel = workState.careerLevel || 1;
-        const bizState = gameState.get('business') || {};
-        const playerRole = gameState.get('player.role') || 'karyawan';
         
         // Calculate Net Worth for Cashflow Tab display
         const balance = gameState.getBalance();
         const totalStockValue = stockMarket.getPortfolioValue() || 0;
         const totalCryptoValue = cryptoMarket.getWalletValue() || 0;
         const totalPropertyValue = propertyManager.getTotalPropertyValue() || 0;
-        const savingsBalance = gameState.get('savings.balance') || 0;
+        const savingsBalance = savingsManager.getTotalSavings();
         const rdPortfolio = gameState.get('savings.reksaDana') || {};
         const rdFunds = [
             { id: 'pasar_uang', nav: 1.042 },
@@ -734,7 +732,7 @@ class FinancePanel {
         const totalPropertyValue = propertyManager.getTotalPropertyValue() || 0;
         const ownedProperties = propertyManager.getOwnedProperties() || [];
 
-        const savingsBalance = gameState.get('savings.balance') || 0;
+        const savingsBalance = savingsManager.getTotalSavings();
         const rdPortfolio = gameState.get('savings.reksaDana') || {};
         const rdFunds = [
             { id: 'pasar_uang', nav: 1.042 },
@@ -1492,6 +1490,10 @@ class FinancePanel {
         };
         window.addEventListener('resize', this.resizeHandler);
         chartDom.resizeHandler = this.resizeHandler;
+    }
+
+    showDonateModal() {
+        import('../../ui/HomeScreen.js').then(m => m.default.handleDonate());
     }
 }
 

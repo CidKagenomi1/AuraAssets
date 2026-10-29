@@ -156,16 +156,16 @@ export function showMobileMenu(onViewSwitch) {
         borderColor: 'rgba(245, 158, 11, 0.28)',
         icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>`
       },
-      tax: {
-        id: 'tax',
-        label: 'Pajak & Fiskal',
+      news: {
+        id: 'news',
+        label: 'Berita & Sentimen',
         group: 'finance',
-        tag: 'Kepatuhan',
-        desc: 'Lapor & bayar kewajiban pajak aset serta capital gain agar bebas audit/denda.',
-        bg: 'rgba(244, 63, 94, 0.14)',
-        color: '#fb7185',
-        borderColor: 'rgba(244, 63, 94, 0.28)',
-        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18 17H6v-2h12v2zm0-4H6v-2h12v2zm0-4H6V7h12v2zM3 22l1.5-1.5L6 22l1.5-1.5L9 22l1.5-1.5L12 22l1.5-1.5L15 22l1.5-1.5L18 22l1.5-1.5L21 22V2l-1.5 1.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2l-1.5 1.5L6 2l-1.5 1.5L3 2v20z"/></svg>`
+        tag: 'Katalis Pasar',
+        desc: 'Pantau peristiwa breaking news dunia, kebijakan The Fed, dan sentimen bursa.',
+        bg: 'rgba(239, 68, 68, 0.14)',
+        color: '#f87171',
+        borderColor: 'rgba(239, 68, 68, 0.28)',
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>`
       },
       history: {
         id: 'history',
@@ -188,6 +188,17 @@ export function showMobileMenu(onViewSwitch) {
         color: '#c084fc',
         borderColor: 'rgba(168, 85, 247, 0.28)',
         icon: `🛒`
+      },
+      transfer: {
+        id: 'transfer',
+        label: 'Transfer Dana',
+        group: 'finance',
+        tag: 'P2P Antar Player',
+        desc: 'Kirim dana tunai langsung ke username teman sesama investor secara instan.',
+        bg: 'rgba(16, 185, 129, 0.14)',
+        color: '#34d399',
+        borderColor: 'rgba(16, 185, 129, 0.28)',
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`
       },
       donate: {
         id: 'donate',
@@ -235,7 +246,7 @@ export function showMobileMenu(onViewSwitch) {
       }
     };
 
-    const secondaryIds = ['property', 'loan', 'savings', 'tax', 'history', 'marketplace', 'donate', 'guide', 'settings', 'notifications'];
+    const secondaryIds = ['transfer', 'property', 'loan', 'savings', 'history', 'marketplace', 'donate', 'guide', 'settings', 'notifications'];
     const activeItems = secondaryIds
       .filter(id => !role.hiddenNav.includes(id))
       .map(id => navItems[id]);

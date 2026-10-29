@@ -1,6 +1,6 @@
 /**
- * LoginPortal.js - Unified single-page login & character selection portal.
- * Step 1: Pilih/buat akun  →  Step 2: Pilih/buat karakter  (semuanya di satu layar)
+ * LoginPortal.js - Unified single-page account login & registration portal.
+ * Akun 1:1 langsung terhubung ke profil pemain & database tanpa perantara karakter.
  */
 
 import gameState from '../core/GameState.js';
@@ -18,10 +18,6 @@ if (!document.getElementById('lp-global-style')) {
             0%,100% { transform: translateX(0); }
             20%,60%  { transform: translateX(-8px); }
             40%,80%  { transform: translateX(8px);  }
-        }
-        @keyframes lp-slide-in {
-            from { opacity: 0; transform: translateX(24px); }
-            to   { opacity: 1; transform: translateX(0);    }
         }
         .lp-account-btn {
             background: rgba(255,255,255,0.03);
@@ -46,29 +42,6 @@ if (!document.getElementById('lp-global-style')) {
         .lp-account-btn.selected {
             background: rgba(99,102,241,0.12) !important;
             border-color: rgba(99,102,241,0.5) !important;
-        }
-        .lp-char-btn {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 14px;
-            padding: 1rem 1.15rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
-            width: 100%;
-            text-align: left;
-            color: #fff;
-            font-family: inherit;
-            margin-bottom: 0.6rem;
-        }
-        .lp-char-btn:hover {
-            background: rgba(255,255,255,0.07) !important;
-            border-color: var(--accent-primary) !important;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.25);
         }
         .lp-input {
             width: 100%;
@@ -187,21 +160,6 @@ if (!document.getElementById('lp-global-style')) {
     document.head.appendChild(s);
 }
 
-// ─── Role / Risk Profile config ──────────────────────────────────────────────
-const ROLE_CONFIG = {
-    conservative: { label: 'Investor Konservatif', color: '#38bdf8', icon: '🛡️' },
-    passive:      { label: 'Investor Pasif',       color: '#10b981', icon: '⚖️' },
-    aggressive:   { label: 'Investor Agresif',     color: '#f59e0b', icon: '🚀' },
-    karyawan:     { label: 'Investor Konservatif', color: '#38bdf8', icon: '🛡️' },
-    investor:     { label: 'Investor Pasif',       color: '#10b981', icon: '⚖️' },
-    pebisnis:     { label: 'Investor Pasif',       color: '#10b981', icon: '⚖️' },
-    tycoon:       { label: 'Investor Konservatif', color: '#38bdf8', icon: '🛡️' },
-    daytrader:    { label: 'Investor Agresif',     color: '#f59e0b', icon: '🚀' },
-    survivor:     { label: 'Investor Agresif',     color: '#f59e0b', icon: '🚀' }
-};
-
-const MONTHS = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-
 function fmtBalance(num) {
     if (!isFinite(num) || num >= 1e30) return '∞';
     if (num >= 1e15) return '$ ' + (num/1e15).toFixed(1) + ' Qa';
@@ -254,52 +212,57 @@ class LoginPortal {
             const suggestions = ['Elon Smash', 'Zark Mackerberg', 'Jeff Bozo', 'Bill Gateskeeper', 'Warren Buffetless'];
             this.suggestedName = suggestions[Math.floor(Math.random() * suggestions.length)];
 
-            // Decide entry step
-            if (gameState.currentUser) {
-                this._renderCharacterStep(overlay, resolve);
-            } else {
-                this._renderAccountStep(overlay, resolve);
-            }
+            this._renderAccountStep(overlay, resolve);
         });
     }
 
-    // ── STEP 1: Account (list saved accounts + login form + register) ──────────
     _renderAccountStep(container, resolve, opts = {}) {
         const { prefillUser = '', showRegister = false, message = null, errorMsg = null } = opts;
         const accounts   = gameState.getAccounts();
         const accountKeys = Object.keys(accounts);
         const isRegister  = showRegister || accountKeys.length === 0;
 
-        // Build saved-accounts chips
+        // Build saved-accounts chips with their current balance snapshot
         let savedAccountsHTML = '';
         if (!isRegister && accountKeys.length > 0) {
             savedAccountsHTML = `
                 <div style="margin-bottom:1.25rem;">
                     <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.35);font-weight:700;margin-bottom:0.6rem;">Akun Tersimpan</div>
-                    <div style="display:flex;flex-direction:column;gap:0.45rem;">
+                    <div style="display:flex;flex-direction:column;gap:0.45rem;max-height:200px;overflow-y:auto;padding-right:2px;scrollbar-width:thin;">
                         ${accountKeys.map(k => {
                             const acc = accounts[k];
-                            const initials = acc.username.substring(0,2).toUpperCase();
+                            const avatar = acc.avatar || '👤';
+                            let balanceText = '';
+                            try {
+                                const saveRaw = localStorage.getItem(`businessTycoon_save_${k}`);
+                                if (saveRaw) {
+                                    const p = JSON.parse(saveRaw);
+                                    if (p?.player?.balance !== undefined) {
+                                        balanceText = fmtBalance(p.player.balance);
+                                    }
+                                }
+                            } catch (e) {}
+
                             return `
                             <button class="lp-account-btn${prefillUser.toLowerCase()===k?' selected':''}" data-username="${acc.username}">
-                                <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent-primary),#4f46e5);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;flex-shrink:0;">${initials}</div>
-                                <div>
-                                    <div style="font-weight:700;font-size:0.9rem;">${acc.username}</div>
-                                    <div style="font-size:0.68rem;color:rgba(255,255,255,0.35);">Klik untuk masuk</div>
+                                <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">${avatar}</div>
+                                <div style="min-width:0;flex:1;">
+                                    <div style="font-weight:800;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${acc.username}</div>
+                                    <div style="font-size:0.7rem;color:var(--accent-primary);font-weight:600;">${balanceText ? `${balanceText}` : 'Klik untuk login'}</div>
                                 </div>
-                                <div style="margin-left:auto;color:rgba(255,255,255,0.2);">›</div>
+                                <div style="color:rgba(255,255,255,0.3);font-size:1rem;">›</div>
                             </button>`;
                         }).join('')}
                     </div>
                 </div>
-                <div class="lp-divider">atau masuk dengan password</div>`;
+                <div class="lp-divider">atau masukkan password akun</div>`;
         }
 
         container.innerHTML = `
         <div id="lp-card" style="
-            background:rgba(12,18,36,0.75);
-            backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-            border:1px solid rgba(255,255,255,0.08);
+            background:rgba(12,18,36,0.85);
+            backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+            border:1px solid rgba(255,255,255,0.1);
             width:100%;max-width:440px;
             border-radius:24px;
             box-shadow:0 30px 60px rgba(0,0,0,0.6),0 0 50px rgba(99,102,241,0.08);
@@ -309,15 +272,15 @@ class LoginPortal {
         ">
             ${logoHTML()}
 
-            <div class="lp-step-badge">🔐 &nbsp;Langkah 1 dari 2 &nbsp;·&nbsp; Akun</div>
+            <div class="lp-step-badge">🔐 &nbsp;Autentikasi Akun Investor</div>
 
             <h3 style="margin:0 0 0.35rem;font-size:1.45rem;font-weight:800;letter-spacing:-0.02em;">
                 ${isRegister ? 'Buat Akun Baru' : 'Selamat Datang Kembali'}
             </h3>
-            <p style="margin:0 0 1.5rem;font-size:0.84rem;color:rgba(255,255,255,0.4);">
+            <p style="margin:0 0 1.5rem;font-size:0.84rem;color:rgba(255,255,255,0.4);line-height:1.45;">
                 ${isRegister
-                    ? 'Daftarkan kredensial eksekutif Anda untuk mulai simulasi'
-                    : 'Pilih akun atau masukkan username & password Anda'}
+                    ? 'Daftarkan nama akun Anda untuk langsung memulai trading & manajemen portofolio.'
+                    : 'Pilih akun yang tersimpan atau masukkan username & sandi Anda.'}
             </p>
 
             ${errorMsg   ? `<div class="lp-error-box">❌ <span>${errorMsg}</span></div>` : ''}
@@ -327,34 +290,34 @@ class LoginPortal {
 
             <form id="lp-form" style="display:flex;flex-direction:column;gap:0;">
                 <div style="margin-bottom:1rem;">
-                    <label style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.35);font-weight:700;display:block;margin-bottom:0.45rem;">
-                        ${isRegister ? 'Nama Pengguna (Username)' : 'Username'}
+                    <label style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.45);font-weight:700;display:block;margin-bottom:0.45rem;">
+                        ${isRegister ? 'Nama Akun Pemain (Username)' : 'Username'}
                     </label>
                     <div style="position:relative;">
-                        <span style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:1rem;opacity:0.35;pointer-events:none;">👤</span>
+                        <span style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:1rem;opacity:0.4;pointer-events:none;">👤</span>
                         <input id="lp-username" class="lp-input" type="text"
-                            placeholder="${isRegister ? `Cth: ${this.suggestedName || 'Elon Smash'}` : 'Masukkan username'}"
+                            placeholder="${isRegister ? `Cth: ${this.suggestedName || 'Elon Smash'}` : 'Masukkan nama akun'}"
                             value="${prefillUser}" autocomplete="username" required />
                     </div>
                 </div>
 
                 <div style="margin-bottom:1.5rem;">
-                    <label style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.35);font-weight:700;display:block;margin-bottom:0.45rem;">Password</label>
+                    <label style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.45);font-weight:700;display:block;margin-bottom:0.45rem;">Password</label>
                     <div style="position:relative;">
-                        <span style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:1rem;opacity:0.35;pointer-events:none;">🔑</span>
+                        <span style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:1rem;opacity:0.4;pointer-events:none;">🔑</span>
                         <input id="lp-password" class="lp-input" type="password"
                             placeholder="••••••••" autocomplete="${isRegister?'new-password':'current-password'}" required />
                     </div>
                 </div>
 
                 <button type="submit" class="lp-btn-primary">
-                    ${isRegister ? '✨ Buat Akun & Lanjut' : '🔐 Masuk & Lanjut'}
+                    ${isRegister ? '✨ Buat Akun & Masuk Pasar' : '🔐 Masuk ke Terminal'}
                 </button>
             </form>
 
             <div style="margin-top:1.1rem;text-align:center;">
-                <span style="font-size:0.8rem;color:rgba(255,255,255,0.3);">
-                    ${isRegister ? 'Sudah punya akun?' : 'Belum punya akun?'}
+                <span style="font-size:0.8rem;color:rgba(255,255,255,0.4);">
+                    ${isRegister ? 'Sudah memiliki akun?' : 'Belum memiliki akun?'}
                 </span>
                 <button id="lp-toggle" class="lp-btn-ghost">
                     ${isRegister ? 'Masuk di Sini' : 'Daftar Akun Baru'}
@@ -391,8 +354,8 @@ class LoginPortal {
                 } else {
                     gameState.login(username, password);
                 }
-                // → Step 2
-                this._renderCharacterStep(container, resolve, { newAccount: isRegister });
+                // Directly close and resolve: no character layer
+                this._close(container, resolve);
             } catch (err) {
                 this._shake(container);
                 this._renderAccountStep(container, resolve, {
@@ -409,148 +372,13 @@ class LoginPortal {
         setTimeout(() => (prefillUser ? p?.focus() : u?.focus()), 60);
     }
 
-    // ── STEP 2: Character selection ────────────────────────────────────────────
-    _renderCharacterStep(container, resolve, opts = {}) {
-        const { newAccount = false } = opts;
-        const lowerUser = gameState.currentUser.toLowerCase();
-        const chars     = gameState.getCharacters();
-
-        const charsHTML = chars.map(charName => {
-            const charKey = charName.toLowerCase();
-            let charInfo  = { role: null, balance: 0, gameTime: { day:1, month:1, year:2010 } };
-            try {
-                const raw = localStorage.getItem(`businessTycoon_save_${lowerUser}_char_${charKey}`);
-                if (raw) {
-                    const p = JSON.parse(raw);
-                    if (p.player)   { charInfo.role = p.player.role || null; charInfo.balance = p.player.balance || 0; }
-                    if (p.gameTime) charInfo.gameTime = p.gameTime;
-                }
-            } catch(_) {}
-
-            const roleMeta = (charInfo.role && ROLE_CONFIG[charInfo.role])
-                ? ROLE_CONFIG[charInfo.role]
-                : { label:'Belum Analisis Risiko', color:'#71717a', icon:'🧭' };
-            const gameDate = `${charInfo.gameTime.day} ${MONTHS[charInfo.gameTime.month-1]} ${charInfo.gameTime.year}`;
-
-            return `
-            <button class="lp-char-btn" data-charname="${charName}">
-                <div style="display:flex;align-items:center;gap:0.9rem;min-width:0;flex:1;">
-                    <div style="
-                        width:46px;height:46px;border-radius:13px;flex-shrink:0;
-                        background:${roleMeta.color}18;border:1px solid ${roleMeta.color}35;
-                        display:flex;align-items:center;justify-content:center;font-size:1.55rem;">
-                        ${roleMeta.icon}
-                    </div>
-                    <div style="min-width:0;flex:1;">
-                        <div style="font-weight:800;font-size:1rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;">${charName}</div>
-                        <div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;">
-                            <span style="font-size:0.62rem;font-weight:800;color:${roleMeta.color};background:${roleMeta.color}15;padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:0.05em;">${roleMeta.label}</span>
-                            <span style="font-size:0.72rem;color:rgba(255,255,255,0.3);">${gameDate}</span>
-                        </div>
-                    </div>
-                </div>
-                <div style="text-align:right;flex-shrink:0;">
-                    <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.05em;font-weight:700;margin-bottom:3px;">Saldo</div>
-                    <div style="font-weight:800;font-size:0.92rem;color:var(--accent-primary);">${fmtBalance(charInfo.balance)}</div>
-                </div>
-            </button>`;
-        }).join('');
-
-        container.innerHTML = `
-        <div id="lp-card" style="
-            background:rgba(12,18,36,0.75);
-            backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-            border:1px solid rgba(255,255,255,0.08);
-            width:100%;max-width:440px;
-            border-radius:24px;
-            box-shadow:0 30px 60px rgba(0,0,0,0.6),0 0 50px rgba(99,102,241,0.08);
-            padding:2.25rem;
-            display:flex;flex-direction:column;
-            animation:lp-slide-in 0.4s cubic-bezier(0.16,1,0.3,1);
-        ">
-            ${logoHTML()}
-
-            <div class="lp-step-badge">👤 &nbsp;Langkah 2 dari 2 &nbsp;·&nbsp; Karakter</div>
-
-            <!-- Logged-in account badge -->
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;">
-                <div>
-                    <h3 style="margin:0 0 0.2rem;font-size:1.4rem;font-weight:800;letter-spacing:-0.02em;">Pilih Karakter</h3>
-                    <p style="margin:0;font-size:0.83rem;color:rgba(255,255,255,0.38);">
-                        Akun: <span style="color:#a5b4fc;font-weight:700;">${gameState.currentUser}</span>
-                    </p>
-                </div>
-                <button id="lp-logout" class="lp-btn-ghost danger" style="text-decoration:none;font-size:0.78rem;white-space:nowrap;">🚪 Ganti Akun</button>
-            </div>
-
-            ${newAccount && chars.length === 0
-                ? `<div class="lp-success-box">✅ <span>Akun berhasil dibuat! Buat karakter pertama Anda di bawah.</span></div>`
-                : ''}
-
-            ${chars.length > 0
-                ? `<div style="max-height:300px;overflow-y:auto;padding-right:2px;margin-bottom:1rem;scrollbar-width:thin;">${charsHTML}</div>`
-                : `<div style="text-align:center;padding:2rem 0;color:rgba(255,255,255,0.3);font-size:0.88rem;margin-bottom:1rem;">
-                       <div style="font-size:2.5rem;margin-bottom:0.5rem;">🎭</div>
-                       <div>Belum ada karakter. Buat yang pertama!</div>
-                   </div>`}
-
-            <button id="lp-new-char" style="
-                width:100%;
-                background:rgba(255,255,255,0.02);
-                border:1.5px dashed rgba(255,255,255,0.18);
-                border-radius:12px;
-                padding:0.85rem;
-                color:#94a3b8;
-                font-weight:700;font-size:0.85rem;
-                cursor:pointer;
-                transition:all 0.2s;
-                display:flex;align-items:center;justify-content:center;gap:0.5rem;
-                font-family:inherit;
-            ">
-                ➕ Buat Karakter Baru
-            </button>
-        </div>`;
-
-        // ── Events ──
-        container.querySelectorAll('.lp-char-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const charName = btn.dataset.charname;
-                localStorage.setItem(`businessTycoon_activeChar_${lowerUser}`, charName);
-                gameState.activeCharacter = charName;
-                gameState.load();
-                this._close(container, resolve);
-            });
-        });
-
-        container.querySelector('#lp-new-char').addEventListener('click', () => {
-            localStorage.removeItem(`businessTycoon_activeChar_${lowerUser}`);
-            gameState.activeCharacter = null;
-            gameState.state = gameState.getDefaultState();
-            this._close(container, resolve);
-        });
-
-        container.querySelector('#lp-logout').addEventListener('click', () => {
-            gameState.logout();
-        });
-
-        // hover for new char btn
-        const newCharBtn = container.querySelector('#lp-new-char');
-        newCharBtn.addEventListener('mouseenter', () => {
-            newCharBtn.style.borderColor = 'rgba(99,102,241,0.5)';
-            newCharBtn.style.background  = 'rgba(99,102,241,0.06)';
-            newCharBtn.style.color = '#c7d2fe';
-        });
-        newCharBtn.addEventListener('mouseleave', () => {
-            newCharBtn.style.borderColor = 'rgba(255,255,255,0.18)';
-            newCharBtn.style.background  = 'rgba(255,255,255,0.02)';
-            newCharBtn.style.color = '#94a3b8';
-        });
-    }
-
     _close(container, resolve) {
         container.style.opacity = '0';
         container.style.transition = 'opacity 0.3s ease';
-        setTimeout(() => { container.remove(); resolve(); }, 300);
+        setTimeout(() => {
+            container.remove();
+            resolve();
+        }, 300);
     }
 
     _shake(container) {
@@ -558,7 +386,7 @@ class LoginPortal {
         if (!card) return;
         card.style.animation = 'none';
         void card.offsetWidth;
-        card.style.animation = 'lp-shake 0.35s ease';
+        card.style.animation = 'lp-shake 0.4s ease';
     }
 }
 

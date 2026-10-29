@@ -1,6 +1,6 @@
-﻿/**
- * BankSystem.js - Bank Loans and Credit
- * Pinjaman bank dengan bunga dan credit score
+/**
+ * BankSystem.js - Bank Loans and Credit System
+ * Game-scaled loans: Fast turnover, daily installments, maximum 30-day tenor.
  */
 
 import gameState from '../core/GameState.js';
@@ -10,14 +10,54 @@ import financeManager from './FinanceManager.js';
 class BankSystem {
     constructor() {
         this.loanProducts = [
-            { id: 'personal', name: 'Pinjaman Personal', maxAmount: 500000, interestRate: 0.015, termMonths: 12 },
-            { id: 'business', name: 'Pinjaman Bisnis', maxAmount: 5000000, interestRate: 0.012, termMonths: 24 },
-            { id: 'emergency', name: 'Pinjaman Darurat', maxAmount: 100000, interestRate: 0.025, termMonths: 6 },
-            { id: 'mortgage', name: 'KPR', maxAmount: 20000000, interestRate: 0.008, termMonths: 120 }
+            { 
+                id: 'flash', 
+                name: 'Pinjaman Kilat Flash', 
+                maxAmount: 25000, 
+                interestRate: 0.015, 
+                termDays: 3, 
+                termMonths: 1,
+                termLabel: '3 Hari',
+                icon: '⚡',
+                desc: 'Talangan dana darurat kilat untuk trading & momentum pasar cepat' 
+            },
+            { 
+                id: 'personal', 
+                name: 'Pinjaman Personal', 
+                maxAmount: 100000, 
+                interestRate: 0.025, 
+                termDays: 7, 
+                termMonths: 1,
+                termLabel: '7 Hari (1 Mgg)',
+                icon: '💳',
+                desc: 'Tambahan modal belanja & kebutuhan likuiditas mingguan' 
+            },
+            { 
+                id: 'business', 
+                name: 'Pinjaman Modal Usaha', 
+                maxAmount: 500000, 
+                interestRate: 0.040, 
+                termDays: 14, 
+                termMonths: 1,
+                termLabel: '14 Hari (2 Mgg)',
+                icon: '💼',
+                desc: 'Ekspansi investasi portofolio atau dana awal akuisisi properti' 
+            },
+            { 
+                id: 'mortgage', 
+                name: 'Kredit Investasi Utama', 
+                maxAmount: 2500000, 
+                interestRate: 0.060, 
+                termDays: 30, 
+                termMonths: 1,
+                termLabel: '30 Hari (1 Bln)',
+                icon: '🏛️',
+                desc: 'Leverage modal besar tenor maksimal 1 bulan untuk akumulasi aset bernilai tinggi' 
+            }
         ];
 
-        // Listen for monthly payments
-        timeManager.onMonth(() => this.processMonthlyPayments());
+        // Listen for daily installment auto-deduction
+        timeManager.onDay(() => this.processDailyPayments());
     }
 
     /**
@@ -41,7 +81,7 @@ class BankSystem {
         if (!product) return 0;
 
         const creditScore = gameState.get('player.creditScore') || 700;
-        const scoreMultiplier = creditScore / 700; // 1.0 at 700, higher/lower based on score
+        const scoreMultiplier = creditScore / 700; // 1.0 at 700
 
         // Check existing loans
         const existingLoans = gameState.get('loans') || [];
@@ -49,8 +89,8 @@ class BankSystem {
             .filter(l => !l.paid)
             .reduce((sum, l) => sum + l.remaining, 0);
 
-        // Max debt ratio based on credit score - HIGHER to allow debt traps!
-        const maxDebtRatio = 1.5 + (scoreMultiplier - 1) * 0.5; // 150% at 700, up to 200% at max
+        // Max debt ratio based on credit score
+        const maxDebtRatio = 1.5 + (scoreMultiplier - 1) * 0.5;
         const balance = gameState.getBalance();
         const maxAllowedDebt = Math.max((balance + product.maxAmount) * maxDebtRatio, product.maxAmount * 2);
 
@@ -68,68 +108,73 @@ class BankSystem {
         if (!product) throw new Error('Produk pinjaman tidak ditemukan');
 
         const available = this.getAvailableLoanAmount(productId);
-        if (amount > available) throw new Error('Jumlah melebihi batas pinjaman');
-        if (amount <= 0) throw new Error('Jumlah tidak valid');
+        if (amount > available) throw new Error('Jumlah melebihi batas pinjaman yang diizinkan');
+        if (amount <= 0) throw new Error('Jumlah pinjaman tidak valid');
 
         const isCheat = this.isCheatActive();
         const interestRate = isCheat ? 0 : product.interestRate;
 
         // Calculate loan details
-        const monthlyInterest = interestRate;
-        const totalInterest = amount * monthlyInterest * product.termMonths;
+        const termDays = product.termDays || 30;
+        const totalInterest = Math.floor(amount * interestRate);
         const totalPayment = amount + totalInterest;
-        const monthlyPayment = isCheat ? 0 : (totalPayment / product.termMonths);
+        const dailyPayment = isCheat ? 0 : Math.ceil(totalPayment / termDays);
 
         const loan = {
-            id: Date.now(),
+            id: Date.now() + '_' + Math.floor(Math.random() * 1000),
             productId,
             productName: product.name + (isCheat ? ' (Cheat 0%)' : ''),
             principal: amount,
-            interestRate: monthlyInterest,
-            termMonths: product.termMonths,
+            interestRate: interestRate,
+            termDays: termDays,
+            termMonths: Math.max(1, Math.round(termDays / 30)),
+            termLabel: product.termLabel || (termDays + ' Hari'),
             totalPayment,
-            monthlyPayment,
+            dailyPayment,
+            monthlyPayment: dailyPayment * 30,
             remaining: totalPayment,
+            daysPaid: 0,
             monthsPaid: 0,
             startDate: {
-                month: gameState.get('gameTime.month'),
-                year: gameState.get('gameTime.year')
+                day: gameState.get('gameTime.day') || 1,
+                month: gameState.get('gameTime.month') || 1,
+                year: gameState.get('gameTime.year') || 2026
             },
             paid: false,
             missedPayments: 0,
             isCheat: isCheat
         };
 
-        // Add loan
+        // Add loan to state
         const loans = gameState.get('loans') || [];
         loans.push(loan);
         gameState.set('loans', loans);
 
-        // Add amount to balance
+        // Add cash to balance
         gameState.update('player', p => ({
             ...p,
             balance: p.balance + amount
         }));
 
-        // Record transaction to history
+        // Record transaction
         financeManager.recordTransaction({
+            type: 'income',
             amount: amount,
             category: 'loan_received',
-            description: `Pinjam ${product.name}`,
+            description: `Pencairan ${product.name} (Tenor: ${loan.termLabel})`,
             details: {
                 loanId: loan.id,
-                termMonths: product.termMonths,
-                monthlyPayment: monthlyPayment
+                termDays: termDays,
+                dailyPayment: dailyPayment
             }
         });
 
         gameState.emit('loanApproved', loan);
-
         return loan;
     }
 
     /**
-     * Make loan payment
+     * Make loan payment (single daily installment or custom amount)
      */
     makePayment(loanId, amount = null) {
         const loans = gameState.get('loans') || [];
@@ -138,10 +183,10 @@ class BankSystem {
         if (!loan) throw new Error('Pinjaman tidak ditemukan');
         if (loan.paid) throw new Error('Pinjaman sudah lunas');
 
-        const paymentAmount = amount || loan.monthlyPayment;
+        const paymentAmount = amount || loan.dailyPayment || Math.ceil(loan.monthlyPayment / 30) || loan.remaining;
         const balance = gameState.getBalance();
 
-        if (paymentAmount > balance) throw new Error('Saldo tidak cukup');
+        if (paymentAmount > balance) throw new Error('Saldo kas tidak mencukupi untuk membayar cicilan');
         if (paymentAmount > loan.remaining) throw new Error('Pembayaran melebihi sisa pinjaman');
 
         // Deduct from balance
@@ -150,29 +195,33 @@ class BankSystem {
             balance: p.balance - paymentAmount
         }));
 
-        // Record transaction to history
+        const currentDayPaid = (loan.daysPaid || 0) + 1;
+        const termDays = loan.termDays || (loan.termMonths ? loan.termMonths * 30 : 30);
+
+        // Record transaction
         financeManager.recordTransaction({
+            type: 'expense',
             amount: -paymentAmount,
             category: 'loan_payment',
-            description: `Cicilan ${loan.productName}`,
+            description: `Cicilan Harian ${loan.productName} (Hari ${currentDayPaid}/${termDays})`,
             details: {
                 loanId: loan.id,
                 remaining: loan.remaining - paymentAmount,
-                monthsPaid: loan.monthsPaid + 1
+                daysPaid: currentDayPaid
             }
         });
 
-        // Update loan
+        // Update loan progress
         loan.remaining -= paymentAmount;
-        loan.monthsPaid++;
+        loan.daysPaid = currentDayPaid;
+        loan.monthsPaid = Math.floor(currentDayPaid / 30);
 
         if (loan.remaining <= 0) {
             loan.paid = true;
             loan.remaining = 0;
 
-            // Improve credit score
-            this.adjustCreditScore(10);
-
+            // Improve credit score on completion
+            this.adjustCreditScore(15);
             gameState.emit('loanPaidOff', loan);
         }
 
@@ -183,39 +232,50 @@ class BankSystem {
     }
 
     /**
-     * Process monthly payments (called by TimeManager)
+     * Process daily installment payments (called on every game UTC day pass)
      */
-    processMonthlyPayments() {
+    processDailyPayments() {
         const loans = gameState.get('loans') || [];
+        const activeLoans = loans.filter(l => !l.paid);
+        if (activeLoans.length === 0) return;
+
         const balance = gameState.getBalance();
 
-        loans.filter(l => !l.paid).forEach(loan => {
+        activeLoans.forEach(loan => {
             if (loan.isCheat) {
-                // Free cheat loan: term increments, but no actual player balance deductions occur!
-                loan.monthsPaid++;
-                if (loan.monthsPaid >= loan.termMonths) {
+                loan.daysPaid = (loan.daysPaid || 0) + 1;
+                const termDays = loan.termDays || 30;
+                if (loan.daysPaid >= termDays) {
                     loan.paid = true;
                     loan.remaining = 0;
                 }
                 return;
             }
 
-            if (balance >= loan.monthlyPayment) {
+            const dailyInstallment = loan.dailyPayment || Math.ceil((loan.monthlyPayment || loan.remaining) / 30);
+
+            if (gameState.getBalance() >= dailyInstallment) {
                 try {
-                    this.makePayment(loan.id);
+                    this.makePayment(loan.id, dailyInstallment);
                 } catch (e) {
-                    console.error('Failed to process payment:', e);
+                    console.error('Failed auto payment:', e);
                 }
             } else {
-                // Missed payment
-                loan.missedPayments++;
-                this.adjustCreditScore(-20); // Penalty
+                // Missed payment handling
+                loan.missedPayments = (loan.missedPayments || 0) + 1;
+                this.adjustCreditScore(-15);
 
-                // Add late fee
-                const lateFee = loan.monthlyPayment * 0.05;
+                const lateFee = Math.max(25, Math.floor(dailyInstallment * 0.05));
                 loan.remaining += lateFee;
 
                 gameState.emit('loanMissedPayment', { loan, lateFee });
+
+                import('../ui/UIManager.js').then(({ default: ui }) => {
+                    ui.warning(
+                        `⚠️ Saldo tidak cukup untuk cicilan harian ${loan.productName}! Denda keterlambatan +$ ${financeManager.formatCurrency(lateFee)} ditambahkan.`,
+                        'Gagal Bayar Cicilan'
+                    );
+                }).catch(() => {});
             }
         });
 
@@ -223,7 +283,7 @@ class BankSystem {
     }
 
     /**
-     * Pay off loan early
+     * Pay off loan early with 10% interest discount
      */
     payOffEarly(loanId) {
         const loans = gameState.get('loans') || [];
@@ -232,12 +292,12 @@ class BankSystem {
         if (!loan) throw new Error('Pinjaman tidak ditemukan');
         if (loan.paid) throw new Error('Pinjaman sudah lunas');
 
-        // Early payoff discount (10% off remaining interest)
-        const discount = loan.remaining * 0.1;
+        // Early payoff discount (10% off remaining balance)
+        const discount = Math.floor(loan.remaining * 0.1);
         const payoffAmount = loan.remaining - discount;
 
         const balance = gameState.getBalance();
-        if (payoffAmount > balance) throw new Error('Saldo tidak cukup');
+        if (payoffAmount > balance) throw new Error('Saldo tidak cukup untuk melunasi pinjaman');
 
         // Deduct from balance
         gameState.update('player', p => ({
@@ -245,11 +305,11 @@ class BankSystem {
             balance: p.balance - payoffAmount
         }));
 
-        // Record transaction to history
         financeManager.recordTransaction({
+            type: 'expense',
             amount: -payoffAmount,
             category: 'loan_payoff',
-            description: `Pelunasan ${loan.productName}`,
+            description: `Pelunasan Dini ${loan.productName} (Hemat Diskon: $ ${financeManager.formatCurrency(discount)})`,
             details: {
                 loanId: loan.id,
                 saved: discount
@@ -290,7 +350,7 @@ class BankSystem {
      * Get total debt
      */
     getTotalDebt() {
-        return this.getActiveLoans().reduce((sum, l) => sum + l.remaining, 0);
+        return this.getActiveLoans().reduce((sum, l) => sum + (l.remaining || 0), 0);
     }
 
     /**
@@ -299,13 +359,13 @@ class BankSystem {
     getTotalPayoffAmount() {
         const activeLoans = this.getActiveLoans();
         return activeLoans.reduce((sum, l) => {
-            const discount = l.remaining * 0.1;
+            const discount = Math.floor(l.remaining * 0.1);
             return sum + (l.remaining - discount);
         }, 0);
     }
 
     /**
-     * Pay off ALL loans at once
+     * Pay off ALL active loans at once
      */
     payAllLoans() {
         const activeLoans = this.getActiveLoans();
@@ -324,33 +384,31 @@ class BankSystem {
         const loans = gameState.get('loans') || [];
 
         activeLoans.forEach(loan => {
-            const discount = loan.remaining * 0.1;
+            const discount = Math.floor(loan.remaining * 0.1);
             const payoffAmount = loan.remaining - discount;
             totalSaved += discount;
 
-            // Deduct from balance
             gameState.update('player', p => ({
                 ...p,
                 balance: p.balance - payoffAmount
             }));
 
-            // Record transaction
             financeManager.recordTransaction({
+                type: 'expense',
                 amount: -payoffAmount,
                 category: 'loan_payoff',
-                description: `Pelunasan ${loan.productName}`,
+                description: `Pelunasan Kolektif ${loan.productName}`,
                 details: {
                     loanId: loan.id,
                     saved: discount
                 }
             });
 
-            // Mark loan as paid
             loan.remaining = 0;
             loan.paid = true;
         });
 
-        // Big credit score boost
+        // Credit score boost for total payoff
         this.adjustCreditScore(30 * activeLoans.length);
 
         gameState.set('loans', loans);
@@ -360,7 +418,7 @@ class BankSystem {
     }
 
     /**
-     * Get credit score level
+     * Get credit score tier level
      */
     getCreditLevel(score = null) {
         const s = score || gameState.get('player.creditScore') || 700;
@@ -373,7 +431,7 @@ class BankSystem {
     }
 
     /**
-     * Get loan products
+     * Get loan products with current user borrowing power
      */
     getLoanProducts() {
         return this.loanProducts.map(p => ({

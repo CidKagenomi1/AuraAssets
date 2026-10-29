@@ -23,7 +23,6 @@ class GameState {
             }
         }
 
-        this.activeCharacter = this.currentUser ? localStorage.getItem(`businessTycoon_activeChar_${this.currentUser.toLowerCase()}`) || null : null;
         this.state = this.getDefaultState();
         this.load();
 
@@ -93,23 +92,6 @@ class GameState {
             },
 
 
-            // Business (New)
-            business: {
-                active: false,
-                name: "",
-                type: "",       // 'umkm' | 'startup'
-                industry: "",   // 'tech', 'fnb', 'retail', 'service'
-                level: 1,
-                valuation: 0,
-                revenue: 0,
-                cash: 0,
-                employees: 0,
-                marketing: 0,
-                productQuality: 1,
-                foundedAt: 0,
-                history: []
-            },
-
             // Settings
             settings: {
                 soundEnabled: true,
@@ -131,26 +113,15 @@ class GameState {
                 autoDepositAmount: 0
             },
 
-            // Idle Earn System
-            earn: {
-                level: 1,
-                pendingEarn: 0,
-                totalEarned: 0,
-                lastEarnTick: Date.now()
-            },
 
             // Properties/Real Estate
             properties: [],
 
-            // Work / Task progression
+            // Career / Investor Rank progression
             work: {
                 careerLevel: 1,
                 xp: 0,
-                tasksCompletedToday: 0,
-                lastTaskDate: null,
-                totalTasksDone: 0,
-                performance: 100,
-                activeTask: null
+                history: []
             },
             donations: {
                 totalDonated: 0,
@@ -190,28 +161,27 @@ class GameState {
         const oldValue = target[lastKey];
         target[lastKey] = value;
 
-        // If setting player name, keep activeCharacter updated
-        if (path === 'player.name') {
-            this.activeCharacter = value;
-            if (this.currentUser) {
-                const lowerUser = this.currentUser.toLowerCase();
-                localStorage.setItem(`businessTycoon_activeChar_${lowerUser}`, value);
-                const chars = this.getCharacters();
-                if (!chars.includes(value)) {
-                    chars.push(value);
-                    this.saveCharacters(chars);
-                }
+        // If setting player name, keep it synchronized
+        if (path === 'player.name' && value) {
+            if (this.currentUser && this.currentUser !== value) {
+                this.currentUser = value;
+                localStorage.setItem('businessTycoon_currentUser', value);
             }
         }
 
         // Keep chart history synchronized when player balance changes
         if (path === 'player.balance' && typeof value === 'number') {
+            const currentNW = Math.round(this.getNetWorth());
             const dHist = this.state.dailyBalanceHistory || [];
-            if (dHist.length === 0 || (dHist[0]?.balance <= 100 && value > 1000)) {
+            if (dHist.length === 0 || (dHist[0]?.balance <= 100 && currentNW > 1000)) {
                 this.prepopulateDailyHistory();
                 this.prepopulateTickHistory();
-            } else {
-                dHist[dHist.length - 1].balance = Math.round(value);
+            } else if (dHist.length > 0) {
+                dHist[dHist.length - 1].balance = currentNW;
+            }
+            const tHist = this.state.tickBalanceHistory || [];
+            if (tHist.length > 0) {
+                tHist[tHist.length - 1].balance = currentNW;
             }
         }
 
@@ -262,9 +232,9 @@ class GameState {
             clearTimeout(this.saveTimeout);
             this.saveTimeout = null;
         }
-        // BUG-04 FIX: Throttle saves — skip if saved within last 30 seconds
         const now = Date.now();
-        if (this._lastSaveTime && (now - this._lastSaveTime) < 30000) {
+        // Allow saves at most once every 5 seconds on manual call
+        if (this._lastSaveTime && (now - this._lastSaveTime) < 5000) {
             return false;
         }
         try {
@@ -272,20 +242,10 @@ class GameState {
                 console.warn('⚠️ Cannot save: No user is logged in.');
                 return false;
             }
-            const charKey = this.activeCharacter ? this.activeCharacter.toLowerCase() : 'pemain';
-            localStorage.setItem(`businessTycoon_save_${this.currentUser.toLowerCase()}_char_${charKey}`, JSON.stringify(this.state));
-            
-            // Also ensure activeCharacter is saved in charList and activeChar key
-            if (this.activeCharacter) {
-                const chars = this.getCharacters();
-                if (!chars.includes(this.activeCharacter)) {
-                    chars.push(this.activeCharacter);
-                    this.saveCharacters(chars);
-                }
-                localStorage.setItem(`businessTycoon_activeChar_${this.currentUser.toLowerCase()}`, this.activeCharacter);
-            }
+            const lowerUser = this.currentUser.toLowerCase();
+            localStorage.setItem(`businessTycoon_save_${lowerUser}`, JSON.stringify(this.state));
             this._lastSaveTime = now;
-            console.debug(`💾 Game saved for user: ${this.currentUser}, Character: ${this.activeCharacter}`);
+            console.debug(`💾 Game saved directly for user account: ${this.currentUser}`);
             return true;
         } catch (e) {
             console.error('Failed to save game:', e);
@@ -298,42 +258,40 @@ class GameState {
             if (!this.currentUser) {
                 this.state = this.getDefaultState();
                 this.state.player.name = 'Tamu';
-                this.activeCharacter = null;
                 return;
             }
 
             const lowerUser = this.currentUser.toLowerCase();
-            this.activeCharacter = localStorage.getItem(`businessTycoon_activeChar_${lowerUser}`) || null;
 
-            // Legacy save migration: check if there's a save under the old name format
-            const legacySaved = localStorage.getItem(`businessTycoon_save_${lowerUser}`);
-            if (legacySaved && !this.activeCharacter) {
-                const parsed = JSON.parse(legacySaved);
-                const charName = parsed?.player?.name || this.currentUser;
-                this.activeCharacter = charName;
-                localStorage.setItem(`businessTycoon_activeChar_${lowerUser}`, charName);
-                
-                // Add to character list
-                const chars = this.getCharacters();
-                if (!chars.includes(charName)) {
-                    chars.push(charName);
-                    this.saveCharacters(chars);
+            // 1. Direct-to-account save
+            let saved = localStorage.getItem(`businessTycoon_save_${lowerUser}`);
+
+            // 2. Backward compatibility migration: If not found, check if there's legacy character slot
+            if (!saved) {
+                const activeChar = localStorage.getItem(`businessTycoon_activeChar_${lowerUser}`);
+                if (activeChar) {
+                    const charSave = localStorage.getItem(`businessTycoon_save_${lowerUser}_char_${activeChar.toLowerCase()}`);
+                    if (charSave) {
+                        saved = charSave;
+                        localStorage.setItem(`businessTycoon_save_${lowerUser}`, saved);
+                    }
+                } else {
+                    const charListStr = localStorage.getItem(`businessTycoon_charList_${lowerUser}`);
+                    if (charListStr) {
+                        try {
+                            const charList = JSON.parse(charListStr);
+                            if (charList && charList.length > 0) {
+                                const firstCharSave = localStorage.getItem(`businessTycoon_save_${lowerUser}_char_${charList[0].toLowerCase()}`);
+                                if (firstCharSave) {
+                                    saved = firstCharSave;
+                                    localStorage.setItem(`businessTycoon_save_${lowerUser}`, saved);
+                                }
+                            }
+                        } catch (e) {}
+                    }
                 }
-
-                // Write to new character slot
-                localStorage.setItem(`businessTycoon_save_${lowerUser}_char_${charName.toLowerCase()}`, legacySaved);
-                // Remove legacy save key
-                localStorage.removeItem(`businessTycoon_save_${lowerUser}`);
             }
 
-            if (!this.activeCharacter) {
-                // First-time logged-in user with no active character yet
-                this.state = this.getDefaultState();
-                return;
-            }
-
-            const charKey = this.activeCharacter.toLowerCase();
-            const saved = localStorage.getItem(`businessTycoon_save_${lowerUser}_char_${charKey}`);
             if (saved) {
                 const parsed = JSON.parse(saved);
                 this.state = this.mergeState(this.getDefaultState(), parsed);
@@ -343,23 +301,28 @@ class GameState {
                 this.state.gameTime.month = nowUTC.getUTCMonth() + 1;
                 this.state.gameTime.year = nowUTC.getUTCFullYear();
                 this.state.gameTime.speed = 1;
-                console.log(`📂 Game loaded for user: ${this.currentUser}, Character: ${this.activeCharacter}`);
+                this.state.player.name = this.currentUser;
+                console.log(`📂 Game loaded for user account: ${this.currentUser}`);
             } else {
                 this.state = this.getDefaultState();
-                this.state.player.name = this.activeCharacter;
+                this.state.player.name = this.currentUser;
             }
 
-            // Ensure dailyBalanceHistory is initialized, uses real UTC year, & matches non-zero balance
+            // Ensure dailyBalanceHistory is initialized, uses real UTC year, & matches non-zero net worth
+            const currentNW = this.getNetWorth();
             const dHist = this.state.dailyBalanceHistory || [];
             const lastEntry = dHist[dHist.length - 1];
             const currentUTCYear = new Date().getUTCFullYear();
-            const isStaleHistory = !lastEntry || lastEntry.year !== currentUTCYear || (dHist[0]?.balance <= 100 && this.getBalance() > 1000);
+            const isStaleHistory = !lastEntry || lastEntry.year !== currentUTCYear || (dHist[0]?.balance <= 100 && currentNW > 1000);
             if (dHist.length === 0 || isStaleHistory) {
                 this.prepopulateDailyHistory();
             }
-            // Ensure tickBalanceHistory is initialized & prepopulated
+            // Ensure tickBalanceHistory is initialized & prepopulated with synchronized UTC timestamps
             const tHist = this.state.tickBalanceHistory || [];
-            if (tHist.length === 0 || isStaleHistory || (tHist[0]?.balance <= 100 && this.getBalance() > 1000)) {
+            const lastTick = tHist[tHist.length - 1];
+            const nowTime = Date.now();
+            const isStaleTick = !lastTick || !lastTick.timestamp || (nowTime - lastTick.timestamp > 3600 * 1000 * 2);
+            if (tHist.length === 0 || isStaleHistory || isStaleTick || (tHist[0]?.balance <= 100 && currentNW > 1000)) {
                 this.prepopulateTickHistory();
             }
         } catch (e) {
@@ -368,21 +331,10 @@ class GameState {
     }
 
     getCharacters() {
-        if (!this.currentUser) return [];
-        try {
-            const data = localStorage.getItem(`businessTycoon_charList_${this.currentUser.toLowerCase()}`);
-            return data ? JSON.parse(data) : [];
-        } catch (e) {
-            return [];
-        }
+        return [];
     }
 
-    saveCharacters(chars) {
-        if (!this.currentUser) return;
-        try {
-            localStorage.setItem(`businessTycoon_charList_${this.currentUser.toLowerCase()}`, JSON.stringify(chars));
-        } catch (e) {}
-    }
+    saveCharacters() {}
 
     changeAccountUsername(newUsername) {
         const cleanName = newUsername.trim();
@@ -404,33 +356,16 @@ class GameState {
         delete accounts[lowerOld];
         this.saveAccounts(accounts);
 
-        // 2. Migrate active character name key
-        const activeChar = localStorage.getItem(`businessTycoon_activeChar_${lowerOld}`);
-        if (activeChar) {
-            localStorage.setItem(`businessTycoon_activeChar_${lowerNew}`, activeChar);
-            localStorage.removeItem(`businessTycoon_activeChar_${lowerOld}`);
+        // 2. Migrate direct-to-account save
+        const saveData = localStorage.getItem(`businessTycoon_save_${lowerOld}`);
+        if (saveData) {
+            localStorage.setItem(`businessTycoon_save_${lowerNew}`, saveData);
+            localStorage.removeItem(`businessTycoon_save_${lowerOld}`);
         }
 
-        // 3. Migrate character list key
-        const charList = localStorage.getItem(`businessTycoon_charList_${lowerOld}`);
-        if (charList) {
-            localStorage.setItem(`businessTycoon_charList_${lowerNew}`, charList);
-            localStorage.removeItem(`businessTycoon_charList_${lowerOld}`);
-        }
-
-        // 4. Migrate saves for all characters in list
-        const chars = charList ? JSON.parse(charList) : [];
-        chars.forEach(char => {
-            const charKey = char.toLowerCase();
-            const saveData = localStorage.getItem(`businessTycoon_save_${lowerOld}_char_${charKey}`);
-            if (saveData) {
-                localStorage.setItem(`businessTycoon_save_${lowerNew}_char_${charKey}`, saveData);
-                localStorage.removeItem(`businessTycoon_save_${lowerOld}_char_${charKey}`);
-            }
-        });
-
-        // 5. Update state
+        // 3. Update state
         this.currentUser = cleanName;
+        this.state.player.name = cleanName;
         localStorage.setItem('businessTycoon_currentUser', cleanName);
         return true;
     }
@@ -472,37 +407,22 @@ class GameState {
     }
 
     scheduleSave() {
-        // BUG-04 FIX: Only schedule if no pending save AND enough time has passed
         if (this.saveTimeout) return;
         const now = Date.now();
         const timeSinceLastSave = this._lastSaveTime ? (now - this._lastSaveTime) : Infinity;
-        // Delay: 30s minimum between saves, but always write if >60s has passed
-        const delay = timeSinceLastSave < 30000 ? (30000 - timeSinceLastSave) : 1000;
+        const delay = timeSinceLastSave < 10000 ? (10000 - timeSinceLastSave) : 1000;
         this.saveTimeout = setTimeout(() => this.save(), delay);
     }
 
     reset() {
-        // BUG-07 FIX: Also remove character from charList and clear activeChar key
-        const charName = this.activeCharacter;
         this.state = this.getDefaultState();
         if (this.currentUser) {
             const lowerUser = this.currentUser.toLowerCase();
-            if (charName) {
-                const charKey = charName.toLowerCase();
-                // Remove save data
-                localStorage.removeItem(`businessTycoon_save_${lowerUser}_char_${charKey}`);
-                // Remove from character list
-                const chars = this.getCharacters().filter(c => c.toLowerCase() !== charKey);
-                this.saveCharacters(chars);
-                // Clear active character key
-                localStorage.removeItem(`businessTycoon_activeChar_${lowerUser}`);
-                this.activeCharacter = null;
-            }
-            // Also remove legacy save key if it exists
             localStorage.removeItem(`businessTycoon_save_${lowerUser}`);
+            this.state.player.name = this.currentUser;
         }
         this.emit('reset');
-        console.log('🔄 Game reset for character:', charName);
+        console.log('🔄 Game reset for account:', this.currentUser);
     }
 
     // Account Management Helpers
@@ -692,10 +612,10 @@ class GameState {
 
     prepopulateDailyHistory() {
         this.state.dailyBalanceHistory = [];
-        const currentBalance = Math.max(1000, this.getBalance() || 100000);
+        const currentNetWorth = Math.max(100, Math.round(this.getNetWorth()));
         const now = new Date();
 
-        let balance = currentBalance;
+        let netWorth = currentNetWorth;
         const temp = [];
         for (let i = 0; i <= 364; i++) {
             const dt = new Date(now.getTime() - i * 86400000);
@@ -707,33 +627,52 @@ class GameState {
                 day: d,
                 month: m,
                 year: y,
-                balance: Math.round(i === 0 ? (this.getBalance() || currentBalance) : balance),
+                balance: Math.round(i === 0 ? currentNetWorth : netWorth),
                 label: `${d}/${m}`
             });
 
-            // Walk backwards in time with slight upward trend toward today
-            const drift = (Math.random() - 0.46) * 0.004;
-            balance = Math.max(100, balance * (1 - drift));
+            // Realistic macro drift walk backwards in time toward past history
+            const drift = (Math.random() - 0.48) * 0.0035;
+            netWorth = Math.max(50, netWorth * (1 - drift));
         }
         this.state.dailyBalanceHistory = temp;
     }
 
     prepopulateTickHistory() {
         this.state.tickBalanceHistory = [];
-        const currentBalance = Math.max(1000, this.getBalance() || 100000);
-        let balance = currentBalance;
+        const currentNetWorth = Math.max(100, Math.round(this.getNetWorth()));
         const now = new Date();
         const pad = n => String(n).padStart(2, '0');
         const temp = [];
-        for (let i = 0; i <= 23; i++) {
-            const t = new Date(now.getTime() - i * 1000);
-            const timeStr = `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())} UTC`;
-            temp.unshift({
-                time: timeStr,
-                balance: Math.round(i === 0 ? (this.getBalance() || currentBalance) : balance)
-            });
-            const drift = (Math.random() - 0.47) * 0.0012;
-            balance = Math.max(100, balance * (1 - drift));
+        const totalPoints = 24;
+        const phaseShift = Math.random() * Math.PI * 2;
+        let walk = 0;
+
+        for (let i = totalPoints - 1; i >= 0; i--) {
+            const t = new Date(now.getTime() - i * 3600 * 1000);
+            // Synchronized hourly marks for past points, exact live UTC minute for current point
+            const timeStr = i === 0 
+                ? `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())} UTC`
+                : `${pad(t.getUTCHours())}:00 UTC`;
+            
+            if (i === 0) {
+                temp.push({
+                    time: timeStr,
+                    timestamp: now.getTime(),
+                    balance: currentNetWorth
+                });
+            } else {
+                // Realistic intraday curve: subtle harmonic wave + mean-reverting drift
+                const wave = Math.sin((i / totalPoints) * Math.PI * 2 + phaseShift) * 0.005;
+                walk = walk * 0.7 + (Math.random() - 0.49) * 0.003;
+                const pctOffset = wave + walk;
+                const pointBalance = Math.max(50, Math.round(currentNetWorth * (1 - pctOffset)));
+                temp.push({
+                    time: timeStr,
+                    timestamp: t.getTime(),
+                    balance: pointBalance
+                });
+            }
         }
         this.state.tickBalanceHistory = temp;
     }
@@ -751,7 +690,7 @@ class GameState {
             day,
             month,
             year,
-            balance: this.getBalance(),
+            balance: Math.round(this.getNetWorth()),
             label: `${day}/${month}`
         });
         
@@ -763,20 +702,43 @@ class GameState {
     }
 
     recordTickBalance() {
-        if (!this.state.tickBalanceHistory) {
-            this.state.tickBalanceHistory = [];
+        if (!this.state.tickBalanceHistory || this.state.tickBalanceHistory.length === 0) {
+            this.prepopulateTickHistory();
+            return;
         }
         
         const now = new Date();
         const pad = n => String(n).padStart(2, '0');
-        const timeStr = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())} UTC`;
-        this.state.tickBalanceHistory.push({
-            time: timeStr,
-            balance: this.getBalance()
-        });
-        
-        if (this.state.tickBalanceHistory.length > 24) {
-            this.state.tickBalanceHistory.shift();
+        const timeStr = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())} UTC`;
+        const currentNetWorth = Math.round(this.getNetWorth());
+        const history = this.state.tickBalanceHistory;
+        const lastEntry = history[history.length - 1];
+
+        // Check if an hourly boundary has passed to append a new synchronized slot
+        const lastHour = lastEntry?.timestamp ? new Date(lastEntry.timestamp).getUTCHours() : -1;
+        const currentHour = now.getUTCHours();
+        const isNewHour = (lastHour !== -1 && lastHour !== currentHour);
+
+        if (isNewHour) {
+            // Round previous point to its hour mark :00 UTC
+            if (lastEntry && lastEntry.timestamp) {
+                const prevDate = new Date(lastEntry.timestamp);
+                lastEntry.time = `${pad(prevDate.getUTCHours())}:00 UTC`;
+            }
+            history.push({
+                time: timeStr,
+                timestamp: now.getTime(),
+                balance: currentNetWorth
+            });
+            if (history.length > 24) {
+                history.shift();
+            }
+        } else if (lastEntry) {
+            const hasChanged = lastEntry.balance !== currentNetWorth || lastEntry.time !== timeStr;
+            lastEntry.balance = currentNetWorth;
+            lastEntry.time = timeStr;
+            lastEntry.timestamp = now.getTime();
+            if (!hasChanged) return;
         }
         
         this.emit('tickBalanceUpdate', this.state.tickBalanceHistory);

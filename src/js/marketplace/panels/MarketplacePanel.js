@@ -266,8 +266,6 @@ class MarketplacePanel {
                                 ui.success(`Mobil mewah ${car.brand} ${car.model} berhasil dibeli! Gengsi Anda meningkat +${car.prestige}.`);
                             } else if (itemId === 'executive_suit') {
                                 ui.success('Setelan jas terpasang! Bonus karir aktif.');
-                            } else if (itemId === 'erp_software') {
-                                ui.success('Sistem Cloud ERP berhasil terpasang di jaringan bisnis Anda!');
                             } else if (itemId === 'private_jet') {
                                 ui.success('Jet Pribadi terbeli! Gengsi korporasi melonjak tinggi.');
                             }

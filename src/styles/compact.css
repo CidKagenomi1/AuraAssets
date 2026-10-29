@@ -99,14 +99,12 @@ body {
   gap: 0.875rem !important;
 }
 
-/* Fear & Greed / Top Movers / Earn widgets: compact */
+/* Fear & Greed / Top Movers widgets: compact */
 #market-pulse-widget,
-#top-movers-widget,
-#earn-panel {
+#top-movers-widget {
   padding: 0.875rem !important;
 }
-#fear-greed-value,
-#earn-pending-value {
+#fear-greed-value {
   font-size: 1.75rem !important; /* was 2.25rem */
 }
 

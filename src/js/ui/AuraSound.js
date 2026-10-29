@@ -5,7 +5,19 @@
  */
 
 class AuraSound {
+  static isEnabled() {
+    try {
+      if (typeof window !== 'undefined' && window.game?.state) {
+        return window.game.state.get('settings.soundEnabled') !== false;
+      }
+      return true;
+    } catch(e) {
+      return true;
+    }
+  }
+
   static getContext() {
+    if (!this.isEnabled()) return null;
     return new (window.AudioContext || window.webkitAudioContext)();
   }
 
@@ -21,6 +33,7 @@ class AuraSound {
   static playTap() {
     try {
       const ctx = this.getContext();
+      if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
@@ -45,6 +58,7 @@ class AuraSound {
   static playClick() {
     try {
       const ctx = this.getContext();
+      if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
@@ -73,6 +87,7 @@ class AuraSound {
   static playClaimMoney() {
     try {
       const ctx = this.getContext();
+      if (!ctx) return;
       const now = ctx.currentTime;
       
       const playTone = (freq, delay, dur) => {
@@ -99,6 +114,7 @@ class AuraSound {
   static playPurchase() {
     try {
       const ctx = this.getContext();
+      if (!ctx) return;
       const now = ctx.currentTime;
 
       const playTone = (freq, delay, dur) => {
@@ -129,6 +145,7 @@ class AuraSound {
   static playSuccessAlert() {
     try {
       const ctx = this.getContext();
+      if (!ctx) return;
       const now = ctx.currentTime;
       
       const notes = [659.25, 987.77]; // E5, B5 (Perfect Fifth, warm and professional)
@@ -153,6 +170,7 @@ class AuraSound {
   static playInfoAlert() {
     try {
       const ctx = this.getContext();
+      if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
@@ -176,6 +194,7 @@ class AuraSound {
   static playWarningAlert() {
     try {
       const ctx = this.getContext();
+      if (!ctx) return;
       const now = ctx.currentTime;
 
       const playTone = (freq, delay, dur) => {
@@ -202,6 +221,7 @@ class AuraSound {
   static playErrorAlert() {
     try {
       const ctx = this.getContext();
+      if (!ctx) return;
       const now = ctx.currentTime;
       const notes = [293.66, 349.23]; // D4 and F4 (solid and professional minor third)
 
@@ -226,6 +246,7 @@ class AuraSound {
   static playCasinoSpin() {
     try {
       const ctx = this.getContext();
+      if (!ctx) return;
       const now = ctx.currentTime;
       
       const osc = ctx.createOscillator();
@@ -252,6 +273,7 @@ class AuraSound {
   static playCasinoWin() {
     try {
       const ctx = this.getContext();
+      if (!ctx) return;
       const now = ctx.currentTime;
       const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98]; // C5, E5, G5, C6, E6, G6 (Jackpot Arpeggio)
 
@@ -280,6 +302,7 @@ class AuraSound {
   static playCasinoLose() {
     try {
       const ctx = this.getContext();
+      if (!ctx) return;
       const now = ctx.currentTime;
       
       const osc = ctx.createOscillator();

@@ -9,13 +9,6 @@ import marketClient from './MarketClient.js';
 import newsManager from '../core/NewsManager.js';
 import { initMarketStateRealtime } from '../core/SupabaseClient.js';
 
-// Static config maps matching BusinessManager data (avoids circular dependency)
-const BIZ_TYPE_VAL_MULT = { umkm: 2, startup: 15 };
-const BIZ_TYPE_SETUP_COST = { umkm: 10000, startup: 50000 };
-const INDUSTRY_MULT = {
-    tech: 2.5, finance: 2.0, energy: 1.5, manufacturing: 1.8,
-    automotive: 1.6, healthcare: 1.4, retail: 1.1, infrastructure: 2.2
-};
 
 class StockMarket {
     constructor() {
@@ -280,101 +273,6 @@ class StockMarket {
 
         Object.keys(this.stocks).forEach(symbol => {
             const stock = this.stocks[symbol];
-
-            // Direct dynamic linkage to corporate valuation for player's listed IPO company
-            const playerIpo = gameState.get('business.ipo');
-            if (playerIpo && playerIpo.active && playerIpo.ticker === symbol) {
-                const biz = gameState.get('business');
-                const ops = biz.operations || { supplier: 'local', production: 'manual' };
-                const initiatives = biz.initiatives || {};
-
-                // Speculative penny stock volatility boost if founder shares drop below 30%
-                const stocks = gameState.get('stocks') || {};
-                const playerShares = stocks[symbol] ? stocks[symbol].shares : 0;
-                const founderPct = (playerShares / playerIpo.totalShares) * 100;
-                if (founderPct < 30) {
-                    stock.volatility = 0.09; // Penny Stock volatility!
-                } else {
-                    stock.volatility = 0.025; // Normal stable volatility
-                }
-
-                // --- Operations multiplier (same logic as BusinessManager) ---
-                let supplierQuality = 0.50;
-                if (ops.supplier === 'national') supplierQuality = 0.85;
-                else if (ops.supplier === 'global') supplierQuality = 0.98;
-
-                let defectBase = 0.02;
-                if (ops.production === 'batch') defectBase = 0.06;
-                else if (ops.production === 'jit') defectBase = 0.12;
-
-                if (initiatives.mfg_robots) defectBase = Math.max(0.001, defectBase - 0.06);
-                if (initiatives.energy_smart_grid) defectBase = Math.max(0.001, defectBase - 0.04);
-
-                const mismatchMult = (ops.production === 'jit' && ops.supplier === 'local') ? 2.5
-                                   : (ops.production === 'batch' && ops.supplier === 'local') ? 1.5
-                                   : 1.0;
-                const defectRate = Math.max(0.005, defectBase * (1.5 - supplierQuality) * mismatchMult);
-
-                let defectPenalty = 1.0;
-                if (defectRate > 0.10) defectPenalty = 0.5;
-                else if (defectRate > 0.05) defectPenalty = 0.8;
-
-                let speedBonus = 1.0;
-                if (biz.type === 'startup') {
-                    if (ops.supplier === 'global' && ops.production === 'jit') speedBonus = 2.5;
-                    else if (ops.supplier === 'national' && ops.production === 'batch') speedBonus = 1.2;
-                    else speedBonus = 0.7;
-                } else {
-                    if (ops.supplier === 'national' && ops.production === 'batch') speedBonus = 1.8;
-                    else if (ops.supplier === 'local' && ops.production === 'manual') speedBonus = 1.2;
-                    else if (ops.production === 'jit') speedBonus = 0.6;
-                    else speedBonus = 1.0;
-                }
-
-                const opMultiplier = speedBonus * defectPenalty;
-                const revenue = (biz.revenue || 0) * opMultiplier;
-
-                // --- Use REAL industry & type multipliers (matches BusinessManager) ---
-                let industryMult = INDUSTRY_MULT[biz.industry] || 1.0;
-                if (initiatives.tech_ai_features) industryMult += 0.3;
-                if (initiatives.mfg_aerospace) industryMult += 0.5;
-                if (initiatives.hc_vaccine) industryMult += 0.4;
-                if (initiatives.infra_leed) industryMult += 0.4;
-
-                const typeValMult = BIZ_TYPE_VAL_MULT[biz.type] || 2;
-                let annualRunRate = revenue * 12;
-                let mainValuation = annualRunRate * industryMult * typeValMult;
-
-                // --- Subsidiaries (with premium bonus) ---
-                let subsidiariesValuation = 0;
-                (biz.subsidiaries || []).forEach(sub => {
-                    let subVal = sub.valuation || 0;
-                    if (sub.isPremium) subVal *= 1.35;
-                    subsidiariesValuation += subVal;
-                });
-
-                let totalValuation = mainValuation + subsidiariesValuation;
-
-                // --- Initiative valuation % bonuses ---
-                let valBonusPercent = 1.0;
-                if (initiatives.energy_renewable) valBonusPercent += 0.25;
-                if (initiatives.fin_audit) valBonusPercent += 0.15;
-                if (initiatives.auto_hypercar) valBonusPercent += 0.20;
-                if (initiatives.retail_green) valBonusPercent += 0.15;
-                totalValuation *= valBonusPercent;
-
-                if (initiatives.infra_township) totalValuation += 350000;
-
-                // --- Economy factor (Bull/Bear market influence) ---
-                totalValuation *= marketFactor;
-
-                // --- Floor: at minimum, company is worth its cash + setup cost ---
-                const setupCost = BIZ_TYPE_SETUP_COST[biz.type] || 10000;
-                totalValuation = Math.max(totalValuation, (biz.cash || 0) + (setupCost * 0.5));
-
-                const totalShares = playerIpo.totalShares || 1000000;
-                stock.basePrice = totalValuation / totalShares;
-            }
 
             // 1. Check if this asset has a trading signal active
             let signalBulls = 0;

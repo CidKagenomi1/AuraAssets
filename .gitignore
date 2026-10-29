@@ -153,3 +153,7 @@ vite.config.ts.timestamp-*
 *.njsproj
 *.sln
 *.sw?
+
+# Developer god console launchers
+*.bat
+market-server/ADMIN-CONSOLE.bat

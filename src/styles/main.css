@@ -1910,18 +1910,6 @@ html, body {
   #fear-greed-status {
     font-size: 0.75rem !important;
   }
-  #earn-pending-value {
-    font-size: 1.5rem !important;
-  }
-  #earn-rate-value {
-    font-size: 0.7rem !important;
-  }
-  .earn-widget #btn-claim,
-  .earn-widget #btn-upgrade {
-    padding: 4px 6px !important;
-    font-size: 0.7rem !important;
-    margin-top: 0 !important;
-  }
 
   #finance-chart {
     height: 220px !important;
@@ -2115,6 +2103,41 @@ html, body {
   display: block;
 }
 
+/* ========================================
+   FULL-PAGE SETTINGS TERMINAL STYLES
+   ======================================== */
+.settings-page-wrapper {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.settings-role-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.settings-role-card.active {
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.15);
+}
+
+@media (max-width: 768px) {
+  .settings-hero-card {
+    grid-template-columns: 1fr !important;
+    text-align: center;
+    gap: 1rem !important;
+    justify-items: center;
+  }
+  .settings-account-actions {
+    width: 100%;
+  }
+  .settings-role-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .settings-char-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* Universal SVG Vector Icon Styling */
 .svg-icon {
   display: inline-flex;
@@ -2126,4 +2149,39 @@ html, body {
 }
 .svg-icon svg {
   display: block;
+}
+
+/* ========================================
+   FULL-PAGE SETTINGS TERMINAL STYLES
+   ======================================== */
+.settings-page-wrapper {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.settings-role-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.settings-role-card.active {
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.15);
+}
+
+@media (max-width: 768px) {
+  .settings-hero-card {
+    grid-template-columns: 1fr !important;
+    text-align: center;
+    gap: 1rem !important;
+    justify-items: center;
+  }
+  .settings-account-actions {
+    width: 100%;
+  }
+  .settings-role-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .settings-char-grid {
+    grid-template-columns: 1fr !important;
+  }
 }

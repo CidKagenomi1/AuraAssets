@@ -65,8 +65,8 @@ class TimeManager {
         if (prevDay !== utcDay) gameState.set('gameTime.day', utcDay);
         if (prevMonth !== utcMonth) gameState.set('gameTime.month', utcMonth);
         if (prevYear !== utcYear) gameState.set('gameTime.year', utcYear);
-        gameState.set('gameTime.utcTime', utcTimeString);
-        gameState.set('gameTime.lastTick', now.getTime());
+        gameState.state.gameTime.utcTime = utcTimeString;
+        gameState.state.gameTime.lastTick = now.getTime();
 
         // Monotonic day counter since Unix epoch for systems that need totalDays
         const totalDays = Math.floor(now.getTime() / 86400000);

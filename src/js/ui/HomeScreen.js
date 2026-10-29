@@ -9,7 +9,6 @@
 import gameState from '../core/GameState.js';
 import globalEconomy from '../core/GlobalEconomy.js';
 import financeManager from '../finance/FinanceManager.js';
-import earnManager from '../core/EarnManager.js';
 import roleManager from '../core/RoleManager.js';
 import timeManager from '../core/TimeManager.js';
 import stockMarket from '../trading/StockMarket.js';
@@ -24,7 +23,7 @@ import { countUp, pulseElement, staggerFadeUp, createFloatingText } from './Anim
 class HomeScreen {
     constructor() {
         this._lastBalance = 0;
-        this.activeTimeframe = '1M';
+        this.activeTimeframe = '1D';
         this.activeMoversTab = 'gainers';
     }
 
@@ -36,7 +35,9 @@ class HomeScreen {
         this.initDashboardChart();
 
         // Listen for state changes
-        gameState.on('change', () => {
+        gameState.on('change', (changeData) => {
+            const path = changeData?.path || '';
+            if (path.startsWith('gameTime') || path.startsWith('economy.')) return;
             this.updateBalanceCard();
             this.renderMilestones();
             this.renderHomeCashflow();
@@ -46,11 +47,27 @@ class HomeScreen {
             this.renderMarketPulse();
             this.renderTopMovers();
         });
-        gameState.on('stocksUpdate', () => this.renderTopMovers());
-        gameState.on('cryptoUpdate', () => this.renderTopMovers());
+        gameState.on('stocksUpdate', () => {
+            this.renderTopMovers();
+            if (this.activeTimeframe === '1D') {
+                this.updateDashboardChart();
+            }
+        });
+        gameState.on('cryptoUpdate', () => {
+            this.renderTopMovers();
+            if (this.activeTimeframe === '1D') {
+                this.updateDashboardChart();
+            }
+        });
         gameState.on('signalsUpdate', () => this.renderTopMovers());
-        gameState.on('newsAlert', () => this.renderMarketPulse());
-        gameState.on('newsUpdate', () => this.renderMarketPulse());
+        gameState.on('newsAlert', () => {
+            this.renderMarketPulse();
+            this.renderNewsSnapshot();
+        });
+        gameState.on('newsUpdate', () => {
+            this.renderMarketPulse();
+            this.renderNewsSnapshot();
+        });
         gameState.on('careerUpdate', () => {
             this.renderHomeCareer();
             this.renderHomeCashflow();
@@ -98,6 +115,7 @@ class HomeScreen {
         this.updateBalanceCard();
         this.updateStatusBar();
         this.renderMarketPulse();
+        this.renderNewsSnapshot();
         this.renderTopMovers();
         this.renderHomeCashflow();
         this.renderHomeCareer();
@@ -120,6 +138,7 @@ class HomeScreen {
         // Refresh breaking news ticker countdown smoothly if active
         if (typeof newsManager.getActiveNews === 'function' && newsManager.getActiveNews().length > 0) {
             this.renderMarketPulse();
+            this.renderNewsSnapshot();
         }
     }
 
@@ -376,6 +395,114 @@ class HomeScreen {
         }
     }
 
+    renderNewsSnapshot() {
+        const container = document.getElementById('home-news-snapshot-widget');
+        if (!container) return;
+
+        const activeNews = typeof newsManager.getActiveNews === 'function' ? newsManager.getActiveNews() : [];
+        const allHistory = typeof newsManager.getNewsHistory === 'function' ? newsManager.getNewsHistory() : [];
+        const latestActive = activeNews.length > 0 ? activeNews[activeNews.length - 1] : null;
+
+        let contentHTML = '';
+
+        if (latestActive) {
+            const isPos = latestActive.type === 'positive';
+            const isCrypto = latestActive.market === 'crypto';
+            const sign = latestActive.impact_percent > 0 ? '+' : '';
+            const countdown = typeof newsManager.getRemainingCountdown === 'function' ? newsManager.getRemainingCountdown(latestActive) : '';
+            const target = isCrypto ? (latestActive.target_asset || latestActive.sector) : (latestActive.ticker_target || latestActive.sector);
+
+            contentHTML = `
+                <div style="background: ${isPos ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'}; border: 1.5px solid ${isPos ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}; border-radius: var(--radius-md); padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                    <div style="flex: 1; min-width: 240px;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px; flex-wrap: wrap;">
+                            <span style="font-size: 0.68rem; font-weight: 800; color: ${isPos ? '#10b981' : '#f87171'}; background: ${isPos ? 'rgba(16, 185, 129, 0.18)' : 'rgba(239, 68, 68, 0.18)'}; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                                🚨 ${isPos ? 'BULLISH SURGE' : 'BEARISH SHOCK'} [${sign}${latestActive.impact_percent}%]
+                            </span>
+                            <span style="font-size: 0.72rem; color: var(--text-dim);">
+                                ${isCrypto ? '🪙 Kripto' : '📈 Saham AS'} · Target: <strong style="color: #fff;">${target}</strong>
+                            </span>
+                            <span style="font-size: 0.72rem; color: #fbbf24; font-weight: 700;">
+                                ⏳ Sisa: ${countdown}
+                            </span>
+                        </div>
+                        <div style="font-size: 0.95rem; font-weight: 800; color: #fff; line-height: 1.35;">
+                            ${latestActive.headline}
+                        </div>
+                    </div>
+                    <button class="btn ${isPos ? 'btn-primary' : 'btn-danger'} btn-sm btn-snapshot-action" style="font-weight: 800; font-size: 0.78rem; padding: 7px 14px; white-space: nowrap;">
+                        ⚡ Buka Sentimen Pasar ↗
+                    </button>
+                </div>
+            `;
+        } else {
+            // No active event: show 2 recent updates
+            const recentNews = allHistory.slice(0, 2);
+            contentHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem;">
+                    ${recentNews.length > 0 ? recentNews.map(item => {
+                        const isPos = item.type === 'positive';
+                        const sign = item.impact_percent > 0 ? '+' : '';
+                        const isCrypto = item.market === 'crypto';
+                        return `
+                            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); padding: 0.85rem 1rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 4px;">
+                                    <span style="font-size: 0.68rem; font-weight: 800; color: ${isPos ? '#34d399' : '#f87171'};">
+                                        ${isPos ? '▲' : '▼'} ${sign}${item.impact_percent}%
+                                    </span>
+                                    <span style="font-size: 0.68rem; color: var(--text-dim);">
+                                        ${isCrypto ? '🪙 Kripto' : '📈 Saham'} · Target: ${item.ticker_target || item.target_asset || item.sector}
+                                    </span>
+                                </div>
+                                <div style="font-size: 0.82rem; font-weight: 700; color: #fff; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    ${item.headline}
+                                </div>
+                            </div>
+                        `;
+                    }).join('') : `
+                        <div style="grid-column: 1 / -1; font-size: 0.78rem; color: var(--text-dim); text-align: center; padding: 0.5rem;">
+                            Kondisi pasar normal. Belum ada sentimen ekstrem yang aktif.
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        container.innerHTML = `
+            <div class="panel-card" style="margin-bottom: 0; background: linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6)); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.15rem 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="display: inline-flex; width: 9px; height: 9px; border-radius: 50%; background: ${latestActive ? '#ef4444' : '#10b981'}; box-shadow: 0 0 8px ${latestActive ? '#ef4444' : '#10b981'};"></span>
+                        <h2 class="section-title" style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 0.4rem;">
+                            <span>📰</span> Kilas Berita & Sentimen Pasar
+                        </h2>
+                        ${latestActive ? `
+                            <span style="font-size: 0.68rem; font-weight: 800; color: #f87171; background: rgba(239, 68, 68, 0.15); padding: 2px 6px; border-radius: 4px;">
+                                LIVE EVENT
+                            </span>
+                        ` : ''}
+                    </div>
+                    <button id="btn-view-all-news" class="btn btn-secondary btn-sm" style="font-size: 0.72rem; font-weight: 700; padding: 4px 10px; cursor: pointer;">
+                        Pusat Berita & Sentimen ↗
+                    </button>
+                </div>
+                ${contentHTML}
+            </div>
+        `;
+
+        container.querySelector('#btn-view-all-news')?.addEventListener('click', () => {
+            if (typeof window.openMarketNewsTab === 'function') {
+                window.openMarketNewsTab();
+            }
+        });
+
+        container.querySelector('.btn-snapshot-action')?.addEventListener('click', () => {
+            if (typeof window.openMarketNewsTab === 'function') {
+                window.openMarketNewsTab();
+            }
+        });
+    }
+
     renderTopMovers() {
         const listEl = document.getElementById('top-movers-list');
         if (!listEl) return;
@@ -395,51 +522,17 @@ class HomeScreen {
         }));
         const allAssets = [...stocks, ...cryptos];
 
-        // Support both tradingSignals array and market.signals map
-        const tradingSignalsArr = gameState.get('tradingSignals') || [];
-        const marketSignalsMap = gameState.get('market.signals') || {};
-        const signalsBySymbol = { ...marketSignalsMap };
-        if (Array.isArray(tradingSignalsArr)) {
-            tradingSignalsArr.forEach(sig => {
-                if (sig && sig.symbol) {
-                    signalsBySymbol[sig.symbol] = {
-                        type: sig.action === 'BUY' || sig.signal === 'BUY' ? 'MOON' : (sig.type || 'HOT'),
-                        action: sig.action || sig.signal || 'SIGNAL',
-                        confidence: sig.confidence || 80
-                    };
-                }
-            });
-        }
-
         let displayItems = [];
-        const tab = this.activeMoversTab || 'gainers';
+        const tab = (this.activeMoversTab === 'losers') ? 'losers' : 'gainers';
 
         if (tab === 'gainers') {
             displayItems = [...allAssets]
                 .sort((a, b) => (b.change || 0) - (a.change || 0))
                 .slice(0, 4);
-        } else if (tab === 'losers') {
+        } else {
             displayItems = [...allAssets]
                 .sort((a, b) => (a.change || 0) - (b.change || 0))
                 .slice(0, 4);
-        } else if (tab === 'signals') {
-            const signalPriority = { MOON: 3, HOT: 2, HEAT: 1 };
-            const withSignal = allAssets.filter(a => signalsBySymbol[a.symbol]);
-            if (withSignal.length > 0) {
-                displayItems = withSignal
-                    .sort((a, b) => {
-                        const pa = signalPriority[signalsBySymbol[a.symbol]?.type] || 0;
-                        const pb = signalPriority[signalsBySymbol[b.symbol]?.type] || 0;
-                        if (pb !== pa) return pb - pa;
-                        return Math.abs(b.change || 0) - Math.abs(a.change || 0);
-                    })
-                    .slice(0, 4);
-            } else {
-                // Fallback to highest momentum assets if no active AI signals yet
-                displayItems = [...allAssets]
-                    .sort((a, b) => Math.abs(b.change || 0) - Math.abs(a.change || 0))
-                    .slice(0, 4);
-            }
         }
 
         const formatAssetPrice = (price, assetType) => {
@@ -453,17 +546,6 @@ class HomeScreen {
 
         listEl.innerHTML = displayItems.map(item => {
             const isUp = (item.change || 0) >= 0;
-            const sig = signalsBySymbol[item.symbol];
-            let signalBadge = '';
-            if (sig) {
-                const sigMeta = {
-                    MOON: { text: `${Icons.rocket(12, '#10b981')} BUY SIGNAL`, bg: 'rgba(16, 185, 129, 0.18)', color: '#10b981', border: 'rgba(16, 185, 129, 0.4)' },
-                    HOT:  { text: `${Icons.flame(12, '#fbbf24')} HOT SIGNAL`, bg: 'rgba(245, 158, 11, 0.18)', color: '#fbbf24', border: 'rgba(245, 158, 11, 0.4)' },
-                    HEAT: { text: `${Icons.zap(12, '#f87171')} VOLATILE`,   bg: 'rgba(239, 68, 68, 0.18)',  color: '#f87171', border: 'rgba(239, 68, 68, 0.4)' }
-                }[sig.type] || { text: `${Icons.activity(12, '#60a5fa')} AI SIGNAL`, bg: 'rgba(59, 130, 246, 0.18)', color: '#60a5fa', border: 'rgba(59, 130, 246, 0.4)' };
-                signalBadge = `<span class="mover-signal-badge" style="background:${sigMeta.bg};color:${sigMeta.color};border:1px solid ${sigMeta.border};display:inline-flex;align-items:center;gap:3px;">${sigMeta.text}</span>`;
-            }
-
             const openFn = item.assetType === 'crypto'
                 ? `window.openCryptoDetail('${item.symbol}')`
                 : `window.openStockDetail('${item.symbol}')`;
@@ -477,7 +559,7 @@ class HomeScreen {
                         <div class="mover-info">
                             <div class="mover-symbol-row">
                                 <span class="mover-symbol">${item.symbol}</span>
-                                ${signalBadge || `<span class="mover-type-pill">${typePill}</span>`}
+                                <span class="mover-type-pill">${typePill}</span>
                             </div>
                             <div class="mover-sub">${item.tagLabel}</div>
                         </div>
@@ -648,9 +730,12 @@ class HomeScreen {
 
     getMilestonesConfig() {
         return [
-            { id: 'modal_awal',         label: 'Modal Awal',                  target: 100_000,       icon: '💵' },
+            { id: 'langkah_pertama',    label: 'Langkah Pertama',             target: 10_000,        icon: '🌱' },
+            { id: 'akumulasi_modal',    label: 'Akumulasi Modal',             target: 50_000,        icon: '💰' },
+            { id: 'modal_awal',         label: 'Portofolio Ratusan Juta',     target: 100_000,       icon: '💵' },
             { id: 'portofolio_mapan',   label: 'Portofolio Mapan',            target: 500_000,       icon: '🛡️' },
             { id: 'jutawan_finansial',  label: 'Jutawan Finansial',           target: 1_000_000,     icon: '💼' },
+            { id: 'konglomerat_aset',   label: 'Konglomerat Multiaset',       target: 5_000_000,     icon: '💎' },
             { id: 'empire_real_estate', label: 'Empire Real Estate',          target: 10_000_000,    icon: '🏛️' },
             { id: 'bilioner_sovereign', label: 'Bilioner & Sovereign Wealth', target: 100_000_000,   icon: '👑' },
             { id: 'financial_freedom',  label: 'Financial Freedom Tycoon',    target: 1_000_000_000, icon: '🏆' }
@@ -661,49 +746,54 @@ class HomeScreen {
         const el = document.getElementById('milestones-list');
         if (!el) return;
 
+        // Financial milestone is evaluated against comprehensive Net Worth & Cash
         const balance = gameState.getBalance();
+        const netWorth = Math.round(gameState.getNetWorth());
+        const currentWealth = Math.max(balance, netWorth);
+
         const milestones = this.getMilestonesConfig();
         const unlockedList = gameState.get('unlockedMilestones') || [];
         const claimedList = gameState.get('claimedMilestones') || [];
         const unlockedSet = new Set(unlockedList);
         const claimedSet = new Set(claimedList);
 
-        // Automatically persist newly unlocked milestones when balance reaches target
+        // Automatically unlock milestones when wealth reaches target
         let newlyUnlocked = false;
         milestones.forEach(m => {
-            if (balance >= m.target && !unlockedSet.has(m.id)) {
+            if (currentWealth >= m.target && !unlockedSet.has(m.id)) {
                 unlockedSet.add(m.id);
                 newlyUnlocked = true;
             }
         });
         if (newlyUnlocked) {
-            gameState.state.unlockedMilestones = Array.from(unlockedSet);
-            gameState.save();
+            gameState.set('unlockedMilestones', Array.from(unlockedSet));
         }
 
         el.innerHTML = milestones.map(m => {
             const reward = Math.round(m.target * 0.75);
             const isClaimed = claimedSet.has(m.id);
-            const done = isClaimed || unlockedSet.has(m.id) || balance >= m.target;
+            const done = isClaimed || unlockedSet.has(m.id) || currentWealth >= m.target;
             const canClaim = done && !isClaimed;
-            const progress = done ? 100 : Math.min(100, (balance / m.target) * 100);
+            const progress = done ? 100 : Math.min(100, (currentWealth / m.target) * 100);
 
             let rightActionHTML = '';
             if (canClaim) {
                 rightActionHTML = `
-                    <button class="btn-claim-milestone" data-milestone-id="${m.id}" style="
-                        padding: 6px 12px;
+                    <button type="button" class="btn-claim-milestone" data-milestone-id="${m.id}" style="
+                        padding: 6px 14px;
                         border-radius: 8px;
-                        border: 1px solid rgba(251, 191, 36, 0.45);
+                        border: 1px solid rgba(251, 191, 36, 0.55);
                         background: linear-gradient(135deg, #f59e0b 0%, #10b981 100%);
                         color: #09090b;
-                        font-size: 0.75rem;
+                        font-size: 0.76rem;
                         font-weight: 800;
                         cursor: pointer;
                         white-space: nowrap;
-                        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.28);
+                        box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
                         transition: transform 0.15s ease, filter 0.15s ease;
-                    " onmouseenter="this.style.transform='scale(1.04)';this.style.filter='brightness(1.1)'"
+                        position: relative;
+                        z-index: 2;
+                    " onmouseenter="this.style.transform='scale(1.05)';this.style.filter='brightness(1.1)'"
                       onmouseleave="this.style.transform='';this.style.filter=''">
                         🎁 Klaim +$ ${this.formatCompact(reward)}
                     </button>
@@ -739,7 +829,7 @@ class HomeScreen {
                 <div class="milestone-item ${done ? 'achieved' : ''}" style="
                     display:flex;align-items:center;gap:0.875rem;padding:0.75rem 1rem;
                     background:${canClaim ? 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(16,185,129,0.08))' : (done ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.02)')};
-                    border:1px solid ${canClaim ? 'rgba(245,158,11,0.4)' : (done ? 'rgba(16,185,129,0.25)' : 'var(--border-color)')};
+                    border:1px solid ${canClaim ? 'rgba(245,158,11,0.45)' : (done ? 'rgba(16,185,129,0.25)' : 'var(--border-color)')};
                     border-radius:var(--radius-md);
                     transition: all 0.2s ease;
                 ">
@@ -762,13 +852,18 @@ class HomeScreen {
             `;
         }).join('');
 
-        // Bind claim milestone buttons
-        el.querySelectorAll('.btn-claim-milestone').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.claimMilestone(btn.dataset.milestoneId, btn);
+        // Resilient Event Delegation on container to prevent click loss during re-renders
+        if (!el._hasMilestoneClickDelegate) {
+            el.addEventListener('click', (e) => {
+                const btn = e.target.closest('.btn-claim-milestone');
+                if (btn && btn.dataset.milestoneId) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.claimMilestone(btn.dataset.milestoneId, btn);
+                }
             });
-        });
+            el._hasMilestoneClickDelegate = true;
+        }
     }
 
     claimMilestone(milestoneId, btnEl = null) {
@@ -783,23 +878,28 @@ class HomeScreen {
         }
 
         const balance = gameState.getBalance();
+        const netWorth = Math.round(gameState.getNetWorth());
+        const currentWealth = Math.max(balance, netWorth);
         const unlockedList = gameState.get('unlockedMilestones') || [];
-        if (balance < m.target && !unlockedList.includes(milestoneId)) {
+
+        if (currentWealth < m.target && !unlockedList.includes(milestoneId)) {
             ui.error('Milestone ini belum tercapai.');
             return;
         }
 
         const reward = Math.round(m.target * 0.75);
 
-        // Mark as claimed BEFORE adding income so re-renders see updated state
-        const nextClaimed = [...claimedList, milestoneId];
+        // Mark as unlocked & claimed
+        const nextUnlocked = Array.from(new Set([...unlockedList, milestoneId]));
+        const nextClaimed = Array.from(new Set([...claimedList, milestoneId]));
+        gameState.set('unlockedMilestones', nextUnlocked);
         gameState.set('claimedMilestones', nextClaimed);
 
         // Credit 75% reward to player's balance and record transaction
         financeManager.addIncome(reward, 'Bonus', `Hadiah Milestone (75%): ${m.label}`);
 
         try {
-            import('./AuraSound.js').then(mod => mod.default.playClaimMoney());
+            import('./AuraSound.js').then(mod => mod.default?.playClaimMoney?.());
         } catch (e) {}
 
         if (btnEl) {
@@ -815,32 +915,6 @@ class HomeScreen {
         this.renderMilestones();
         this.updateRecentTransactions();
         this.updateDashboardChart();
-    }
-
-    handleClaim() {
-        const result = earnManager.claim();
-        if (result.success) {
-            try {
-                import('./AuraSound.js').then(m => m.default.playClaimMoney());
-            } catch (e) {}
-            const btn = document.getElementById('btn-claim');
-            if (btn) createFloatingText(btn, `+$ ${financeManager.formatCurrency(result.amount)}`, 'var(--accent-primary)');
-            ui.success(`Claim berhasil: +$ ${financeManager.formatCurrency(result.amount)}`);
-        } else {
-            ui.error(result.message);
-        }
-    }
-
-    handleUpgrade() {
-        const result = earnManager.upgrade();
-        if (result.success) {
-            const btn = document.getElementById('btn-upgrade');
-            if (btn) createFloatingText(btn, `-$ ${financeManager.formatCurrency(result.cost)}`, 'var(--accent-danger)');
-            ui.success(`Upgrade Berhasil! Level ${result.level}`);
-            this.updateBalanceCard();
-        } else {
-            ui.error(result.message);
-        }
     }
 
     toggleBalanceVisibility() {
@@ -892,38 +966,24 @@ class HomeScreen {
             import('../finance/panels/FinancePanel.js').then(m => m.default.show());
         });
 
-        // Earn buttons
-        document.getElementById('btn-claim')?.addEventListener('click', () => this.handleClaim());
-        document.getElementById('btn-upgrade')?.addEventListener('click', () => this.handleUpgrade());
-
         // Settings & Notifications
         document.getElementById('btn-settings')?.addEventListener('click', () => this.showSettings());
         document.getElementById('btn-notifications')?.addEventListener('click', () => this.showNotifications());
 
-        // Fear & Greed widget click navigation to trading-signal or breaking news tab
-        const widget = document.getElementById('market-pulse-widget');
-        if (widget) {
-            widget.addEventListener('click', (e) => {
-                if (e.target.closest('#market-pulse-news-text')) {
-                    if (typeof window.openMarketNewsTab === 'function') {
-                        window.openMarketNewsTab();
-                    } else {
-                        import('./ViewManager.js').then(m => {
-                            m.default.switchView('market');
-                            window.openMarketNewsTab?.();
-                        });
-                    }
-                    return;
+        // Fear & Greed widget breaking news click
+        const newsText = document.getElementById('market-pulse-news-text');
+        if (newsText) {
+            newsText.style.cursor = 'pointer';
+            newsText.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (typeof window.openMarketNewsTab === 'function') {
+                    window.openMarketNewsTab();
+                } else {
+                    import('./ViewManager.js').then(m => {
+                        m.default.switchView('market');
+                        window.openMarketNewsTab?.();
+                    });
                 }
-                import('./ViewManager.js').then(m => m.default.switchView('trading-signal'));
-            });
-            widget.addEventListener('mouseenter', () => {
-                widget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                widget.style.background = 'rgba(255, 255, 255, 0.02)';
-            });
-            widget.addEventListener('mouseleave', () => {
-                widget.style.borderColor = 'var(--border-color)';
-                widget.style.background = 'rgba(0, 0, 0, 0.25)';
             });
         }
 
@@ -1044,11 +1104,11 @@ class HomeScreen {
             case 'donate':
                 this.handleDonate();
                 break;
+            case 'transfer':
+                import('../finance/TransferManager.js').then(m => m.default.showTransferModal());
+                break;
             case 'finance':
                 import('../finance/panels/FinancePanel.js').then(m => m.default.show());
-                break;
-            case 'tax':
-                import('../finance/panels/TaxPanel.js').then(m => m.default.show());
                 break;
             case 'guide':
                 this.showGuide();
@@ -1063,53 +1123,17 @@ class HomeScreen {
 
         const charityOptions = [
             {
-                id: 'palestina',
-                name: 'Donasi Palestina',
-                org: 'BAZNAS Peduli Palestina',
-                desc: 'Bantu saudara-saudara kita di Gaza mendapatkan pangan, obat-obatan, dan tempat berlindung.',
-                icon: '🕌',
-                emoji: '🇵🇸',
-                color: '#10b981',
-                gradient: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.06))',
-                border: 'rgba(16,185,129,0.25)',
-                tag: 'Kemanusiaan',
-            },
-            {
-                id: 'masjid',
-                name: 'Rumah Ibadah',
-                org: 'Yayasan Masjid Nusantara',
-                desc: 'Dukung pembangunan dan renovasi masjid serta musholla di pelosok negeri.',
-                icon: '🕌',
-                emoji: '🕌',
-                color: '#a855f7',
-                gradient: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(139,92,246,0.06))',
-                border: 'rgba(168,85,247,0.25)',
-                tag: 'Dakwah',
-            },
-            {
-                id: 'panti',
-                name: 'Panti Asuhan',
-                org: 'Rumah Harapan Yatim Indonesia',
-                desc: 'Berikan masa depan cerah bagi anak-anak yatim piatu melalui pendidikan dan kebutuhan dasar.',
-                icon: '👦',
-                emoji: '🏠',
-                color: '#f59e0b',
-                gradient: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(217,119,6,0.06))',
-                border: 'rgba(245,158,11,0.25)',
-                tag: 'Anak Yatim',
-            },
-            {
-                id: 'bencana',
-                name: 'Korban Bencana Alam',
-                org: 'ACT — Aksi Cepat Tanggap',
-                desc: 'Salurkan bantuan darurat kepada korban gempa, banjir, dan bencana alam lainnya di Indonesia.',
-                icon: '🆘',
-                emoji: '🌊',
-                color: '#ef4444',
-                gradient: 'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(220,38,38,0.06))',
-                border: 'rgba(239,68,68,0.25)',
-                tag: 'Darurat',
-            },
+                id: 'komunitas',
+                name: 'Kotak Donasi Komunitas',
+                org: 'Aura Community Grant Pool',
+                desc: 'Bagi-bagi modal tunai ke sesama investor! Donasi Anda akan didistribusikan secara merata sebagai cek hadiah modal ke kotak masuk semua pemain di jaringan.',
+                icon: '🎁',
+                emoji: '🎁',
+                color: '#38bdf8',
+                gradient: 'linear-gradient(135deg, rgba(56,189,248,0.18), rgba(14,165,233,0.08))',
+                border: 'rgba(56,189,248,0.4)',
+                tag: 'Bagi-Bagi Modal Komunitas',
+            }
         ];
 
         const charityHTML = charityOptions.map(c => `
@@ -1164,31 +1188,31 @@ class HomeScreen {
                 ` : `
                 <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:1rem 1.25rem; margin-bottom:1.25rem;">
                     <div style="font-size:0.85rem; color:rgba(255,255,255,0.6); line-height:1.5;">
-                        🌟 <strong style="color:#fff;">Bonus Keberuntungan:</strong> Setiap donasi ke badan amal manapun akan mengaktifkan buff <strong style="color:#fbbf24;">Luck 1.5×</strong> selama 30 hari game. Streak donasi bisa menumpuk hingga 180 hari!
+                        🌟 <strong style="color:#fff;">Bonus Keberuntungan:</strong> Donasi ke Kotak Komunitas mengaktifkan buff berkah <strong style="color:#fbbf24;">Luck 1.5×</strong> selama 30 hari game (bisa menumpuk hingga 180 hari) sekaligus berbagi rezeki ke sesama pemain!
                     </div>
                 </div>
                 `}
 
                 <!-- Saldo Info -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:10px; padding:0.75rem 1rem;">
-                    <span style="font-size:0.82rem; color:rgba(255,255,255,0.55);">💰 Saldo Anda tersedia untuk donasi</span>
+                    <span style="font-size:0.82rem; color:rgba(255,255,255,0.55);">💰 Saldo kas tersedia untuk didonasikan</span>
                     <span style="font-size:1rem; font-weight:800; color:#10b981;">$ ${financeManager.formatCurrency(balance, true)}</span>
                 </div>
 
                 <!-- Charity Grid -->
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div style="display:grid; grid-template-columns:1fr; gap:1rem;">
                     ${charityHTML}
                 </div>
 
                 <div style="margin-top:1.25rem; padding:0.875rem; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:10px; font-size:0.75rem; color:rgba(255,255,255,0.4); text-align:center; line-height:1.6;">
-                    Donasi bersifat permanen dan mengurangi saldo rekening Anda.<br>
-                    Semua badan amal memberikan bonus keberuntungan yang sama bagi Anda.
+                    Donasi akan langsung disalurkan sebagai cek hadiah modal ke kotak masuk semua pemain di jaringan.<br>
+                    Setiap donasi akan otomatis memperpanjang buff Keberuntungan Luck 1.5× Anda.
                 </div>
             </div>
         `;
 
         ui.showModal({
-            title: '❤️ Pilih Badan Amal',
+            title: '🎁 Kotak Donasi Komunitas',
             content,
             onShow: () => {
                 document.querySelectorAll('.btn-donate-choose').forEach(btn => {
@@ -1209,11 +1233,20 @@ class HomeScreen {
 
                         if (amount && amount > 0) {
                             try {
-                                financeManager.donate(amount, charityOrg, 'Donasi');
-                                ui.success(
-                                    `$ ${financeManager.formatCurrency(amount)} berhasil didonasikan ke ${charityName}! ✨ Keberuntungan Anda meningkat!`,
-                                    '❤️ Donasi Berhasil'
-                                );
+                                if (charityId === 'komunitas') {
+                                    const { transferManager } = await import('../finance/TransferManager.js');
+                                    await transferManager.sendCommunityDonation({ amount });
+                                    ui.success(
+                                        `$ ${financeManager.formatCurrency(amount)} berhasil disalurkan ke Kotak Donasi Komunitas! Semua pemain akan menerima cek bantuan modal. ✨ Anda mendapatkan buff Luck 1.5×!`,
+                                        '🎁 Donasi Komunitas Terkirim'
+                                    );
+                                } else {
+                                    financeManager.donate(amount, charityOrg, 'Donasi');
+                                    ui.success(
+                                        `$ ${financeManager.formatCurrency(amount)} berhasil didonasikan ke ${charityName}! ✨ Keberuntungan Anda meningkat!`,
+                                        '❤️ Donasi Berhasil'
+                                    );
+                                }
                                 this.updateBalanceCard();
                             } catch (e) {
                                 ui.error(e.message);
@@ -1227,296 +1260,11 @@ class HomeScreen {
 
 
     // ==========================================
-    // SETTINGS
+    // SETTINGS (Full Page View)
     // ==========================================
 
     showSettings() {
-        const role = roleManager.getRoleData();
-        const allRoles = roleManager.getAllRoles();
-
-        const roleOptionsHTML = allRoles.map(r => `
-            <div class="role-card" data-role="${r.id}" style="
-                background:${role?.id === r.id ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.03)'};
-                border:1px solid ${role?.id === r.id ? 'rgba(16,185,129,0.4)' : 'var(--border-color)'};
-                border-radius:var(--radius-md);padding:0.875rem;
-                cursor:pointer;transition:all 0.2s;margin-bottom:0.5rem;
-                display:flex;align-items:center;gap:0.75rem;
-            ">
-                <span style="font-size:1.4rem;">${r.icon}</span>
-                <div>
-                    <div style="font-weight:700;font-size:0.9rem;">${r.label}</div>
-                    <div style="font-size:0.75rem;color:var(--text-muted);">${r.desc}</div>
-                </div>
-                ${role?.id === r.id ? '<span style="margin-left:auto;color:var(--accent-primary);font-size:0.85rem;font-weight:700;">✓ Aktif</span>' : ''}
-            </div>
-        `).join('');
-
-        const accounts = gameState.getAccounts() || {};
-        const lowerUser = (gameState.currentUser || '').toLowerCase();
-        const activeAcc = accounts[lowerUser] || {};
-        const currentAvatar = activeAcc.avatar || '👤';
-        const chars = gameState.getCharacters() || [];
-
-        const content = `
-            <!-- 💾 Manual Save Card -->
-            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-                    <span>💾 Penyimpanan Karakter</span>
-                    <span style="font-size: 0.65rem; background: var(--accent-primary); color: #000; padding: 2px 6px; border-radius: 4px; font-weight: 800;">AUTO & MANUAL</span>
-                </div>
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.5rem;">
-                    <div>
-                        <strong style="color: #fff; font-size: 0.95rem; display: block; margin-bottom: 2px;">Akun: ${gameState.currentUser || 'Tamu'}</strong>
-                        <span style="color: var(--accent-primary); font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 4px;">Karakter: ${gameState.activeCharacter || 'Pemain'}</span>
-                        <span style="font-size: 0.7rem; color: var(--text-dim);">Tersimpan lokal di browser ini</span>
-                    </div>
-                    <button class="btn btn-primary btn-sm" id="btn-save-progress" style="font-weight: 900; letter-spacing: 0.05em; padding: 8px 16px; width: auto; height: auto;">
-                        💾 SIMPAN
-                    </button>
-                </div>
-            </div>
-
-            <!-- ⚙️ Account Management -->
-            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-                    <span>🛡️ Pengaturan Akun</span>
-                    <span style="font-size: 0.85rem; font-weight: 800; color: #fff;">${currentAvatar} ${gameState.currentUser || 'Tamu'}</span>
-                </div>
-                
-                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    <button class="btn btn-secondary btn-sm" id="btn-change-acc-avatar" style="width: 100%; padding: 8px 12px; font-size: 0.75rem; font-weight: 700; height: auto; margin: 0; text-align: left; display: flex; align-items: center; gap: 0.5rem; justify-content: flex-start; min-width: 0;">
-                        🖼️ Ganti Avatar Profil
-                    </button>
-                    <button class="btn btn-secondary btn-sm" id="btn-change-acc-name" style="width: 100%; padding: 8px 12px; font-size: 0.75rem; font-weight: 700; height: auto; margin: 0; text-align: left; display: flex; align-items: center; gap: 0.5rem; justify-content: flex-start; min-width: 0;">
-                        ✏️ Ganti Nama Akun
-                    </button>
-                    <button class="btn btn-secondary btn-sm" id="btn-change-acc-pass" style="width: 100%; padding: 8px 12px; font-size: 0.75rem; font-weight: 700; height: auto; margin: 0; text-align: left; display: flex; align-items: center; gap: 0.5rem; justify-content: flex-start; min-width: 0;">
-                        🔑 Ganti Sandi Akun
-                    </button>
-                </div>
-            </div>
-
-            <!-- 👤 Character Management -->
-            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 0.75rem;">
-                    👤 Manajer Karakter (Multi-Slots)
-                </div>
-                
-                <!-- List characters -->
-                <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 180px; overflow-y: auto; margin-bottom: 0.75rem; padding-right: 4px;">
-                    ${chars.length === 0 ? `
-                        <div style="font-size: 0.75rem; color: var(--text-dim); text-align: center; padding: 0.5rem 0;">Belum ada karakter terdaftar.</div>
-                    ` : chars.map(charName => {
-                        const isActive = charName.toLowerCase() === (gameState.activeCharacter || '').toLowerCase();
-                        return `
-                            <div style="display: flex; align-items: center; justify-content: space-between; background: ${isActive ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.02)'}; border: 1px solid ${isActive ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.05)'}; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem;">
-                                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <span style="font-size: 1.1rem;">${isActive ? '👑' : '👤'}</span>
-                                    <span style="font-weight: 700; color: ${isActive ? '#10b981' : '#fff'};">${charName}</span>
-                                </div>
-                                ${isActive ? `
-                                    <span style="color: #10b981; font-weight: 800; font-size: 0.7rem;">AKTIF</span>
-                                ` : `
-                                    <button class="btn btn-secondary btn-sm btn-switch-character" data-charname="${charName}" style="padding: 4px 10px; font-size: 0.7rem; font-weight: 800; width: auto; height: auto; min-width: 0; margin: 0;">
-                                        MASUK 🔑
-                                    </button>
-                                `}
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                
-                <!-- Create new character button -->
-                <button class="btn btn-secondary btn-sm" id="btn-create-character" style="width: 100%; font-weight: 800; font-size: 0.75rem; border: 1px dashed rgba(255,255,255,0.2); background: transparent; padding: 8px 0; height: auto;">
-                    ➕ BUAT KARAKTER BARU / MULAI BARU
-                </button>
-            </div>
-
-            <!-- ⚙️ General Settings -->
-            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 0.75rem;">
-                    ⚙️ Pengaturan Umum
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong style="color: #fff; font-size: 0.88rem; display: block; margin-bottom: 2px;">Disable Subsidi Pemerintah</strong>
-                        <span style="font-size: 0.72rem; color: var(--text-dim);">Hentikan pengumpulan dana pasif per detik</span>
-                    </div>
-                    <label class="switch" style="position:relative; display:inline-block; width:44px; height:22px;">
-                        <input type="checkbox" id="chk-disable-subsidy" ${gameState.get('settings.subsidyDisabled') ? 'checked' : ''} style="opacity:0; width:0; height:0;">
-                        <span class="slider" style="position:absolute; cursor:pointer; inset:0; background-color:${gameState.get('settings.subsidyDisabled') ? '#0ea5e9' : '#374151'}; border-radius:20px; transition:0.3s; display:flex; align-items:center;">
-                            <span class="knob" style="height:16px; width:16px; background-color:white; border-radius:50%; transition:0.3s; transform:translateX(${gameState.get('settings.subsidyDisabled') ? '24px' : '4px'}); display:block;"></span>
-                        </span>
-                    </label>
-                </div>
-            </div>
-
-            <div style="margin-bottom:1.25rem;">
-                <div style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.04em;">Profil Risiko Investor</div>
-                ${roleOptionsHTML}
-            </div>
-            <hr style="border-color:var(--border-color);margin:1rem 0;">
-            <button class="btn btn-secondary" style="width:100%; margin-bottom: 0.5rem;" id="btn-logout-game">🚪 Keluar (Logout)</button>
-            <button class="btn btn-danger" style="width:100%" id="btn-reset-game">🗑️ Reset Progress Karakter</button>
-        `;
-
-        ui.showModal({
-            title: '⚙️ Pengaturan & Karakter',
-            content,
-            onShow: () => {
-                // Save progress click
-                document.getElementById('btn-save-progress')?.addEventListener('click', (e) => {
-                    const success = gameState.save();
-                    if (success) {
-                        ui.success('Progres permainan berhasil disimpan ke slot karakter: ' + (gameState.activeCharacter || 'Pemain'), '💾 Sukses Menyimpan', { deviceNotify: true });
-                        try {
-                            import('./Animations.js').then(anim => {
-                                anim.createFloatingText(e.target, '💾 DISIMPAN', '#10b981');
-                            });
-                        } catch (err) {}
-                    } else {
-                        ui.error('Gagal menyimpan progres permainan. Memori penuh atau Anda belum login.', '💾 Gagal Menyimpan');
-                    }
-                });
-
-                // Change Account Username click
-                document.getElementById('btn-change-acc-name')?.addEventListener('click', async () => {
-                    if (!gameState.currentUser) return;
-                    const newName = prompt("Masukkan nama akun baru Anda:", gameState.currentUser);
-                    if (newName === null) return;
-                    if (!newName.trim()) {
-                        ui.error("Nama akun tidak boleh kosong!");
-                        return;
-                    }
-                    try {
-                        gameState.changeAccountUsername(newName);
-                        ui.success("Nama akun berhasil diubah!", "🛡️ Sukses");
-                        setTimeout(() => location.reload(), 1000);
-                    } catch (err) {
-                        ui.error(err.message);
-                    }
-                });
-
-                // Change Account Password click
-                document.getElementById('btn-change-acc-pass')?.addEventListener('click', async () => {
-                    if (!gameState.currentUser) return;
-                    const newPass = prompt("Masukkan password baru Anda (minimal 4 karakter):");
-                    if (newPass === null) return;
-                    if (!newPass.trim()) {
-                        ui.error("Password tidak boleh kosong!");
-                        return;
-                    }
-                    try {
-                        gameState.changeAccountPassword(newPass);
-                        ui.success("Password akun berhasil diubah!", "🛡️ Sukses");
-                    } catch (err) {
-                        ui.error(err.message);
-                    }
-                });
-
-                // Change Account Avatar click
-                document.getElementById('btn-change-acc-avatar')?.addEventListener('click', () => {
-                    const avatars = ['👤', '💼', '🦁', '🦅', '🦊', '🐉', '🚀', '💡', '🛡️', '👑'];
-                    const accounts = gameState.getAccounts();
-                    const lowerUser = gameState.currentUser.toLowerCase();
-                    const currentAvatar = accounts[lowerUser]?.avatar || '👤';
-                    let nextIdx = (avatars.indexOf(currentAvatar) + 1) % avatars.length;
-                    const newAvatar = avatars[nextIdx];
-                    
-                    gameState.changeAccountAvatar(newAvatar);
-                    ui.success(`Avatar profil berhasil diubah ke ${newAvatar}!`, '🖼️ Sukses');
-                    setTimeout(() => location.reload(), 800);
-                });
-
-                // Create Character / Start New Game click
-                document.getElementById('btn-create-character')?.addEventListener('click', async () => {
-                    const confirmed = await ui.confirm({
-                        title: 'Buat Karakter Baru?',
-                        message: 'Progres karakter saat ini akan disimpan terlebih dahulu. Anda dapat membuat karakter baru di dalam akun ini secara terpisah.',
-                        confirmText: 'Ya, Buat Karakter',
-                        confirmClass: 'btn-primary'
-                    });
-                    if (confirmed) {
-                        const saved = gameState.save();
-                        if (saved) {
-                            localStorage.removeItem(`businessTycoon_activeChar_${lowerUser}`);
-                            location.reload();
-                        } else {
-                            ui.error('Gagal menyimpan progres sebelum membuat karakter baru.', 'Error');
-                        }
-                    }
-                });
-
-                // Switch Character click
-                document.querySelectorAll('.btn-switch-character').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const charName = btn.dataset.charname;
-                        try {
-                            const saved = gameState.save(); // Save current profile first
-                            if (!saved) {
-                                ui.error('Gagal menyimpan progres saat ini sebelum berpindah karakter.', 'Error');
-                                return;
-                            }
-                            localStorage.setItem(`businessTycoon_activeChar_${lowerUser}`, charName);
-                            ui.success(`Membuka karakter: ${charName}...`, '👤 Berhasil Masuk');
-                            setTimeout(() => location.reload(), 1000);
-                        } catch (err) {
-                            ui.error(err.message);
-                        }
-                    });
-                });
-
-                document.querySelectorAll('.role-card[data-role]').forEach(card => {
-                    card.addEventListener('click', async () => {
-                        const newRole = card.dataset.role;
-                        if (newRole === roleManager.getRole()) return;
-                        const confirmed = await ui.confirm({
-                            title: 'Ubah Profil Risiko?',
-                            message: 'Profil risiko investor Anda akan diperbarui. Progres dan portofolio tidak hilang.',
-                            confirmText: 'Ya, Ubah',
-                            danger: false
-                        });
-                        if (confirmed) {
-                            roleManager.setRole(newRole);
-                            roleManager.applyVisibility();
-                            ui.closeModal();
-                            ui.success(`Profil Risiko diubah menjadi: ${roleManager.getRoleData()?.label}`);
-                        }
-                    });
-                });
-
-                // Subsidy toggle switch event
-                const chkSubsidy = document.getElementById('chk-disable-subsidy');
-                if (chkSubsidy) {
-                    chkSubsidy.addEventListener('change', (e) => {
-                        const checked = e.target.checked;
-                        gameState.set('settings.subsidyDisabled', checked);
-                        const slider = chkSubsidy.nextElementSibling;
-                        const knob = slider.querySelector('.knob');
-                        slider.style.backgroundColor = checked ? '#0ea5e9' : '#374151';
-                        knob.style.transform = `translateX(${checked ? '24px' : '4px'})`;
-                        if (checked) {
-                            ui.success('Subsidi Pemerintah Dinonaktifkan');
-                        } else {
-                            ui.success('Subsidi Pemerintah Diaktifkan');
-                        }
-                        this.updateBalanceCard();
-                    });
-                }
-
-                document.getElementById('btn-logout-game')?.addEventListener('click', () => {
-                    gameState.logout();
-                });
-
-                document.getElementById('btn-reset-game')?.addEventListener('click', () => {
-                    const charName = gameState.activeCharacter || 'Pemain';
-                    if (confirm(`Yakin mau reset progress karakter "${charName}"? Semua aset dan uang karakter ini akan dikembalikan ke awal!`)) {
-                        gameState.reset();
-                        location.reload();
-                    }
-                });
-            }
-        });
+        import('./views/ViewManager.js').then(m => m.default.switchView('settings'));
     }
 
     showNotifications() {
@@ -1528,155 +1276,387 @@ class HomeScreen {
         const isNotifEnabled = gameState.get('settings.notificationsEnabled') !== false;
         const isDeviceNotifEnabled = gameState.get('settings.deviceNotificationsEnabled') === true;
 
-        let content = `
-            <div style="max-height: 65vh; display: flex; flex-direction: column; gap: 1rem;">
-                <!-- Notification Settings Toggles -->
-                <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between;">
-                        <div>
-                            <div style="font-weight: 700; font-size: 0.9rem; color: white;">Aktifkan Pop-up Notifikasi (Toast)</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Jika dinonaktifkan, notifikasi hanya akan menambah angka di lonceng tanpa popup yang menutupi konten.</div>
+        let activeFilter = 'all'; // 'all' | 'rewards' | 'system'
+
+        const renderNotifContent = () => {
+            const currentNotifs = gameState.get('notifications') || [];
+            const rewardNotifs = currentNotifs.filter(n => n.hasReward || n.type === 'bonus_check');
+            const systemNotifs = currentNotifs.filter(n => !n.hasReward && n.type !== 'bonus_check');
+            const unclaimedChecks = currentNotifs.filter(n => n.hasReward && !n.rewardClaimed);
+            const totalUnclaimedAmount = unclaimedChecks.reduce((sum, n) => sum + (Number(n.rewardAmount) || 0), 0);
+
+            let filteredList = currentNotifs;
+            if (activeFilter === 'rewards') filteredList = rewardNotifs;
+            if (activeFilter === 'system') filteredList = systemNotifs;
+
+            return `
+                <div style="max-height: 72vh; display: flex; flex-direction: column; gap: 0.875rem;">
+                    
+                    <!-- Filter Tabs & Quick Action Bar -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+                        <div style="display:flex; gap:0.4rem; overflow-x:auto;">
+                            <button type="button" class="btn-notif-filter ${activeFilter === 'all' ? 'active' : ''}" data-filter="all" style="
+                                padding:5px 12px; border-radius:20px; font-size:0.75rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s;
+                                background:${activeFilter === 'all' ? 'var(--accent-primary-soft)' : 'rgba(255,255,255,0.03)'};
+                                border:1px solid ${activeFilter === 'all' ? 'rgba(16,185,129,0.35)' : 'var(--border-color)'};
+                                color:${activeFilter === 'all' ? 'var(--accent-primary)' : 'var(--text-muted)'};
+                            ">
+                                Semua (${currentNotifs.length})
+                            </button>
+                            <button type="button" class="btn-notif-filter ${activeFilter === 'rewards' ? 'active' : ''}" data-filter="rewards" style="
+                                padding:5px 12px; border-radius:20px; font-size:0.75rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s; display:flex; align-items:center; gap:5px;
+                                background:${activeFilter === 'rewards' ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.03)'};
+                                border:1px solid ${activeFilter === 'rewards' ? 'rgba(251,191,36,0.4)' : 'var(--border-color)'};
+                                color:${activeFilter === 'rewards' ? '#fbbf24' : 'var(--text-muted)'};
+                            ">
+                                <span>🎁 Cek & Hadiah</span>
+                                <span>(${rewardNotifs.length})</span>
+                                ${unclaimedChecks.length > 0 ? `
+                                    <span style="padding:1px 6px; border-radius:10px; background:#fbbf24; color:#09090b; font-size:0.65rem; font-weight:900;">
+                                        ${unclaimedChecks.length} KLAIM
+                                    </span>
+                                ` : ''}
+                            </button>
+                            <button type="button" class="btn-notif-filter ${activeFilter === 'system' ? 'active' : ''}" data-filter="system" style="
+                                padding:5px 12px; border-radius:20px; font-size:0.75rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s;
+                                background:${activeFilter === 'system' ? 'rgba(129,140,248,0.15)' : 'rgba(255,255,255,0.03)'};
+                                border:1px solid ${activeFilter === 'system' ? 'rgba(129,140,248,0.4)' : 'var(--border-color)'};
+                                color:${activeFilter === 'system' ? '#818cf8' : 'var(--text-muted)'};
+                            ">
+                                📢 Berita & Sistem (${systemNotifs.length})
+                            </button>
                         </div>
-                        <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 22px;">
-                            <input type="checkbox" id="toggle-popup-notifs" ${isNotifEnabled ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
-                            <span class="slider" style="position: absolute; cursor: pointer; inset: 0; background-color: ${isNotifEnabled ? 'var(--accent-primary)' : '#4b5563'}; border-radius: 20px; transition: 0.3s; display: flex; align-items: center;">
-                                <span class="knob" style="height: 16px; width: 16px; background-color: white; border-radius: 50%; transition: 0.3s; transform: translateX(${isNotifEnabled ? '24px' : '4px'}); display: block;"></span>
-                            </span>
-                        </label>
+
+                        <button type="button" id="btn-open-transfer-from-notif" style="
+                            padding:5px 12px; border-radius:8px; font-size:0.75rem; font-weight:700; cursor:pointer; font-family:inherit;
+                            background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); color:#10b981; display:flex; align-items:center; gap:4px;
+                        ">
+                            <span>💸 Kirim Transfer</span>
+                        </button>
                     </div>
 
-                    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between;">
-                        <div>
-                            <div style="font-weight: 700; font-size: 0.9rem; color: white;">Notifikasi Perangkat (Desktop/HP)</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Kirim notifikasi hasil trading bot, claim staking/launchdrop, auto-save, dan sesi habis langsung ke perangkat Anda.</div>
-                        </div>
-                        <label class="switch" style="position: relative; display: inline-block; width: 44px; height: 22px;">
-                            <input type="checkbox" id="toggle-device-notifs" ${isDeviceNotifEnabled ? 'checked' : ''} style="opacity: 0; width: 0; height: 0;">
-                            <span class="slider" style="position: absolute; cursor: pointer; inset: 0; background-color: ${isDeviceNotifEnabled ? 'var(--accent-primary)' : '#4b5563'}; border-radius: 20px; transition: 0.3s; display: flex; align-items: center;">
-                                <span class="knob" style="height: 16px; width: 16px; background-color: white; border-radius: 50%; transition: 0.3s; transform: translateX(${isDeviceNotifEnabled ? '24px' : '4px'}); display: block;"></span>
-                            </span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Notifications List -->
-                <div style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 0.75rem; padding-right: 5px;">
-                    ${notifs.length ? notifs.map(n => `
-                        <div style="display: flex; gap: 0.75rem; padding: 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
-                            <span style="font-size: 1.5rem; display: flex; align-items: center;">${n.icon || '🔔'}</span>
-                            <div style="flex: 1;">
-                                <div style="font-size: 0.85rem; font-weight: 800; color: white; display: flex; justify-content: space-between;">
-                                     <span>${n.title}</span>
-                                     <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal;">${n.date || ''}</span>
+                    <!-- Unclaimed Checks Quick Banner -->
+                    ${unclaimedChecks.length > 0 ? `
+                        <div style="
+                            background:linear-gradient(135deg, rgba(251,191,36,0.12), rgba(16,185,129,0.08));
+                            border:1px solid rgba(251,191,36,0.35); border-radius:12px; padding:0.875rem 1rem;
+                            display:flex; justify-content:space-between; align-items:center; gap:0.75rem; flex-wrap:wrap;
+                        ">
+                            <div>
+                                <div style="font-size:0.85rem; font-weight:800; color:#fbbf24; display:flex; align-items:center; gap:6px;">
+                                    <span>🎁</span> Anda memiliki ${unclaimedChecks.length} Cek Dana yang belum dicairkan!
                                 </div>
-                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${n.message}</div>
+                                <div style="font-size:0.75rem; color:rgba(255,255,255,0.6); margin-top:2px;">
+                                    Total nilai dana masuk: <strong style="color:#10b981;">+$ ${financeManager.formatCurrency(totalUnclaimedAmount)}</strong>
+                                </div>
+                            </div>
+                            <button type="button" id="btn-claim-all-checks" style="
+                                padding:6px 14px; border-radius:8px; font-size:0.75rem; font-weight:800; cursor:pointer; font-family:inherit;
+                                background:linear-gradient(135deg, #f59e0b 0%, #10b981 100%); border:none; color:#09090b; box-shadow:0 3px 10px rgba(245,158,11,0.3); transition:transform 0.15s ease;
+                            " onmouseenter="this.style.transform='scale(1.04)'" onmouseleave="this.style.transform=''">
+                                ⚡ Cairkan Semua Cek
+                            </button>
+                        </div>
+                    ` : ''}
+
+                    <!-- Notifications List -->
+                    <div id="notif-cards-scrollable" style="overflow-y:auto; max-height:48vh; display:flex; flex-direction:column; gap:0.65rem; padding-right:4px;">
+                        ${filteredList.length ? filteredList.map(n => {
+                            const isRewardCheck = n.hasReward || n.type === 'bonus_check';
+                            const isClaimed = n.rewardClaimed === true;
+                            const rewardAmountFormatted = n.rewardAmount ? financeManager.formatCurrency(n.rewardAmount) : '';
+
+                            if (isRewardCheck) {
+                                return `
+                                    <div class="notif-check-card" style="
+                                        padding: 0.9rem 1.1rem; border-radius: var(--radius-md);
+                                        background: ${isClaimed ? 'rgba(255,255,255,0.02)' : 'linear-gradient(135deg, rgba(251,191,36,0.08), rgba(16,185,129,0.04))'};
+                                        border: 1px solid ${isClaimed ? 'var(--border-color)' : 'rgba(251,191,36,0.35)'};
+                                        display:flex; flex-direction:column; gap:0.5rem; transition:all 0.2s;
+                                    ">
+                                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.75rem;">
+                                            <div style="display:flex; align-items:center; gap:0.6rem;">
+                                                <span style="font-size:1.4rem;">${n.icon || '💵'}</span>
+                                                <div>
+                                                    <div style="font-size:0.85rem; font-weight:800; color:${isClaimed ? '#a1a1aa' : '#fbbf24'}; display:flex; align-items:center; gap:6px;">
+                                                        <span>${n.title}</span>
+                                                        ${!isClaimed ? '<span style="font-size:0.6rem; padding:1px 6px; border-radius:4px; background:rgba(251,191,36,0.2); color:#fbbf24; font-weight:800;">BONUS CEK</span>' : ''}
+                                                    </div>
+                                                    <div style="font-size:0.7rem; color:var(--text-muted);">${n.date || ''}</div>
+                                                </div>
+                                            </div>
+                                            <div style="text-align:right;">
+                                                <div style="font-size:0.95rem; font-weight:800; color:${isClaimed ? '#71717a' : '#10b981'};">
+                                                    +$ ${rewardAmountFormatted}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                                            ${n.message}
+                                        </div>
+
+                                        <div style="display:flex; justify-content:flex-end; align-items:center; margin-top:2px;">
+                                            ${!isClaimed ? `
+                                                <button type="button" class="btn-claim-single-check" data-notif-id="${n.id}" style="
+                                                    padding:6px 14px; border-radius:8px; font-size:0.76rem; font-weight:800; cursor:pointer; font-family:inherit;
+                                                    background:linear-gradient(135deg, #f59e0b 0%, #10b981 100%); border:none; color:#09090b; box-shadow:0 3px 12px rgba(245,158,11,0.28); transition:transform 0.15s ease;
+                                                " onmouseenter="this.style.transform='scale(1.04)'" onmouseleave="this.style.transform=''">
+                                                    💵 Cairkan Cek (+$ ${this.formatCompact(n.rewardAmount)})
+                                                </button>
+                                            ` : `
+                                                <span style="font-size:0.72rem; font-weight:700; color:#10b981; display:flex; align-items:center; gap:4px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); border-radius:20px; padding:3px 10px;">
+                                                    ✓ Cek Telah Dicairkan
+                                                </span>
+                                            `}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+
+                            return `
+                                <div style="display: flex; gap: 0.75rem; padding: 0.85rem 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                                    <span style="font-size: 1.35rem; display: flex; align-items: center; opacity:0.85;">${n.icon || '🔔'}</span>
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 0.83rem; font-weight: 800; color: white; display: flex; justify-content: space-between;">
+                                             <span>${n.title}</span>
+                                             <span style="font-size: 0.68rem; color: var(--text-muted); font-weight: normal;">${n.date || ''}</span>
+                                        </div>
+                                        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 3px; line-height: 1.4;">${n.message}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('') : `
+                            <div style="text-align: center; padding: 2.5rem 0; color: var(--text-muted);">
+                                <span style="font-size: 2.5rem; display: block; margin-bottom: 0.75rem;">🔔</span>
+                                <div style="font-size: 0.88rem; font-weight: 700;">Tidak ada notifikasi di kategori ini</div>
+                            </div>
+                        `}
+                    </div>
+
+                    <!-- Settings Accordion Details -->
+                    <details style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:10px; padding:0.6rem 0.85rem;">
+                        <summary style="font-size:0.78rem; font-weight:700; color:var(--text-muted); cursor:pointer;">
+                            ⚙️ Konfigurasi Notifikasi & Perangkat
+                        </summary>
+                        <div style="display:flex; flex-direction:column; gap:0.6rem; margin-top:0.6rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <div style="font-size:0.78rem; font-weight:700; color:#fff;">Pop-up Notifikasi (Toast)</div>
+                                    <div style="font-size:0.68rem; color:var(--text-muted);">Tampilkan toast ringkas saat event/cek tiba</div>
+                                </div>
+                                <label class="switch" style="position:relative; display:inline-block; width:38px; height:20px;">
+                                    <input type="checkbox" id="toggle-popup-notifs" ${isNotifEnabled ? 'checked' : ''} style="opacity:0; width:0; height:0;">
+                                    <span class="slider" style="position:absolute; cursor:pointer; inset:0; background-color:${isNotifEnabled ? 'var(--accent-primary)' : '#4b5563'}; border-radius:20px; transition:0.3s; display:flex; align-items:center;">
+                                        <span class="knob" style="height:14px; width:14px; background-color:white; border-radius:50%; transition:0.3s; transform:translateX(${isNotifEnabled ? '20px' : '3px'}); display:block;"></span>
+                                    </span>
+                                </label>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <div style="font-size:0.78rem; font-weight:700; color:#fff;">Notifikasi Browser Perangkat</div>
+                                    <div style="font-size:0.68rem; color:var(--text-muted);">Kirim notifikasi latar ke HP/PC</div>
+                                </div>
+                                <label class="switch" style="position:relative; display:inline-block; width:38px; height:20px;">
+                                    <input type="checkbox" id="toggle-device-notifs" ${isDeviceNotifEnabled ? 'checked' : ''} style="opacity:0; width:0; height:0;">
+                                    <span class="slider" style="position:absolute; cursor:pointer; inset:0; background-color:${isDeviceNotifEnabled ? 'var(--accent-primary)' : '#4b5563'}; border-radius:20px; transition:0.3s; display:flex; align-items:center;">
+                                        <span class="knob" style="height:14px; width:14px; background-color:white; border-radius:50%; transition:0.3s; transform:translateX(${isDeviceNotifEnabled ? '20px' : '3px'}); display:block;"></span>
+                                    </span>
+                                </label>
                             </div>
                         </div>
-                    `).join('') : `
-                        <div style="text-align: center; padding: 3rem 0; color: var(--text-muted);">
-                            <span style="font-size: 3rem; display: block; margin-bottom: 1rem;">🔔</span>
-                            <div style="font-size: 0.9rem; font-weight: 700;">Belum ada notifikasi baru</div>
-                        </div>
-                    `}
+                    </details>
                 </div>
-            </div>
-        `;
+            `;
+        };
 
-        ui.showModal({ title: '🔔 Notifikasi & Log', content });
-
-        // Add event listener to the switch
-        const checkbox = document.getElementById('toggle-popup-notifs');
-        if (checkbox) {
-            checkbox.addEventListener('change', (e) => {
-                const checked = e.target.checked;
-                gameState.set('settings.notificationsEnabled', checked);
-                const slider = checkbox.nextElementSibling;
-                const knob = slider.querySelector('.knob');
-                slider.style.backgroundColor = checked ? 'var(--accent-primary)' : '#4b5563';
-                knob.style.transform = `translateX(${checked ? '24px' : '4px'})`;
-                ui.success(checked ? 'Pop-up notifikasi diaktifkan' : 'Pop-up notifikasi dinonaktifkan (hanya angka lonceng)');
-            });
-        }
-
-        const deviceCheckbox = document.getElementById('toggle-device-notifs');
-        if (deviceCheckbox) {
-            deviceCheckbox.addEventListener('change', (e) => {
-                const checked = e.target.checked;
-                const slider = deviceCheckbox.nextElementSibling;
-                const knob = slider.querySelector('.knob');
-                
-                if (checked) {
-                    if (!("Notification" in window)) {
-                        ui.error("Browser Anda tidak mendukung notifikasi perangkat.");
-                        deviceCheckbox.checked = false;
-                        slider.style.backgroundColor = '#4b5563';
-                        knob.style.transform = 'translateX(4px)';
-                        return;
+        const bindNotifEvents = () => {
+            // Filter switching
+            document.querySelectorAll('.btn-notif-filter').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    activeFilter = btn.dataset.filter;
+                    const container = document.getElementById('notif-modal-root');
+                    if (container) {
+                        container.innerHTML = renderNotifContent();
+                        bindNotifEvents();
                     }
-                    Notification.requestPermission().then(permission => {
-                        if (permission === 'granted') {
-                            gameState.set('settings.deviceNotificationsEnabled', true);
-                            slider.style.backgroundColor = 'var(--accent-primary)';
-                            knob.style.transform = 'translateX(24px)';
-                            ui.success('Notifikasi perangkat berhasil diaktifkan!');
-                        } else {
-                            gameState.set('settings.deviceNotificationsEnabled', false);
-                            deviceCheckbox.checked = false;
-                            slider.style.backgroundColor = '#4b5563';
-                            knob.style.transform = 'translateX(4px)';
-                            ui.error('Izin notifikasi ditolak oleh sistem/browser.');
+                });
+            });
+
+            // Single check claiming
+            document.querySelectorAll('.btn-claim-single-check').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const checkId = btn.dataset.notifId;
+                    const { transferManager } = await import('../finance/TransferManager.js');
+                    const success = transferManager.claimCheck(checkId, btn);
+                    if (success) {
+                        const container = document.getElementById('notif-modal-root');
+                        if (container) {
+                            container.innerHTML = renderNotifContent();
+                            bindNotifEvents();
                         }
-                    });
-                } else {
-                    gameState.set('settings.deviceNotificationsEnabled', false);
-                    slider.style.backgroundColor = '#4b5563';
-                    knob.style.transform = 'translateX(4px)';
-                    ui.success('Notifikasi perangkat dinonaktifkan');
+                    }
+                });
+            });
+
+            // Claim all checks
+            document.getElementById('btn-claim-all-checks')?.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const { transferManager } = await import('../finance/TransferManager.js');
+                transferManager.claimAllChecks();
+                const container = document.getElementById('notif-modal-root');
+                if (container) {
+                    container.innerHTML = renderNotifContent();
+                    bindNotifEvents();
                 }
             });
-        }
+
+            // Open Transfer Modal
+            document.getElementById('btn-open-transfer-from-notif')?.addEventListener('click', async () => {
+                ui.closeModal();
+                const { transferManager } = await import('../finance/TransferManager.js');
+                transferManager.showTransferModal();
+            });
+
+            // Notification Toggles
+            const checkbox = document.getElementById('toggle-popup-notifs');
+            if (checkbox) {
+                checkbox.addEventListener('change', (e) => {
+                    const checked = e.target.checked;
+                    gameState.set('settings.notificationsEnabled', checked);
+                    const slider = checkbox.nextElementSibling;
+                    const knob = slider.querySelector('.knob');
+                    slider.style.backgroundColor = checked ? 'var(--accent-primary)' : '#4b5563';
+                    knob.style.transform = `translateX(${checked ? '20px' : '3px'})`;
+                    ui.success(checked ? 'Pop-up notifikasi diaktifkan' : 'Pop-up notifikasi dinonaktifkan');
+                });
+            }
+
+            const deviceCheckbox = document.getElementById('toggle-device-notifs');
+            if (deviceCheckbox) {
+                deviceCheckbox.addEventListener('change', (e) => {
+                    const checked = e.target.checked;
+                    const slider = deviceCheckbox.nextElementSibling;
+                    const knob = slider.querySelector('.knob');
+                    
+                    if (checked) {
+                        if (!("Notification" in window)) {
+                            ui.error("Browser Anda tidak mendukung notifikasi perangkat.");
+                            deviceCheckbox.checked = false;
+                            slider.style.backgroundColor = '#4b5563';
+                            knob.style.transform = 'translateX(3px)';
+                            return;
+                        }
+                        Notification.requestPermission().then(permission => {
+                            if (permission === 'granted') {
+                                gameState.set('settings.deviceNotificationsEnabled', true);
+                                slider.style.backgroundColor = 'var(--accent-primary)';
+                                knob.style.transform = 'translateX(20px)';
+                                ui.success('Notifikasi perangkat diaktifkan!');
+                            } else {
+                                gameState.set('settings.deviceNotificationsEnabled', false);
+                                deviceCheckbox.checked = false;
+                                slider.style.backgroundColor = '#4b5563';
+                                knob.style.transform = 'translateX(3px)';
+                                ui.error('Izin notifikasi ditolak oleh sistem browser.');
+                            }
+                        });
+                    } else {
+                        gameState.set('settings.deviceNotificationsEnabled', false);
+                        slider.style.backgroundColor = '#4b5563';
+                        knob.style.transform = 'translateX(3px)';
+                        ui.success('Notifikasi perangkat dinonaktifkan');
+                    }
+                });
+            }
+        };
+
+        const modalShell = `<div id="notif-modal-root">${renderNotifContent()}</div>`;
+        ui.showModal({ title: '🔔 Notifikasi & Cek Hadiah', content: modalShell, onShow: bindNotifEvents });
+    }
+
+    showDonateModal() {
+        this.handleDonate();
+    }
+
+    showGameGuide() {
+        this.showGuide();
     }
 
     showGuide() {
         const role = roleManager.getRoleData();
         const content = `
-            <div style="max-height:65vh;overflow-y:auto;">
+            <div style="max-height:72vh;overflow-y:auto;padding-right:4px;">
                 <div class="planning-card" style="margin-bottom:1rem;">
-                    <h4 style="margin-bottom:0.5rem;">🎯 Tujuan Permainan</h4>
-                    <p style="color:var(--text-muted);font-size:0.875rem;">Capai kebebasan finansial $ 1 Miliar! Kelola keuangan sesuai peranmu.</p>
-                </div>
-                ${role ? `
-                <div class="planning-card" style="margin-bottom:1rem;border-color:${role.color}40;">
-                    <h4 style="margin-bottom:0.5rem;">${role.icon} Profil Risiko Aktif: ${role.label}</h4>
-                    <p style="color:var(--text-muted);font-size:0.875rem;">${role.detail}</p>
-                    <p style="color:var(--text-muted);font-size:0.875rem;margin-top:0.5rem;">${role.strategy || role.monthlyEvent}</p>
-                </div>
-                ` : ''}
-                <div class="planning-card" style="margin-bottom:1rem;">
-                    <h4 style="margin-bottom:0.5rem;">🏦 Fitur Deposito & Reksa Dana</h4>
-                    <ul style="color:var(--text-muted);font-size:0.875rem;padding-left:1.25rem;line-height:1.8;">
-                        <li><strong>Deposito</strong>: Simpan dana dengan bunga bulanan (0.2% - 3.0%) yang dapat diatur menggunakan slider proyeksi live. Aktifkan auto-deposit untuk kemudahan menabung otomatis.</li>
-                        <li><strong>Reksa Dana</strong>: Pilih dari 4 reksadana (Pasar Uang, Pendapatan Tetap, Campuran, Saham) dengan berbagai tingkat risiko dan imbal hasil bulanan untuk pertumbuhan modal.</li>
-                    </ul>
-                </div>
-                <div class="planning-card" style="margin-bottom:1rem;">
-                    <h4 style="margin-bottom:0.5rem;">🕊️ Sistem Donasi & Keberuntungan</h4>
+                    <h4 style="margin-bottom:0.4rem;display:flex;align-items:center;gap:6px;"><span>🎯</span> Visi Permainan & Kebebasan Finansial</h4>
                     <p style="color:var(--text-muted);font-size:0.875rem;line-height:1.6;">
-                        Salurkan bantuan finansial ke berbagai badan amal pilihan (Palestina 🇵🇸, Masjid 🕌, Panti Asuhan 🏠, Bencana Alam 🌊) untuk mendapatkan berkah keberuntungan (Luck Boost 1.5x) selama 30 hari.
+                        Tujuan utama Anda adalah mengakumulasi kekayaan bersih hingga <strong style="color:#10b981;">$ 1.000.000.000 ($1 Miliar)</strong>. Kelola modal awal Anda dengan bijak melalui portofolio multi-aset, instrumen pasar modal, serta ekspansi bisnis pasif.
                     </p>
                 </div>
+
+                ${role ? `
+                <div class="planning-card" style="margin-bottom:1rem;border-color:${role.color}45;background:linear-gradient(135deg, ${role.color}15, rgba(255,255,255,0.02));">
+                    <h4 style="margin-bottom:0.4rem;color:${role.color};display:flex;align-items:center;gap:6px;"><span>${role.icon}</span> Profil Risiko Aktif: ${role.label}</h4>
+                    <p style="color:var(--text-muted);font-size:0.875rem;line-height:1.5;">${role.detail}</p>
+                    <div style="margin-top:0.6rem;padding:0.6rem 0.8rem;background:rgba(0,0,0,0.25);border-radius:8px;font-size:0.8rem;color:#f4f4f5;">
+                        <strong>Strategi Rekomendasi:</strong> ${role.strategy || role.monthlyEvent}
+                    </div>
+                </div>
+                ` : ''}
+
                 <div class="planning-card" style="margin-bottom:1rem;">
-                    <h4 style="margin-bottom:0.5rem;">💡 Tips Pro</h4>
+                    <h4 style="margin-bottom:0.5rem;display:flex;align-items:center;gap:6px;"><span>📈</span> Panduan Trading Pasar (Saham & Kripto)</h4>
                     <ul style="color:var(--text-muted);font-size:0.875rem;padding-left:1.25rem;line-height:1.8;">
-                        <li>Diversifikasi — jangan all-in satu aset</li>
-                        <li>Bayar cicilan tepat waktu untuk credit score</li>
-                        <li>Bisnis memberi passive income tanpa kerja manual</li>
-                        <li>Ganti peran kapan saja di ⚙️ Pengaturan</li>
+                        <li><strong>Order Book & Rasio Kedalaman (Bid vs Ask)</strong>: Perhatikan rasio volume beli vs jual di samping chart. Mayoritas Bid dominan menandakan potensi akumulasi/pantulan, sementara mayoritas Ask menandakan tekanan jual distribusi.</li>
+                        <li><strong>Market Order vs Limit Order</strong>: Gunakan <em>Instant Market</em> untuk eksekusi kilat di harga terbaik, atau pasang <em>Limit Order</em> untuk antre membeli di harga diskon bawah / menjual di puncak target keuntungan.</li>
+                        <li><strong>Sentimen Pasar & Fear & Greed Index</strong>: Manfaatkan siklus sentimen pasar makro (Extreme Fear vs Extreme Greed). Beli saat pasar panik/diskon wajar dan amankan profit saat pasar euforia berlebih.</li>
+                        <li><strong>Manajemen Risiko & Cut-Loss</strong>: Selalu tetapkan batas toleransi penurunan. Jangan memaksakan menahan posisi spekulatif yang berbalik arah tanpa rencana yang jelas.</li>
+                    </ul>
+                </div>
+
+                <div class="planning-card" style="margin-bottom:1rem;">
+                    <h4 style="margin-bottom:0.5rem;display:flex;align-items:center;gap:6px;"><span>🏢</span> Panduan Bisnis & Arus Kas Pasif</h4>
+                    <ul style="color:var(--text-muted);font-size:0.875rem;padding-left:1.25rem;line-height:1.8;">
+                        <li><strong>Empire Real Estate</strong>: Miliki aset properti fisik (apartemen, ruko, residensial, villa) untuk menghasilkan pendapatan sewa pasif (rental yield) bulanan yang langsung masuk ke rekening.</li>
+                        <li><strong>Mining Rig & Staking Kripto</strong>: Rakit rig penambangan kripto dan staking aset kripto Anda di tab Passive Income untuk memanen imbal hasil periodik tanpa intervensi manual harian.</li>
+                        <li><strong>Trading Bot Otomatis</strong>: Jalankan algoritma bot trading untuk mengeksekusi peluang selisih harga secara konsisten sepanjang waktu.</li>
+                    </ul>
+                </div>
+
+                <div class="planning-card" style="margin-bottom:1rem;">
+                    <h4 style="margin-bottom:0.5rem;display:flex;align-items:center;gap:6px;"><span>🏦</span> Deposito & Reksa Dana (Stabilitas Modal)</h4>
+                    <ul style="color:var(--text-muted);font-size:0.875rem;padding-left:1.25rem;line-height:1.8;">
+                        <li><strong>Deposito Bank Berbunga</strong>: Amankan cadangan kas darurat dengan imbal hasil bulanan terjamin (0.2% - 3.0%). Fitur auto-deposit membantu menyisihkan modal secara teratur.</li>
+                        <li><strong>4 Portofolio Reksa Dana</strong>: Pilih antara Reksa Dana Pasar Uang (sangat rendah risiko), Pendapatan Tetap (obligasi stabil), Campuran (seimbang), hingga Saham (pertumbuhan tinggi).</li>
+                    </ul>
+                </div>
+
+                <div class="planning-card" style="margin-bottom:1rem;">
+                    <h4 style="margin-bottom:0.5rem;display:flex;align-items:center;gap:6px;"><span>🎁</span> Kotak Donasi Komunitas & Keberuntungan (Luck Boost 1.5×)</h4>
+                    <p style="color:var(--text-muted);font-size:0.875rem;line-height:1.6;">
+                        Berdonasilah ke <strong>Kotak Donasi Komunitas 🎁</strong> untuk berbagi modal kas ke sesama investor di jaringan. Setiap donasi mengaktifkan berkah keberuntungan berupa buff <strong style="color:#fbbf24;">Luck 1.5×</strong> selama 30 hari game (dapat diakumulasi hingga 180 hari) yang membantu momentum profit trading dan peluang event tak terduga!
+                    </p>
+                </div>
+
+                <div class="planning-card" style="margin-bottom:1rem;">
+                    <h4 style="margin-bottom:0.5rem;display:flex;align-items:center;gap:6px;"><span>🏆</span> Milestone Finansial & Hadiah Tunai 75%</h4>
+                    <p style="color:var(--text-muted);font-size:0.875rem;line-height:1.6;">
+                        Setiap kali total kekayaan bersih Anda mencapai tingkatan milestone baru (mulai dari $10.000 hingga $1 Miliar), Anda berhak mengklaim hadiah uang tunai langsung sebesar <strong style="color:#10b981;">75% dari target milestone</strong> lewat tombol <em>🎁 Klaim</em> di Beranda.
+                    </p>
+                </div>
+
+                <div class="planning-card" style="margin-bottom:0.5rem;">
+                    <h4 style="margin-bottom:0.5rem;display:flex;align-items:center;gap:6px;"><span>💡</span> Tips Pro Trader & Pebisnis</h4>
+                    <ul style="color:var(--text-muted);font-size:0.875rem;padding-left:1.25rem;line-height:1.8;">
+                        <li>Jangan pernah menaruh seluruh modal Anda hanya pada satu aset spekulatif (*Don't put all eggs in one basket*).</li>
+                        <li>Pertahankan skor kredit (Credit Score) dengan membayar cicilan pinjaman tepat waktu untuk membuka plafon modal usaha yang lebih tinggi.</li>
+                        <li>Evaluasi atau sesuaikan kembali profil risiko dan preferensi Anda kapan saja melalui menu <strong>⚙️ Pengaturan</strong>.</li>
                     </ul>
                 </div>
             </div>
         `;
-        ui.showModal({ title: '📖 Panduan', content });
+        ui.showModal({ title: '📖 Panduan Trading & Bisnis Investor', content });
     }
 
     loadECharts() {
@@ -1740,6 +1720,15 @@ class HomeScreen {
         const container = document.getElementById('balance-card');
         if (!container) return;
 
+        // Synchronize initial buttons styling with activeTimeframe ('1D' default)
+        container.querySelectorAll('.btn-timeframe').forEach(b => {
+            const isActive = b.dataset.timeframe === (this.activeTimeframe || '1D');
+            b.classList.toggle('active', isActive);
+            b.style.background = isActive ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)';
+            b.style.borderColor = isActive ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.1)';
+            b.style.color = isActive ? 'var(--accent-primary)' : 'var(--text-secondary)';
+        });
+
         container.querySelectorAll('.btn-timeframe').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
@@ -1748,16 +1737,12 @@ class HomeScreen {
 
                 // Update active state class
                 container.querySelectorAll('.btn-timeframe').forEach(b => {
-                    b.classList.remove('active');
-                    // Reset styling to default secondary style
-                    b.style.background = 'rgba(255,255,255,0.05)';
-                    b.style.borderColor = 'rgba(255,255,255,0.1)';
-                    b.style.color = 'var(--text-secondary)';
+                    const isActive = b === btn;
+                    b.classList.toggle('active', isActive);
+                    b.style.background = isActive ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)';
+                    b.style.borderColor = isActive ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.1)';
+                    b.style.color = isActive ? 'var(--accent-primary)' : 'var(--text-secondary)';
                 });
-                btn.classList.add('active');
-                btn.style.background = 'rgba(16,185,129,0.15)';
-                btn.style.borderColor = 'rgba(16,185,129,0.3)';
-                btn.style.color = 'var(--accent-primary)';
 
                 this.updateDashboardChart();
             };
@@ -1778,7 +1763,7 @@ class HomeScreen {
             gameState.prepopulateTickHistory();
         }
 
-        const timeframe = this.activeTimeframe || '1M';
+        const timeframe = this.activeTimeframe || '1D';
         let labels = [];
         let bankAtEnds = [];
         let tooltipTitle = 'Tgl';
@@ -1822,8 +1807,12 @@ class HomeScreen {
         }
 
         // Update timeframe performance badge on Balance Card
+        const currentNW = Math.round(gameState.getNetWorth());
+        if (bankAtEnds.length > 0 && (timeframe === '1D' || bankAtEnds.length === 1)) {
+            bankAtEnds[bankAtEnds.length - 1] = currentNW;
+        }
         const startVal = bankAtEnds[0] || 0;
-        const endVal = bankAtEnds[bankAtEnds.length - 1] ?? gameState.getBalance();
+        const endVal = bankAtEnds[bankAtEnds.length - 1] ?? currentNW;
         const tfChangePct = startVal > 0 ? ((endVal - startVal) / startVal) * 100 : 0;
         const isPositive = tfChangePct >= 0;
         const lineColor = isPositive ? '#10b981' : '#ef4444';

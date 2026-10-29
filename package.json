@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "admin": "npm --prefix market-server run admin"
   },
   "devDependencies": {
     "vite": "^5.0.0"

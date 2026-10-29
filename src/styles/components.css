@@ -122,28 +122,6 @@
 .metric-val { font-size: 1.15rem; font-weight: 700; color: var(--text-main); }
 .metric-lbl { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
 
-/* Earn Widget / Idle Panel */
-.earn-widget {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-.earn-rate-badge {
-  color: var(--accent-primary);
-  font-weight: 600;
-}
-.earn-pending-box {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
 /* Economy Pulse & News Stream */
 .chart-container {
   position: relative;
@@ -243,10 +221,6 @@
   .career-grid {
     gap: 0.75rem !important;
     margin-top: 0.75rem !important;
-  }
-  .earn-widget {
-    padding: 0.75rem !important;
-    gap: 0.5rem !important;
   }
   .news-item {
     padding: 0.5rem 0.75rem !important;
