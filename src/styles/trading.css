@@ -1788,6 +1788,326 @@ body.trading-page-active .app-bottom-nav {
     font-size: 0.82rem;
 }
 
+/* ── Trade History Header Actions & Buttons ── */
+.th-analysis-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0.3rem 0.65rem;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.15));
+    border: 1px solid rgba(16, 185, 129, 0.38);
+    border-radius: 8px;
+    color: #34d399;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+.th-analysis-btn:hover {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(6, 182, 212, 0.28));
+    border-color: rgba(16, 185, 129, 0.65);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.th-view-all-btn {
+    width: 100%;
+    padding: 0.55rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    color: #a1a1aa;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: inherit;
+}
+.th-view-all-btn:hover {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #818cf8;
+    transform: translateY(-1px);
+}
+
+.th-card {
+    cursor: pointer;
+}
+.th-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(99, 102, 241, 0.35);
+    transform: translateY(-1px);
+}
+
+/* ══ TRADING ANALYSIS & FULL LEDGER MODAL STYLES ══ */
+.ta-modal-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    color: var(--text-main);
+    font-family: inherit;
+}
+
+.ta-nav-tabs {
+    display: flex;
+    gap: 0.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    overflow-x: auto;
+}
+
+.ta-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    font-family: inherit;
+}
+.ta-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+}
+.ta-nav-btn.active {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.45);
+    color: #34d399;
+}
+
+/* Hero Performance Card */
+.ta-hero-card {
+    position: relative;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, rgba(16, 24, 39, 0.7), rgba(9, 14, 26, 0.85));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.ta-hero-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #10b981, #06b6d4, #8b5cf6);
+}
+
+.ta-hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.ta-hero-pnl-val {
+    font-size: 2rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    margin-top: 4px;
+}
+.ta-hero-pnl-val.profit { color: #10b981; }
+.ta-hero-pnl-val.loss { color: #ef4444; }
+
+.ta-bar-wrap {
+    margin-top: 0.75rem;
+}
+.ta-bar-track {
+    height: 10px;
+    background: rgba(239, 68, 68, 0.35);
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+}
+.ta-bar-fill-win {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    transition: width 0.4s ease;
+}
+
+/* Metric Grid */
+.ta-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+}
+@media (max-width: 768px) {
+    .ta-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.ta-metric-box {
+    padding: 0.85rem 1rem;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+.ta-metric-box:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+.ta-metric-box__label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.ta-metric-box__val {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #ffffff;
+    font-variant-numeric: tabular-nums;
+}
+.ta-metric-box__sub {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* Instrument Comparison Section */
+.ta-instruments-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+@media (max-width: 640px) {
+    .ta-instruments-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.ta-inst-card {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+}
+.ta-inst-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* AI Trading Coach Section */
+.ta-coach-box {
+    padding: 1.25rem;
+    background: linear-gradient(135deg, rgba(30, 27, 75, 0.4), rgba(15, 23, 42, 0.6));
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+.ta-coach-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.ta-coach-verdict {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #e2e8f0;
+}
+.ta-coach-tips-list {
+    margin: 0;
+    padding-left: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.5;
+}
+
+/* Asset Breakdown Table */
+.ta-table-wrap {
+    overflow-x: auto;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.15);
+}
+.ta-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+    text-align: left;
+}
+.ta-table th {
+    padding: 0.65rem 0.85rem;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.ta-table td {
+    padding: 0.75rem 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: #f1f5f9;
+}
+.ta-table tr:hover td {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Ledger List / Card in Modal */
+.ta-ledger-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    gap: 0.75rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.ta-ledger-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(99, 102, 241, 0.35);
+    transform: translateY(-1px);
+}
+
+/* Single Trade Inspection Card */
+.ta-trade-inspect-card {
+    padding: 1.25rem;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+
 /* Media query for mobile responsiveness of trading views and controls */
 @media (max-width: 900px) {
   .tab-group {

@@ -86,6 +86,8 @@ class UIManager {
 
         this.modalContainer.classList.add('hidden');
         document.body.style.overflow = '';
+        const modalContent = document.getElementById('modal-content');
+        if (modalContent) { modalContent.style.maxWidth = ''; modalContent.style.width = ''; }
 
         // Dispatch custom event to notify view manager of modal closure
         document.dispatchEvent(new CustomEvent('modalClosed'));

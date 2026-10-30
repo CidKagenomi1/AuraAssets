@@ -668,6 +668,13 @@ class TradingPage {
   }
 
   /**
+   * Open Trade History & Performance Analysis Modal
+   */
+  openTradeAnalysisModal(tab = 'analysis', tradeId = null) {
+    tradeHistoryPanel.openAnalysisModal(this.currentAsset, tab, tradeId);
+  }
+
+  /**
    * Render trade history rows delegate
    */
   renderTradeHistoryRows() {
@@ -752,4 +759,11 @@ class TradingPage {
 }
 
 export const tradingPage = new TradingPage();
+
+if (typeof window !== 'undefined') {
+  window.openTradeAnalysisModal = (tab = 'analysis', tradeId = null) => {
+    tradingPage.openTradeAnalysisModal(tab, tradeId);
+  };
+}
+
 export default tradingPage;
