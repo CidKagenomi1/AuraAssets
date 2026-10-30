@@ -17,6 +17,10 @@ class UIManager {
         this.modalContainer = document.getElementById('modal-container');
         this.toastContainer = document.getElementById('toast-container');
 
+        if (typeof window !== 'undefined') {
+            window.ui = this;
+        }
+
         // Close modal on backdrop click
         const backdrop = this.modalContainer?.querySelector('.modal-backdrop');
         backdrop?.addEventListener('click', () => this.closeModal());
@@ -79,6 +83,7 @@ class UIManager {
         // Add close button listener
         const closeBtn = modalContent.querySelector('.modal-close');
         closeBtn?.addEventListener('click', () => this.closeModal());
+        document.dispatchEvent(new CustomEvent('modalOpened'));
     }
 
     closeModal() {
@@ -96,8 +101,18 @@ class UIManager {
     /**
      * Show modal with options (used by Settings/Notifications)
      */
-    showModal(options) {
-        const { title = '', content = '', onShow = null } = options;
+    showModal(options, contentArg = null) {
+        let title = '';
+        let content = '';
+        let onShow = null;
+        if (typeof options === 'string') {
+            title = options;
+            content = contentArg || '';
+        } else if (options && typeof options === 'object') {
+            title = options.title || '';
+            content = options.content || '';
+            onShow = options.onShow || null;
+        }
 
         const modalHTML = `
             <div class="modal-header">

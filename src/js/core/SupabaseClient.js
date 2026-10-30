@@ -193,5 +193,189 @@ export function initMarketStateRealtime(onStockStateUpdate, onCryptoStateUpdate)
   }
 }
 
+// ==========================================
+// DIRECT FRONTEND CLOUD PERSISTENCE (SOLUTION 1)
+// ==========================================
+
+/**
+ * Save player profile, full save game JSON, and active portfolio directly to Supabase Cloud
+ */
+export async function savePlayerToCloud(username, state, netWorth = 0) {
+  if (!username || !state) return false;
+  const usernameLower = String(username).trim().toLowerCase();
+  if (!usernameLower) return false;
+
+  try {
+    // 1. Upsert full player save into player_saves table
+    const payload = {
+      username: usernameLower,
+      display_name: state.player?.name || username,
+      balance: Math.round(Number(state.player?.balance || 0)),
+      net_worth: Math.round(Number(netWorth || 0)),
+      role: state.player?.role || 'investor',
+      credit_score: Math.round(Number(state.player?.creditScore || 700)),
+      save_data: state,
+      updated_at: new Date().toISOString()
+    };
+
+    const { error: saveErr } = await supabase
+      .from('player_saves')
+      .upsert(payload, { onConflict: 'username' });
+
+    if (saveErr) {
+      console.warn('⚠️ [Supabase Cloud Save] Error saving player_saves:', saveErr.message);
+      return false;
+    }
+
+    // 2. Mirror active holdings to player_portfolio for direct Supabase Table Editor visibility
+    const portfolioRows = [];
+
+    // Stocks
+    if (state.stocks && typeof state.stocks === 'object') {
+      for (const [sym, item] of Object.entries(state.stocks)) {
+        const amount = Number(item.shares || item.amount || 0);
+        if (amount > 0) {
+          const avgPrice = Number(item.avgBuyPrice || 0);
+          portfolioRows.push({
+            id: `${usernameLower}_stock_${sym}`,
+            username: usernameLower,
+            asset_type: 'stock',
+            symbol: sym,
+            name: item.name || sym,
+            amount,
+            avg_buy_price: avgPrice,
+            total_invested: Number(item.totalInvested || (amount * avgPrice)),
+            current_price: Number(item.currentPrice || avgPrice),
+            current_value: Number(amount * (item.currentPrice || avgPrice)),
+            updated_at: new Date().toISOString()
+          });
+        }
+      }
+    }
+
+    // Crypto
+    if (state.crypto && typeof state.crypto === 'object') {
+      for (const [sym, item] of Object.entries(state.crypto)) {
+        const amount = Number(item.amount || item.shares || 0);
+        if (amount > 0) {
+          const avgPrice = Number(item.avgBuyPrice || 0);
+          portfolioRows.push({
+            id: `${usernameLower}_crypto_${sym}`,
+            username: usernameLower,
+            asset_type: 'crypto',
+            symbol: sym,
+            name: item.name || sym,
+            amount,
+            avg_buy_price: avgPrice,
+            total_invested: Number(item.totalInvested || (amount * avgPrice)),
+            current_price: Number(item.currentPrice || avgPrice),
+            current_value: Number(amount * (item.currentPrice || avgPrice)),
+            updated_at: new Date().toISOString()
+          });
+        }
+      }
+    }
+
+    // Mutual funds / Reksa Dana
+    const rdPortfolio = state.savings?.reksaDana;
+    if (rdPortfolio && typeof rdPortfolio === 'object') {
+      for (const [fundId, item] of Object.entries(rdPortfolio)) {
+        const units = Number(item.units || 0);
+        if (units > 0) {
+          const avgNav = Number(item.avgNav || 0);
+          portfolioRows.push({
+            id: `${usernameLower}_mutual_fund_${fundId}`,
+            username: usernameLower,
+            asset_type: 'mutual_fund',
+            symbol: fundId,
+            name: item.name || fundId,
+            amount: units,
+            avg_buy_price: avgNav,
+            total_invested: Number(item.totalInvested || (units * avgNav)),
+            current_price: Number(item.currentNav || avgNav),
+            current_value: Number(units * (item.currentNav || avgNav)),
+            updated_at: new Date().toISOString()
+          });
+        }
+      }
+    }
+
+    if (portfolioRows.length > 0) {
+      await supabase
+        .from('player_portfolio')
+        .upsert(portfolioRows, { onConflict: 'id' });
+    }
+
+    return true;
+  } catch (err) {
+    console.warn('⚠️ [Supabase Cloud Save] Exception during cloud sync:', err);
+    return false;
+  }
+}
+
+/**
+ * Load player save from Supabase Cloud
+ */
+export async function loadPlayerFromCloud(username) {
+  if (!username) return null;
+  const usernameLower = String(username).trim().toLowerCase();
+  try {
+    const { data, error } = await supabase
+      .from('player_saves')
+      .select('*')
+      .eq('username', usernameLower)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('⚠️ [Supabase Cloud Load] Error loading save:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.warn('⚠️ [Supabase Cloud Load] Exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Record a transaction row directly into player_transactions table in Supabase
+ */
+export async function recordCloudTransaction(username, tx) {
+  if (!username || !tx) return;
+  const usernameLower = String(username).trim().toLowerCase();
+  try {
+    await supabase.from('player_transactions').insert({
+      username: usernameLower,
+      type: String(tx.type || 'GENERAL'),
+      description: String(tx.description || ''),
+      amount: Number(tx.amount || 0),
+      balance_after: Number(tx.balance || 0),
+      created_at: new Date(tx.timestamp || Date.now()).toISOString()
+    });
+  } catch (err) {
+    console.warn('⚠️ [Supabase Cloud Transaction] Log error:', err);
+  }
+}
+
+/**
+ * Fetch all registered player accounts from Supabase Cloud
+ */
+export async function getCloudAccounts() {
+  try {
+    const { data, error } = await supabase
+      .from('player_saves')
+      .select('username, display_name, balance, net_worth, role, updated_at')
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.warn('⚠️ [Supabase Accounts] Error fetching cloud accounts:', error.message);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    return [];
+  }
+}
+
 export default supabase;
 

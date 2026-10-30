@@ -15,7 +15,6 @@ import stockMarket from '../trading/StockMarket.js';
 import cryptoMarket from '../trading/CryptoMarket.js';
 import newsManager from '../core/NewsManager.js';
 import careerManager from '../career/CareerManager.js';
-import propertyManager from '../property/PropertyManager.js';
 import ui from './UIManager.js';
 import { Icons } from './Icons.js';
 import { countUp, pulseElement, staggerFadeUp, createFloatingText } from './Animations.js';
@@ -25,6 +24,7 @@ class HomeScreen {
         this._lastBalance = 0;
         this.activeTimeframe = '1D';
         this.activeMoversTab = 'gainers';
+        this.activeMoversMarket = 'all';
     }
 
     init() {
@@ -520,19 +520,37 @@ class HomeScreen {
             assetType: 'crypto',
             tagLabel: c.sector || c.category || 'Crypto'
         }));
-        const allAssets = [...stocks, ...cryptos];
+
+        let pool = [];
+        if (this.activeMoversMarket === 'stock') {
+            pool = stocks;
+        } else if (this.activeMoversMarket === 'crypto') {
+            pool = cryptos;
+        } else {
+            pool = [...stocks, ...cryptos];
+        }
 
         let displayItems = [];
         const tab = (this.activeMoversTab === 'losers') ? 'losers' : 'gainers';
 
         if (tab === 'gainers') {
-            displayItems = [...allAssets]
+            displayItems = [...pool]
                 .sort((a, b) => (b.change || 0) - (a.change || 0))
                 .slice(0, 4);
         } else {
-            displayItems = [...allAssets]
+            displayItems = [...pool]
                 .sort((a, b) => (a.change || 0) - (b.change || 0))
                 .slice(0, 4);
+        }
+
+        if (displayItems.length === 0) {
+            const marketLabel = this.activeMoversMarket === 'stock' ? 'saham' : (this.activeMoversMarket === 'crypto' ? 'kripto' : 'aset');
+            listEl.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 1.5rem 1rem; color: var(--text-muted); font-size: 0.78rem;">
+                    Belum ada data pergerakan untuk kategori ${marketLabel}.
+                </div>
+            `;
+            return;
         }
 
         const formatAssetPrice = (price, assetType) => {
@@ -580,11 +598,8 @@ class HomeScreen {
         if (!contentEl) return;
 
         const summary = financeManager.getMonthlySummary();
-        const propertyRent = (propertyManager && typeof propertyManager.getTotalMonthlyRent === 'function') 
-            ? propertyManager.getTotalMonthlyRent() 
-            : 0;
-
-        // Current month inflow estimate
+        const properties = gameState.get('properties') || [];
+        const propertyRent = properties.reduce((sum, p) => sum + (p.monthlyRent || p.rent || 0), 0);
         const estimatedInflow = Math.max(summary.totalIncome, propertyRent);
         const estimatedOutflow = summary.totalExpense;
         const netCashflow = estimatedInflow - estimatedOutflow;
@@ -987,11 +1002,22 @@ class HomeScreen {
             });
         }
 
-        // Top Movers & Signals Widget Tabs
-        document.querySelectorAll('.movers-tab-btn').forEach(btn => {
+        // Top Movers Market Filter (Semua, Saham, Kripto)
+        document.querySelectorAll('.movers-market-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                document.querySelectorAll('.movers-tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.movers-market-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.activeMoversMarket = btn.dataset.moversMarket || 'all';
+                this.renderTopMovers();
+            });
+        });
+
+        // Top Movers Trend Direction Filter (Gainers, Losers)
+        document.querySelectorAll('.movers-trend-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.movers-trend-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this.activeMoversTab = btn.dataset.moversTab || 'gainers';
                 this.renderTopMovers();
@@ -1086,17 +1112,11 @@ class HomeScreen {
                     }, 100);
                 });
                 break;
-            case 'marketplace':
-                import('../marketplace/panels/MarketplacePanel.js').then(m => m.default.show());
-                break;
             case 'loan':
                 import('../finance/panels/LoanPanel.js').then(m => m.default.show());
                 break;
             case 'savings':
                 import('../finance/panels/SavingsPanel.js').then(m => m.default.show());
-                break;
-            case 'property':
-                import('../property/panels/PropertyPanel.js').then(m => m.default.show());
                 break;
             case 'trading-signal':
                 import('../trading/panels/TradingSignalPanel.js').then(m => m.default.show());

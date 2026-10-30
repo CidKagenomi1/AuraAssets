@@ -6,7 +6,6 @@
 import gameState from '../core/GameState.js';
 import ui from '../ui/UIManager.js';
 import financeManager from '../finance/FinanceManager.js';
-import propertyManager from '../property/PropertyManager.js';
 import stockMarket from '../trading/StockMarket.js';
 import cryptoMarket from '../trading/CryptoMarket.js';
 
@@ -51,9 +50,9 @@ export const INVESTOR_RANKS = [
         badge: '🏛️',
         reqNetWorth: 2500000,
         reqTrades: 20,
-        reqProps: 1,
-        desc: 'Membangun diversifikasi multi-aset saham, kripto, dan properti.',
-        perk: 'Passive yield properti & staking booster +5%'
+        reqProps: 0,
+        desc: 'Membangun diversifikasi multi-aset saham, reksa dana, dan kripto.',
+        perk: 'Yield reksa dana & staking booster +5%'
     },
     {
         level: 5,
@@ -62,7 +61,7 @@ export const INVESTOR_RANKS = [
         badge: '👑',
         reqNetWorth: 10000000,
         reqTrades: 35,
-        reqProps: 2,
+        reqProps: 0,
         desc: 'Penguasa modal besar dengan portofolio berskala institusi.',
         perk: 'Hak istimewa Bot Trading otomatis'
     },
@@ -73,7 +72,7 @@ export const INVESTOR_RANKS = [
         badge: '🌌',
         reqNetWorth: 50000000,
         reqTrades: 50,
-        reqProps: 4,
+        reqProps: 0,
         desc: 'Legenda pasar dengan kebebasan finansial mutlak.',
         perk: 'Gelar prestise Whale Abadi & fee bursa 0%'
     }
@@ -118,13 +117,16 @@ export const CAREER_ACHIEVEMENTS = [
         }
     },
     {
-        id: 'property_owner',
-        title: 'Tuan Tanah',
-        desc: 'Miliki minimal 1 unit properti real-estate',
-        icon: '🏢',
+        id: 'mutual_fund_owner',
+        title: 'Portofolio Terdiversifikasi',
+        desc: 'Miliki investasi Reksa Dana atau Deposito berjangka',
+        icon: '🛡️',
         check: () => {
-            const props = propertyManager.getOwnedProperties ? propertyManager.getOwnedProperties() : [];
-            return props.length >= 1;
+            const savings = gameState.get('savings') || { deposits: [] };
+            const depositsCount = (savings.deposits || []).length;
+            const mutualFunds = gameState.get('mutualFunds') || { holdings: [] };
+            const fundsCount = (mutualFunds.holdings || []).length;
+            return depositsCount > 0 || fundsCount > 0;
         }
     },
     {
@@ -196,8 +198,7 @@ class CareerManager {
     }
 
     getOwnedPropsCount() {
-        const props = propertyManager.getOwnedProperties ? propertyManager.getOwnedProperties() : [];
-        return props.length;
+        return 0;
     }
 
     getAchievementsStatus() {

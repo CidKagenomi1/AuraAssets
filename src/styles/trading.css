@@ -1054,22 +1054,66 @@ body.trading-page-active .app-bottom-nav {
   opacity: 1;
 }
 
-/* ===== STOCK / CRYPTO ROW ===== */
+/* ===== MARKET TABLE HEADER & ROWS ===== */
+
+.market-table-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted, #a1a1aa);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.market-table-header .col-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.market-table-header .col-header:hover {
+  color: #ffffff;
+}
+
+.market-table-header .col-header.active {
+  color: var(--accent-primary, #10b981);
+}
+
+.market-table-header .sort-icon-active {
+  color: var(--accent-primary, #10b981);
+  font-size: 0.65rem;
+}
+
+.market-table-header .sort-icon-idle {
+  opacity: 0.35;
+  font-size: 0.65rem;
+}
 
 .market-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 9px 14px;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
   border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.015);
+  margin-bottom: 4px;
 }
 
 .market-row:hover {
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.07);
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.08);
+  transform: translateX(2px);
 }
 
 .sector-dot {
@@ -1079,66 +1123,120 @@ body.trading-page-active .app-bottom-nav {
   flex-shrink: 0;
 }
 
+.col-symbol {
+  width: 78px;
+  min-width: 78px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .market-symbol {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
   color: #fff;
-  min-width: 52px;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.col-name {
+  flex: 1 1 140px;
+  min-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .market-name {
   font-size: 12px;
-  color: rgba(255,255,255,0.45);
-  flex: 1;
+  color: rgba(255, 255, 255, 0.65);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
 }
 
-.market-price {
-  font-size: 13px;
-  font-weight: 500;
-  color: #fff;
-  min-width: 72px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+.col-sector {
+  width: 145px;
+  min-width: 145px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
-.market-change {
-  font-size: 12px;
-  font-weight: 500;
-  min-width: 58px;
-  text-align: right;
+.market-sector-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
   padding: 3px 8px;
-  border-radius: 20px;
-  font-variant-numeric: tabular-nums;
+  border-radius: 6px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.market-change.up   { color: #1D9E75; background: rgba(29,158,117,0.12); }
-.market-change.down { color: #D85A30; background: rgba(216,90,48,0.12); }
+.col-volatility {
+  width: 115px;
+  min-width: 115px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
 
-.market-symbol {
+.market-volatility-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
-.market-mini-tag {
-  font-size: 10px;
-  line-height: 1;
+.col-price {
+  width: 95px;
+  min-width: 95px;
+  flex-shrink: 0;
+  text-align: right;
+  justify-content: flex-end;
 }
 
-.market-sector-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-  white-space: nowrap;
+.market-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.col-change {
+  width: 80px;
+  min-width: 80px;
   flex-shrink: 0;
-  letter-spacing: 0.01em;
+  text-align: right;
+  justify-content: flex-end;
+}
+
+.market-change {
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 60px;
+  text-align: right;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+}
+
+.market-change.up   { color: #10b981; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.25); }
+.market-change.down { color: #f87171; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.25); }
+
+.market-row-subline {
+  display: none;
 }
 
 /* ===== MARKET FILTER CONTROLS & SECTOR PILLS ===== */
@@ -1254,9 +1352,67 @@ body.trading-page-active .app-bottom-nav {
   color: rgba(255, 255, 255, 0.75);
 }
 
-@media (max-width: 640px) {
-  .market-sector-badge {
-    display: none;
+@media (max-width: 720px) {
+  .market-table-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 10px;
+  }
+  .market-table-header .col-name,
+  .market-table-header .col-sector,
+  .market-table-header .col-volatility {
+    display: none !important;
+  }
+  .market-table-header .col-symbol {
+    width: auto;
+    min-width: 0;
+  }
+  .market-table-header .col-price,
+  .market-table-header .col-change {
+    width: auto;
+    min-width: 0;
+  }
+
+  .market-row {
+    flex-wrap: wrap;
+    padding: 9px 10px;
+    gap: 4px 6px;
+  }
+  .market-row .col-symbol {
+    width: auto;
+    min-width: 0;
+  }
+  .market-row .col-name {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .market-row .col-sector,
+  .market-row .col-volatility {
+    display: none !important;
+  }
+  .market-row .col-price {
+    width: auto;
+    min-width: 0;
+    margin-left: auto;
+  }
+  .market-row .col-change {
+    width: auto;
+    min-width: 0;
+  }
+  .market-row-subline {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 2px;
+    padding-left: 14px;
+    flex-wrap: wrap;
+  }
+  .market-row-subline .market-sector-badge,
+  .market-row-subline .market-volatility-badge {
+    display: inline-flex !important;
+    font-size: 0.65rem;
+    padding: 2px 7px;
   }
   .market-sector-pills {
     flex-wrap: nowrap;
@@ -1522,6 +1678,8 @@ body.trading-page-active .app-bottom-nav {
         border-bottom: 1px solid var(--border-color) !important;
         padding: 1rem !important;
         box-sizing: border-box !important;
+        height: auto !important;
+        overflow-y: visible !important;
     }
 
     .tp-right-col {

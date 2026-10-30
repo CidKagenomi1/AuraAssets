@@ -7,6 +7,7 @@ import gameState from '../core/GameState.js';
 import financeManager from '../finance/FinanceManager.js';
 import newsManager from '../core/NewsManager.js';
 import { initMarketStateRealtime } from '../core/SupabaseClient.js';
+import patternTrajectoryManager from './PatternTrajectoryManager.js';
 
 class CryptoMarket {
     constructor() {
@@ -225,34 +226,40 @@ class CryptoMarket {
                 }
             }
 
-            // 2. Scaled micro-tick volatility (~0.05% to ~0.20% per 4-second tick)
+            // 2. Structured technical pattern trajectory & waypoints (H&S, Triangles, Doji consolidation)
+            const patternInfo = patternTrajectoryManager.getPatternDrift(symbol, crypto, crypto.price);
+            const patternDrift = patternInfo.drift;
+            crypto.activePattern = patternInfo.pattern;
+
+            // 3. Scaled micro-tick volatility (~0.05% to ~0.20% per 4-second tick, dampened during Doji)
             // Daily volatility (0.05 for BTC, 0.25 for PEPE) is converted to per-tick standard deviation
             const tickScale = 0.025; 
-            const scaledVol = Math.max(0.0006, (crypto.volatility + signalVolAdd) * tickScale);
+            const volDampener = patternInfo.volatilityScale || 1.0;
+            const scaledVol = Math.max(0.0005, (crypto.volatility + signalVolAdd) * tickScale * volDampener);
             const brownianMotion = (Math.random() - 0.5) * 2 * scaledVol;
 
-            // 3. Signal drift (e.g. MOON gives steady +0.12% per tick)
+            // 4. Signal drift (e.g. MOON gives steady +0.12% per tick)
             const signalDrift = signalBulls * 0.005;
 
-            // 4. Directional drift from active crypto breaking news (accelerated 3x pacing)
+            // 5. Directional drift from active crypto breaking news (accelerated 3x pacing)
             const newsDrift = newsManager.getCryptoPriceBias(symbol, crypto.sector, crypto.category);
 
-            // 5. Gentle mean reversion towards basePrice to maintain realistic daily trading channels
+            // 6. Gentle mean reversion towards basePrice to maintain realistic daily trading channels
             const meanReversion = ((crypto.basePrice - crypto.price) / (crypto.basePrice || 1)) * 0.002;
 
-            // 6. Macro economy & luck drift
+            // 7. Macro economy & luck drift
             const luckActive = (gameState.get('donations.luckTicksRemaining') || 0) > 0;
             const luckDrift = luckActive ? 0.0008 : 0;
             const marketInfluence = (marketFactor - 1) * 0.0004 * whaleFactor;
 
-            // 7. Recent order flow imbalance (from active player & simulated market trades)
+            // 8. Recent order flow imbalance (from active player & simulated market trades)
             const orderImbalance = (crypto.recentBuyVolume || 0) - (crypto.recentSellVolume || 0);
             const orderFlowDrift = Math.max(-0.003, Math.min(0.003, orderImbalance / 20000000));
             // Decay recent order flow volumes over time
             crypto.recentBuyVolume = (crypto.recentBuyVolume || 0) * 0.88;
             crypto.recentSellVolume = (crypto.recentSellVolume || 0) * 0.88;
 
-            const totalChange = brownianMotion + signalDrift + newsDrift + meanReversion + marketInfluence + luckDrift + orderFlowDrift;
+            const totalChange = brownianMotion + signalDrift + newsDrift + meanReversion + marketInfluence + luckDrift + orderFlowDrift + patternDrift;
             const newPrice = Math.max(0.0001, crypto.price * (1 + totalChange));
 
             crypto.previousPrice = crypto.price;

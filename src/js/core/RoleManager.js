@@ -8,9 +8,9 @@
 import gameState from './GameState.js';
 
 const ALL_FEATURES = [
-    'market', 'portfolio', 'invest', 'crypto', 'property',
+    'market', 'portfolio', 'invest', 'crypto',
     'savings', 'loan', 'finance', 'guide', 'trading-signal',
-    'quick-actions', 'marketplace', 'donate', 'transfer'
+    'quick-actions', 'donate', 'transfer'
 ];
 
 // ==========================================
@@ -24,7 +24,7 @@ export const ROLES = {
         icon: '🛡️',
         desc: 'Mengutamakan keamanan modal pokok, stabilitas arus kas, dan instrumen berisiko rendah.',
         detail: 'Anda lebih memilih kepastian imbal hasil dibandingkan spekulasi fluktuatif. Fokus portofolio Anda bertumpu pada deposito berbunga, pasar uang, dan saham blue-chip defensif.',
-        strategy: 'Alokasi rekomendasi: 60% Kas/Deposito · 30% Saham Blue-Chip · 10% Properti',
+        strategy: 'Alokasi rekomendasi: 60% Kas/Deposito · 30% Saham Blue-Chip · 10% Reksa Dana Pasar Uang',
         allowedFeatures: ALL_FEATURES,
         hiddenNav: [],
         minStartingBalance: 100000,
@@ -40,7 +40,7 @@ export const ROLES = {
         icon: '⚖️',
         desc: 'Mengutamakan pertumbuhan terukur jangka panjang dengan diversifikasi multi-aset seimbang.',
         detail: 'Anda mencari keseimbangan optimal antara imbal hasil dan risiko. Anda tidak panik saat koreksi wajar dan mengandalkan akumulasi bertahap (DCA).',
-        strategy: 'Alokasi rekomendasi: 50% Saham Indeks/Growth · 30% Properti · 20% Kas Likuid',
+        strategy: 'Alokasi rekomendasi: 50% Saham Indeks/Growth · 30% Reksa Dana Campuran · 20% Kas Likuid',
         allowedFeatures: ALL_FEATURES,
         hiddenNav: [],
         minStartingBalance: 75000,

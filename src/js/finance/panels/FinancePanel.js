@@ -7,11 +7,12 @@ import gameState from '../../core/GameState.js';
 import ui from '../../ui/UIManager.js';
 import stockMarket from '../../trading/StockMarket.js';
 import cryptoMarket from '../../trading/CryptoMarket.js';
-import propertyManager from '../../property/PropertyManager.js';
 import roleManager from '../../core/RoleManager.js';
 import viewManager from '../../ui/ViewManager.js';
 import careerManager from '../../career/CareerManager.js';
 import savingsManager from '../../finance/SavingsManager.js';
+import mutualFundManager from '../../trading/MutualFundManager.js';
+import commodityManager from '../../trading/CommodityManager.js';
 
 class FinancePanel {
     constructor() {
@@ -25,7 +26,9 @@ class FinancePanel {
         gameState.on('stockSell', () => this.updatePortfolioTabHTML());
         gameState.on('cryptoBuy', () => this.updatePortfolioTabHTML());
         gameState.on('cryptoSell', () => this.updatePortfolioTabHTML());
-        gameState.on('propertyUpdate', () => this.updatePortfolioTabHTML());
+
+        gameState.on('commodityUpdate', () => this.updatePortfolioTabHTML());
+        gameState.on('mutualFundsUpdate', () => this.updatePortfolioTabHTML());
     }
 
     updatePortfolioTabHTML() {
@@ -48,28 +51,15 @@ class FinancePanel {
         const balance = gameState.getBalance();
         const totalStockValue = stockMarket.getPortfolioValue() || 0;
         const totalCryptoValue = cryptoMarket.getWalletValue() || 0;
-        const totalPropertyValue = propertyManager.getTotalPropertyValue() || 0;
+        const totalCommodityValue = commodityManager.getTotalVaultValue() || 0;
         const savingsBalance = savingsManager.getTotalSavings();
-        const rdPortfolio = gameState.get('savings.reksaDana') || {};
-        const rdFunds = [
-            { id: 'pasar_uang', nav: 1.042 },
-            { id: 'pendapatan_tetap', nav: 1.238 },
-            { id: 'campuran', nav: 2.115 },
-            { id: 'saham', nav: 3.871 },
-        ];
-        let totalRdValue = 0;
-        rdFunds.forEach(f => {
-            const holding = rdPortfolio[f.id];
-            if (holding && holding.units > 0) {
-                totalRdValue += holding.units * f.nav * 1000;
-            }
-        });
+        const totalRdValue = mutualFundManager.getTotalPortfolioValue();
         const loans = gameState.get('loans') || [];
         const totalDebt = loans.reduce((sum, loan) => sum + (loan.remaining || 0), 0);
-        const totalAssets = balance + totalStockValue + totalCryptoValue + totalPropertyValue + savingsBalance + totalRdValue;
+        const totalAssets = balance + totalStockValue + totalCryptoValue + totalCommodityValue + savingsBalance + totalRdValue;
         const totalNetWorth = totalAssets - totalDebt;
         const totalTrades = careerManager.getTotalTradesCount();
-        const ownedProps = propertyManager.getOwnedProperties ? propertyManager.getOwnedProperties() : [];
+        const ownedProps = [];
         
         const achievementsList = [
             {
@@ -620,12 +610,10 @@ class FinancePanel {
                             <button class="tab-btn active" data-portfolio-tab="all">Semua Aset (<span id="count-all-assets">0</span>)</button>
                             <button class="tab-btn" data-portfolio-tab="stocks">Saham (<span id="count-stocks-assets">0</span>)</button>
                             <button class="tab-btn" data-portfolio-tab="crypto">Kripto (<span id="count-crypto-assets">0</span>)</button>
-                            <button class="tab-btn" data-portfolio-tab="property">Properti (<span id="count-property-assets">0</span>)</button>
                         </div>
                         <div id="portfolio-all" class="asset-list" style="display:flex; flex-direction:column; gap:0.65rem;"></div>
                         <div id="portfolio-stocks" class="asset-list" style="display:none; flex-direction:column; gap:0.65rem;"></div>
                         <div id="portfolio-crypto" class="asset-list" style="display:none; flex-direction:column; gap:0.65rem;"></div>
-                        <div id="portfolio-property" class="asset-list" style="display:none; flex-direction:column; gap:0.65rem;"></div>
                     </div>
 
                     <!-- Passive Income Sources Card -->
@@ -729,31 +717,18 @@ class FinancePanel {
         const cryptoWallet = cryptoMarket.getWallet() || [];
         const totalStockValue = stockMarket.getPortfolioValue() || 0;
         const totalCryptoValue = cryptoMarket.getWalletValue() || 0;
-        const totalPropertyValue = propertyManager.getTotalPropertyValue() || 0;
-        const ownedProperties = propertyManager.getOwnedProperties() || [];
+        const totalCommodityValue = commodityManager.getTotalVaultValue() || 0;
+        const ownedProperties = [];
 
         const savingsBalance = savingsManager.getTotalSavings();
-        const rdPortfolio = gameState.get('savings.reksaDana') || {};
-        const rdFunds = [
-            { id: 'pasar_uang', nav: 1.042 },
-            { id: 'pendapatan_tetap', nav: 1.238 },
-            { id: 'campuran', nav: 2.115 },
-            { id: 'saham', nav: 3.871 },
-        ];
-        let totalRdValue = 0;
-        rdFunds.forEach(f => {
-            const holding = rdPortfolio[f.id];
-            if (holding && holding.units > 0) {
-                totalRdValue += holding.units * f.nav * 1000;
-            }
-        });
+        const totalRdValue = mutualFundManager.getTotalPortfolioValue();
 
         // Get debt info
         const loans = gameState.get('loans') || [];
         const totalDebt = loans.reduce((sum, loan) => sum + (loan.remaining || 0), 0);
 
         // Calculate true net worth: Assets - Liabilities
-        const totalAssets = balance + totalStockValue + totalCryptoValue + totalPropertyValue + savingsBalance + totalRdValue;
+        const totalAssets = balance + totalStockValue + totalCryptoValue + totalCommodityValue + savingsBalance + totalRdValue;
         const totalNetWorth = totalAssets - totalDebt;
 
         // KPI metrics
@@ -873,13 +848,7 @@ class FinancePanel {
                       </div>
                     </div>
                     
-                    <div class="wealth-asset-item property">
-                      <div class="asset-icon-wrapper">🏢</div>
-                      <div class="asset-details">
-                        <span class="asset-label">Properti Real Estate</span>
-                        <span class="asset-value">$ ${financeManager.formatCurrency(totalPropertyValue, true)}</span>
-                      </div>
-                    </div>
+
 
                     ${totalDebt > 0 ? `
                       <div class="wealth-asset-item liabilities negative">
@@ -896,18 +865,16 @@ class FinancePanel {
         }
 
         // Render Distribution
-        this.renderWealthDistributionTable(balance, savingsBalance, totalRdValue, totalStockValue, totalCryptoValue, totalPropertyValue);
+        this.renderWealthDistributionTable(balance, savingsBalance, totalRdValue, totalStockValue, totalCryptoValue, totalCommodityValue);
 
         // Update badge counters
-        const countAll = stockPortfolio.length + cryptoWallet.length + ownedProperties.length;
+        const countAll = stockPortfolio.length + cryptoWallet.length;
         const countAllEl = document.getElementById('count-all-assets');
         const countStocksEl = document.getElementById('count-stocks-assets');
         const countCryptoEl = document.getElementById('count-crypto-assets');
-        const countPropEl = document.getElementById('count-property-assets');
         if (countAllEl) countAllEl.textContent = countAll;
         if (countStocksEl) countStocksEl.textContent = stockPortfolio.length;
         if (countCryptoEl) countCryptoEl.textContent = cryptoWallet.length;
-        if (countPropEl) countPropEl.textContent = ownedProperties.length;
 
         // Helper to build stock card HTML
         const renderStockCard = (h) => {
@@ -1034,24 +1001,15 @@ class FinancePanel {
                 : '<div class="empty-state" style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.4);"><div class="empty-state-icon" style="font-size: 2rem; margin-bottom: 0.35rem;">🪙</div><div class="empty-state-text">Belum ada aset kripto di dompet</div></div>';
         }
 
-        // Property portfolio list
-        const propertyEl = document.getElementById('portfolio-property');
-        if (propertyEl) {
-            propertyEl.innerHTML = ownedProperties.length
-                ? ownedProperties.map(renderPropertyCard).join('')
-                : '<div class="empty-state" style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.4);"><div class="empty-state-icon" style="font-size: 2rem; margin-bottom: 0.35rem;">🏘️</div><div class="empty-state-text">Belum memiliki unit properti</div></div>';
-        }
-
         // "Semua Aset" combined list
         const allEl = document.getElementById('portfolio-all');
         if (allEl) {
             if (countAll === 0) {
-                allEl.innerHTML = '<div class="empty-state" style="padding: 2.5rem; text-align: center; color: rgba(255,255,255,0.4);"><div class="empty-state-icon" style="font-size: 2.5rem; margin-bottom: 0.5rem;">💼</div><div class="empty-state-text" style="font-weight: 700; color: #fff;">Belum Ada Kepemilikan Aset</div><div style="font-size: 0.8rem; margin-top: 0.25rem;">Mulai beli saham, kumpulkan kripto, atau beli properti untuk membangun kekayaan.</div></div>';
+                allEl.innerHTML = '<div class="empty-state" style="padding: 2.5rem; text-align: center; color: rgba(255,255,255,0.4);"><div class="empty-state-icon" style="font-size: 2.5rem; margin-bottom: 0.5rem;">💼</div><div class="empty-state-text" style="font-weight: 700; color: #fff;">Belum Ada Kepemilikan Aset</div><div style="font-size: 0.8rem; margin-top: 0.25rem;">Mulai beli saham atau kumpulkan aset digital kripto untuk membangun kekayaan.</div></div>';
             } else {
                 allEl.innerHTML = [
                     ...stockPortfolio.map(renderStockCard),
-                    ...cryptoWallet.map(renderCryptoCard),
-                    ...ownedProperties.map(renderPropertyCard)
+                    ...cryptoWallet.map(renderCryptoCard)
                 ].join('');
             }
         }
@@ -1088,32 +1046,21 @@ class FinancePanel {
                     if (window.openCryptoDetail) window.openCryptoDetail(symbol);
                 });
             });
-
-            container.querySelectorAll('.btn-sell-portfolio-prop').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const propertyId = parseInt(btn.dataset.sell);
-                    const { propertyPanel } = await import('../../property/panels/PropertyPanel.js');
-                    await propertyPanel.handleSell(propertyId);
-                    this.renderPortfolioTabContent();
-                });
-            });
         };
 
         bindAssetInteractions(allEl);
         bindAssetInteractions(stocksEl);
         bindAssetInteractions(cryptoEl);
-        bindAssetInteractions(propertyEl);
 
         // Passive Income Sources
         this.renderWealthSources();
     }
 
-    renderWealthDistributionTable(cash, savings, reksadana, stocks, crypto, property) {
+    renderWealthDistributionTable(cash, savings, reksadana, stocks, crypto, commodities = 0) {
         const container = document.getElementById('wealth-distribution-table');
         if (!container) return;
 
-        const total = cash + savings + reksadana + stocks + crypto + property;
+        const total = cash + savings + reksadana + stocks + crypto + commodities;
         if (total === 0) {
             container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div><div>Belum ada aset</div></div>';
             return;
@@ -1122,10 +1069,10 @@ class FinancePanel {
         const rows = [
             { label: 'Cash', icon: '💵', value: cash, color: '#6366f1' },
             { label: 'Deposito', icon: '🏦', value: savings, color: '#0ea5e9' },
-            { label: 'Reksa Dana', icon: '📊', value: reksadana, color: '#34d399' },
+            { label: 'Reksa Dana & ETF', icon: '📊', value: reksadana, color: '#34d399' },
             { label: 'Saham', icon: '📈', value: stocks, color: '#10b981' },
             { label: 'Kripto', icon: '🪙', value: crypto, color: '#a855f7' },
-            { label: 'Properti', icon: '🏢', value: property, color: '#f59e0b' }
+            { label: 'Komoditas Fisik', icon: '📦', value: commodities, color: '#f59e0b' }
         ];
 
         container.innerHTML = rows.map(row => {

@@ -94,6 +94,12 @@
     align-items: stretch !important;
     gap: 0.6rem !important;
   }
+  .top-movers-controls {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.35rem !important;
+  }
   .top-movers-tabs {
     width: 100% !important;
     display: flex !important;
@@ -837,7 +843,10 @@
 /* ── TOUCH HIGHLIGHT REMOVAL ─────────────────────── */
 button, a, [role="button"],
 .menu-card, .asset-item, .market-row, .job-item,
-.biz-type-card, .tab-btn, .nav-btn {
+.biz-type-card, .tab-btn, .nav-btn,
+.commodity-filter-btn, .btn-commodity-chart, .btn-commodity-buy, .btn-commodity-sell,
+.funds-category-toggle, .etf-sector-pill, .btn-buy-rd, .btn-sell-rd,
+.btn-buy-alloc, .btn-buy-pct, .btn-sell-pct {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -998,4 +1007,212 @@ button, a, [role="button"],
 .mobile-menu-item-row:active .mobile-menu-chevron {
   color: var(--accent-primary, #10b981);
   transform: translateX(3px);
+}
+
+/* ── COMMODITY MARKET & MUTUAL FUNDS / ETF (MOBILE) ── */
+@media (max-width: 768px) {
+  /* Commodity Page Container */
+  .commodity-page-container {
+    padding: 0.75rem 0.5rem !important;
+    gap: 1rem !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Vault KPI Cards Horizontal Carousel */
+  .commodity-vault-hero-row {
+    display: flex !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 0.75rem !important;
+    padding-bottom: 0.5rem !important;
+    scrollbar-width: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .commodity-vault-hero-row::-webkit-scrollbar {
+    display: none !important;
+  }
+  .commodity-vault-hero-row .commodity-vault-stat-card {
+    flex: 0 0 80% !important;
+    scroll-snap-align: start !important;
+    min-width: 240px !important;
+    padding: 1rem !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Sector Filter Buttons */
+  .commodity-filter-btn {
+    min-height: 40px !important;
+    flex-shrink: 0 !important;
+    font-size: 0.78rem !important;
+    padding: 8px 14px !important;
+    touch-action: manipulation !important;
+  }
+
+  /* Sector Banner */
+  .commodity-sector-banner {
+    padding: 0.65rem 0.85rem !important;
+  }
+
+  /* Commodity Cards Grid Collapse */
+  .commodity-cards-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .commodity-card {
+    padding: 1rem !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+  }
+
+  /* Card Action Buttons */
+  .commodity-card-actions {
+    display: flex !important;
+    gap: 0.4rem !important;
+    width: 100% !important;
+  }
+  .commodity-card-actions button {
+    min-height: 40px !important;
+    font-size: 0.78rem !important;
+    touch-action: manipulation !important;
+  }
+  .commodity-card-actions .btn-commodity-chart {
+    flex: 0 0 auto !important;
+    padding: 0 10px !important;
+  }
+
+  /* Plotly Chart Modal Mobile Height */
+  #commodity-plotly-chart {
+    height: 270px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Buy / Sell Modal Form Inputs & Quick Pills */
+  .commodity-quick-pills {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.35rem !important;
+    width: 100% !important;
+  }
+  .commodity-quick-pills button {
+    min-height: 38px !important;
+    padding: 6px 10px !important;
+    font-size: 0.75rem !important;
+    flex: 1 1 calc(33.33% - 0.35rem) !important;
+    text-align: center !important;
+    touch-action: manipulation !important;
+  }
+
+  /* Mutual Funds & ETF Mobile Styling */
+  .funds-portfolio-hero {
+    padding: 1rem !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+  }
+
+  .funds-category-bar {
+    display: flex !important;
+    width: 100% !important;
+    gap: 0.35rem !important;
+    box-sizing: border-box !important;
+  }
+  .funds-category-toggle {
+    flex: 1 1 50% !important;
+    min-height: 40px !important;
+    font-size: 0.75rem !important;
+    padding: 8px 6px !important;
+    text-align: center !important;
+    white-space: normal !important;
+    line-height: 1.2 !important;
+  }
+
+  .etf-sector-pills-bar {
+    display: flex !important;
+    gap: 0.45rem !important;
+    overflow-x: auto !important;
+    padding-bottom: 4px !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+  }
+  .etf-sector-pills-bar::-webkit-scrollbar {
+    display: none !important;
+  }
+  .etf-sector-pill {
+    min-height: 38px !important;
+    flex-shrink: 0 !important;
+    font-size: 0.72rem !important;
+    padding: 6px 12px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .funds-cards-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .funds-card-actions {
+    display: flex !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+  .funds-card-actions button {
+    min-height: 40px !important;
+    font-size: 0.8rem !important;
+    touch-action: manipulation !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .commodity-vault-hero-row .commodity-vault-stat-card {
+    flex: 0 0 84% !important;
+    min-width: 210px !important;
+  }
+
+  .commodity-card-actions button {
+    font-size: 0.74rem !important;
+    padding: 0 4px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .commodity-page-container {
+    padding: 0.5rem 0.25rem !important;
+  }
+
+  .commodity-vault-hero-row .commodity-vault-stat-card {
+    flex: 0 0 90% !important;
+    min-width: 190px !important;
+    padding: 0.85rem !important;
+  }
+
+  .commodity-card-actions {
+    flex-wrap: wrap !important;
+  }
+  .commodity-card-actions .btn-commodity-chart {
+    flex: 1 1 100% !important;
+  }
+  .commodity-card-actions .btn-commodity-buy,
+  .commodity-card-actions .btn-commodity-sell {
+    flex: 1 1 calc(50% - 0.25rem) !important;
+  }
+
+  .funds-category-toggle {
+    font-size: 0.7rem !important;
+    padding: 6px 4px !important;
+  }
 }

@@ -73,6 +73,7 @@ class TradingPage {
       const page = document.getElementById('trading-page');
       if (page) slideInFromRight(page);
       this.startRealTimeUpdates();
+      document.dispatchEvent(new CustomEvent('tradingOpened', { detail: { symbol, type: this.assetType } }));
     }, 50);
   }
 
@@ -140,7 +141,7 @@ class TradingPage {
               border: 1px solid var(--border-color);
               border-radius: var(--radius-lg);
               padding: 1.15rem;
-              margin-bottom: 1.5rem;
+              margin-bottom: 1rem;
               box-shadow: 0 10px 30px rgba(0,0,0,0.3);
               width: 100%;
               max-width: 100%;
@@ -184,7 +185,7 @@ class TradingPage {
                    </button>
                 </div>
               </div>
-              <div id="trading-chart-container" style="height: 440px; width: 100%; max-width: 100%; min-width: 0; overflow: hidden; position: relative;">
+              <div id="trading-chart-container" style="height: clamp(320px, 46vh, 420px); width: 100%; max-width: 100%; min-width: 0; overflow: hidden; position: relative;">
                 <!-- Plotly Chart injected here -->
               </div>
             </div>
@@ -729,6 +730,7 @@ class TradingPage {
 
     this.currentAsset = null;
     this.assetType = null;
+    document.dispatchEvent(new CustomEvent('tradingClosed'));
   }
 
   // Formatting utilities

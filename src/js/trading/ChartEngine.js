@@ -282,6 +282,18 @@ class ChartEngine {
             const themeColor = isUp ? '#10b981' : '#ef4444';
             const fillColor = isUp ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)';
 
+            // Dynamic base area calculation from lowest price (stretches pattern across full height)
+            const allPrices = this.chartType === 'line'
+                ? closes
+                : [...lows, ...highs, ...opens, ...closes].filter(p => typeof p === 'number' && !isNaN(p));
+
+            const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 100;
+            const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) : 100;
+            const priceSpan = Math.max(minPrice * 0.005, maxPrice - minPrice);
+            const yPadding = priceSpan * 0.15;
+            const yMin = Math.max(0.0001, minPrice - yPadding);
+            const yMax = maxPrice + yPadding;
+
             const traces = [];
 
             // Optional Volume Indicator Bars (Pinned at bottom)
@@ -304,7 +316,18 @@ class ChartEngine {
             }
 
             if (this.chartType === 'line') {
-                // Smooth Area Line Chart
+                // Invisible baseline trace at lowest price area (yMin) so area fill anchors to lowest price
+                traces.push({
+                    x,
+                    y: new Array(x.length).fill(yMin),
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { color: 'transparent', width: 0 },
+                    hoverinfo: 'skip',
+                    showlegend: false
+                });
+
+                // Smooth Area Line Chart filled down to lowest price base area
                 traces.push({
                     x,
                     y: closes,
@@ -314,9 +337,9 @@ class ChartEngine {
                         color: themeColor,
                         width: 2.8,
                         shape: 'spline',
-                        smoothing: 0.6
+                        smoothing: 0.85
                     },
-                    fill: 'tozeroy',
+                    fill: 'tonexty',
                     fillcolor: fillColor,
                     name: 'Harga',
                     hovertemplate: '<b>%{x}</b><br>Harga: <b>$%{y:,.2f}</b><extra></extra>',
@@ -397,7 +420,8 @@ class ChartEngine {
                     spikecolor: 'rgba(255, 255, 255, 0.35)'
                 },
                 yaxis: {
-                    autorange: true,
+                    autorange: false,
+                    range: [yMin, yMax],
                     fixedrange: true, // Prevents vertical drag and zoom displacement
                     side: 'right',
                     showgrid: true,

@@ -135,6 +135,7 @@ class FinanceManager {
             gameState.set('income', incomes);
         }
 
+        gameState.emit('transaction', transaction);
         return transaction;
     }
 
@@ -204,6 +205,7 @@ class FinanceManager {
             gameState.set('transactions', transactions);
         }
 
+        gameState.emit('transaction', transaction);
         return transaction;
     }
 

@@ -196,6 +196,11 @@ body {
 }
 
 /* ── MARKET ROWS ────────────────────────────────── */
+.market-table-header {
+  padding: 6px 10px !important;
+  gap: 8px !important;
+  font-size: 0.68rem !important;
+}
 .market-row {
   padding: 7px 10px !important;
   gap: 8px !important;
@@ -206,6 +211,19 @@ body {
 }
 .market-name {
   font-size: 0.72rem !important;
+}
+.col-sector {
+  width: 125px !important;
+  min-width: 125px !important;
+}
+.col-volatility {
+  width: 105px !important;
+  min-width: 105px !important;
+}
+.market-sector-badge,
+.market-volatility-badge {
+  font-size: 0.62rem !important;
+  padding: 2px 6px !important;
 }
 .market-price {
   font-size: 0.8rem !important;

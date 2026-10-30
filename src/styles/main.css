@@ -793,6 +793,13 @@ html, body {
   color: var(--text-muted);
 }
 
+.top-movers-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .top-movers-tabs {
   display: flex;
   align-items: center;
@@ -826,6 +833,18 @@ html, body {
   color: #fff;
   background: rgba(16, 185, 129, 0.16);
   border-color: rgba(16, 185, 129, 0.35);
+}
+
+.movers-market-btn.active {
+  color: #fff;
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.38);
+}
+
+.movers-trend-btn[data-movers-tab="losers"].active {
+  color: #fff;
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.38);
 }
 
 .top-movers-grid {
@@ -980,6 +999,12 @@ html, body {
     flex-direction: column;
     align-items: stretch;
     gap: 0.5rem;
+  }
+  .top-movers-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    width: 100%;
   }
   .top-movers-tabs {
     width: 100%;
@@ -2067,21 +2092,25 @@ html, body {
 /* Trading page responsive left column */
 .trading-left-col {
   flex: 1.2;
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem;
   border-right: 1px solid var(--border-color);
   background: rgba(0,0,0,0.1);
   min-width: 0 !important;
   max-width: 100% !important;
   box-sizing: border-box;
-  overflow: hidden !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: 100%;
 }
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .trading-left-col {
     padding: 1rem !important;
     border-right: none !important;
     border-bottom: 1px solid var(--border-color) !important;
     min-width: 100% !important;
     width: 100% !important;
+    height: auto !important;
+    overflow-y: visible !important;
   }
 }
 @media (max-width: 480px) {

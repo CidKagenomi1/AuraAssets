@@ -22,11 +22,11 @@ export function updateMobileBottomNav(activeView, onViewSwitch) {
       home: { id: 'home', label: 'Beranda', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>` },
       market: { id: 'market', label: 'Pasar', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/></svg>` },
       portfolio: { id: 'portfolio', label: 'Portofolio', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>` },
-      property: { id: 'property', label: 'Properti', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>` }
+      news: { id: 'news', label: 'Berita', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>` }
     };
 
     // Bottom Row (Dominant) Candidates
-    const primaryIds = ['home', 'market', 'portfolio', 'property'];
+    const primaryIds = ['home', 'market', 'portfolio', 'news'];
     let bottomItems = primaryIds
       .filter(id => id === 'home' || !role.hiddenNav.includes(id))
       .map(id => navItems[id]);
@@ -123,16 +123,16 @@ export function showMobileMenu(onViewSwitch) {
     if (!role) return;
 
     const navItems = {
-      property: {
-        id: 'property',
-        label: 'Properti',
+      commodity: {
+        id: 'commodity',
+        label: 'Pasar Komoditas',
         group: 'finance',
-        tag: 'Real Estate',
-        desc: 'Beli & sewa unit properti komersial, peroleh passive income sewa harian.',
-        bg: 'rgba(16, 185, 129, 0.14)',
-        color: '#34d399',
-        borderColor: 'rgba(16, 185, 129, 0.28)',
-        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>`
+        tag: 'Emas & Energi',
+        desc: 'Perdagangan fisik digital: Emas (XAU), Minyak Mentah (WTI), Nikel, dan CPO.',
+        bg: 'rgba(245, 158, 11, 0.14)',
+        color: '#fbbf24',
+        borderColor: 'rgba(245, 158, 11, 0.28)',
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`
       },
       loan: {
         id: 'loan',
@@ -156,17 +156,6 @@ export function showMobileMenu(onViewSwitch) {
         borderColor: 'rgba(245, 158, 11, 0.28)',
         icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>`
       },
-      news: {
-        id: 'news',
-        label: 'Berita & Sentimen',
-        group: 'finance',
-        tag: 'Katalis Pasar',
-        desc: 'Pantau peristiwa breaking news dunia, kebijakan The Fed, dan sentimen bursa.',
-        bg: 'rgba(239, 68, 68, 0.14)',
-        color: '#f87171',
-        borderColor: 'rgba(239, 68, 68, 0.28)',
-        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>`
-      },
       history: {
         id: 'history',
         label: 'Riwayat Transaksi',
@@ -177,17 +166,6 @@ export function showMobileMenu(onViewSwitch) {
         color: '#22d3ee',
         borderColor: 'rgba(6, 182, 212, 0.28)',
         icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>`
-      },
-      marketplace: {
-        id: 'marketplace',
-        label: 'Marketplace',
-        group: 'lifestyle',
-        tag: 'Gaya Hidup',
-        desc: 'Beli kendaraan mewah, barang prestisius, dan inventaris peningkat reputasi.',
-        bg: 'rgba(168, 85, 247, 0.14)',
-        color: '#c084fc',
-        borderColor: 'rgba(168, 85, 247, 0.28)',
-        icon: `🛒`
       },
       transfer: {
         id: 'transfer',
@@ -203,7 +181,7 @@ export function showMobileMenu(onViewSwitch) {
       donate: {
         id: 'donate',
         label: 'Donasi & Amal',
-        group: 'lifestyle',
+        group: 'social',
         tag: 'Filantropi',
         desc: 'Salurkan bantuan kemanusiaan untuk mendongkrak reputasi dan relasi publik.',
         bg: 'rgba(236, 72, 153, 0.14)',
@@ -246,14 +224,14 @@ export function showMobileMenu(onViewSwitch) {
       }
     };
 
-    const secondaryIds = ['transfer', 'property', 'loan', 'savings', 'history', 'marketplace', 'donate', 'guide', 'settings', 'notifications'];
+    const secondaryIds = ['commodity', 'transfer', 'loan', 'savings', 'history', 'donate', 'guide', 'settings', 'notifications'];
     const activeItems = secondaryIds
       .filter(id => !role.hiddenNav.includes(id))
       .map(id => navItems[id]);
 
     const groups = [
-      { key: 'finance', title: '💼 Keuangan & Portofolio', items: activeItems.filter(i => i.group === 'finance') },
-      { key: 'lifestyle', title: '🛍️ Lifestyle & Sosial', items: activeItems.filter(i => i.group === 'lifestyle') },
+      { key: 'finance', title: '💼 Keuangan & Perbankan', items: activeItems.filter(i => i.group === 'finance') },
+      { key: 'social', title: '🤝 Sosial & Komunitas', items: activeItems.filter(i => i.group === 'social') },
       { key: 'system', title: '⚙️ Bantuan & Pengaturan', items: activeItems.filter(i => i.group === 'system') }
     ];
 

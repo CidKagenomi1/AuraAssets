@@ -17,7 +17,6 @@ import stockMarket from './trading/StockMarket.js';
 import cryptoMarket from './trading/CryptoMarket.js';
 import bankSystem from './finance/BankSystem.js';
 import savingsManager from './finance/SavingsManager.js';
-import propertyManager from './property/PropertyManager.js';
 import passiveIncomeManager from './trading/PassiveIncomeManager.js';
 import transferManager from './finance/TransferManager.js';
 
@@ -28,6 +27,7 @@ import viewManager from './ui/ViewManager.js';
 import { fadeIn, staggerFadeUp } from './ui/Animations.js';
 import loginPortal from './ui/LoginPortal.js';
 import keyboardNavigation from './ui/KeyboardNavigation.js';
+import navigationHistory from './ui/NavigationHistory.js';
 
 class BusinessTycoonGame {
     constructor() {
@@ -51,6 +51,7 @@ class BusinessTycoonGame {
 
             homeScreen.init();
             viewManager.init();
+            navigationHistory.init();
             keyboardNavigation.init();
 
             // Apply role-based visibility after UI is ready
@@ -385,24 +386,8 @@ class BusinessTycoonGame {
             }
         });
 
-        // Monthly: dividends & portfolio evaluations
-        timeManager.onMonth(() => {
-            // Fluctuate Rolex price in marketplace
-            const marketplace = gameState.get('marketplace') || { inventory: [], purchasedUpgrades: [], rolexMarketPrice: 15000 };
-            const changePercent = (Math.random() - 0.5) * 0.2; // -10% to +10%
-            const newPrice = Math.max(8000, Math.round(marketplace.rolexMarketPrice * (1 + changePercent)));
-            gameState.set('marketplace', {
-                ...marketplace,
-                rolexMarketPrice: newPrice
-            });
-        });
-
         gameState.on('interestReceived', (data) => {
             ui.success(`🏦 Bunga Deposito +$ ${financeManager.formatCurrency(data.amount)} diterima!`, 'Deposito Berbunga');
-        });
-
-        gameState.on('rentCollected', (data) => {
-            ui.success(`🏠 Sewa Properti +$ ${financeManager.formatCurrency(data.amount)} diterima!`, 'Sewa Properti');
         });
 
         console.log('⚙️ Game systems started');

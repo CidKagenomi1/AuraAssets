@@ -1,3 +1,4 @@
+import { savePlayerToCloud, loadPlayerFromCloud, recordCloudTransaction } from './SupabaseClient.js';
 /**
  * GameState.js - Central State Management
  * Manages all game data with save/load to localStorage
@@ -27,6 +28,12 @@ class GameState {
         this.load();
 
         // Listen for dayPass to record daily balance snapshot
+        this.on('transaction', (tx) => {
+            if (this.currentUser) {
+                recordCloudTransaction(this.currentUser, tx).catch(() => {});
+            }
+        });
+
         this.on('dayPass', (timeData) => {
             this.recordDailyBalance(timeData);
         });
@@ -245,7 +252,11 @@ class GameState {
             const lowerUser = this.currentUser.toLowerCase();
             localStorage.setItem(`businessTycoon_save_${lowerUser}`, JSON.stringify(this.state));
             this._lastSaveTime = now;
-            console.debug(`💾 Game saved directly for user account: ${this.currentUser}`);
+            this.state.lastSavedAt = now;
+            console.debug(`💾 Game saved locally for user account: ${this.currentUser}`);
+            savePlayerToCloud(this.currentUser, this.state, this.getNetWorth()).catch((err) => {
+                console.warn('⚠️ [Supabase Cloud Sync] Background save failed:', err);
+            });
             return true;
         } catch (e) {
             console.error('Failed to save game:', e);
@@ -325,8 +336,42 @@ class GameState {
             if (tHist.length === 0 || isStaleHistory || isStaleTick || (tHist[0]?.balance <= 100 && currentNW > 1000)) {
                 this.prepopulateTickHistory();
             }
+            if (this.currentUser) {
+                this.syncCloudSave(this.currentUser).catch(() => {});
+            }
         } catch (e) {
             console.error('Failed to load game:', e);
+        }
+    }
+
+    async syncCloudSave(username) {
+        if (!username) return;
+        try {
+            const cloudRecord = await loadPlayerFromCloud(username);
+            if (cloudRecord && cloudRecord.save_data) {
+                const cloudUpdated = new Date(cloudRecord.updated_at || 0).getTime();
+                const lowerUser = username.toLowerCase();
+                const localRaw = localStorage.getItem(`businessTycoon_save_${lowerUser}`);
+                let localLastSaved = 0;
+                if (localRaw) {
+                    try {
+                        const parsed = JSON.parse(localRaw);
+                        localLastSaved = parsed.lastSavedAt || 0;
+                    } catch (e) {}
+                }
+                if (cloudUpdated > localLastSaved && cloudRecord.save_data.player) {
+                    console.log(`☁️ [Supabase Cloud] Found newer cloud save for ${username}, syncing...`);
+                    this.state = this.mergeState(this.getDefaultState(), cloudRecord.save_data);
+                    localStorage.setItem(`businessTycoon_save_${lowerUser}`, JSON.stringify(this.state));
+                    this.emit('change', { path: 'player', value: this.state.player });
+                } else if (!cloudRecord) {
+                    await savePlayerToCloud(username, this.state, this.getNetWorth());
+                }
+            } else if (!cloudRecord && this.currentUser) {
+                await savePlayerToCloud(username, this.state, this.getNetWorth());
+            }
+        } catch (err) {
+            console.warn('⚠️ [Supabase Cloud Sync] Error syncing on load:', err);
         }
     }
 
@@ -441,7 +486,7 @@ class GameState {
         } catch (e) {}
     }
 
-    register(username, password) {
+    async register(username, password) {
         const cleanName = username.trim();
         const lowerName = cleanName.toLowerCase();
         if (!cleanName || !password) throw new Error('Nama dan password tidak boleh kosong!');
@@ -450,7 +495,17 @@ class GameState {
 
         const accounts = this.getAccounts();
         if (accounts[lowerName]) {
-            throw new Error('Nama pengguna sudah terdaftar!');
+            throw new Error('Nama pengguna sudah terdaftar di perangkat ini!');
+        }
+
+        // Check Supabase Cloud
+        try {
+            const cloudExists = await loadPlayerFromCloud(cleanName);
+            if (cloudExists) {
+                throw new Error('Nama pengguna sudah terdaftar di Supabase Cloud! Silakan masuk.');
+            }
+        } catch (e) {
+            if (e.message && e.message.includes('sudah terdaftar')) throw e;
         }
 
         // Save account details
@@ -461,23 +516,42 @@ class GameState {
         };
         this.saveAccounts(accounts);
 
-        // Auto-login
-        return this.login(cleanName, password);
+        // Auto-login & sync
+        return await this.login(cleanName, password);
     }
 
-    login(username, password) {
+    async login(username, password) {
         const cleanName = username.trim();
         const lowerName = cleanName.toLowerCase();
         if (!cleanName || !password) throw new Error('Nama dan password tidak boleh kosong!');
 
         const accounts = this.getAccounts();
-        const account = accounts[lowerName];
+        let account = accounts[lowerName];
+
+        // If not in local accounts, check Supabase Cloud
+        if (!account) {
+            try {
+                const cloudSave = await loadPlayerFromCloud(cleanName);
+                if (cloudSave) {
+                    account = {
+                        username: cloudSave.display_name || cleanName,
+                        password: password,
+                        createdAt: new Date(cloudSave.created_at || Date.now()).getTime()
+                    };
+                    accounts[lowerName] = account;
+                    this.saveAccounts(accounts);
+                    if (cloudSave.save_data) {
+                        localStorage.setItem(`businessTycoon_save_${lowerName}`, JSON.stringify(cloudSave.save_data));
+                    }
+                }
+            } catch (e) {}
+        }
 
         if (!account) {
             throw new Error('Nama pengguna tidak terdaftar!');
         }
 
-        if (account.password !== password) {
+        if (account.password && account.password !== password) {
             throw new Error('Password salah!');
         }
 
@@ -486,6 +560,7 @@ class GameState {
         localStorage.setItem('businessTycoon_loginTime', Date.now().toString());
 
         this.load();
+        this.save(); // Instant push to Supabase Cloud
         this.emit('login', account.username);
         this.emit('change', { path: 'player.name', value: account.username });
         return true;
@@ -552,16 +627,18 @@ class GameState {
 
         // Add Reksa Dana value
         const rdPortfolio = this.state.savings?.reksaDana || {};
-        const rdFunds = [
-            { id: 'pasar_uang', nav: 1.042 },
-            { id: 'pendapatan_tetap', nav: 1.238 },
-            { id: 'campuran', nav: 2.115 },
-            { id: 'saham', nav: 3.871 },
-        ];
-        rdFunds.forEach(f => {
-            const holding = rdPortfolio[f.id];
+        const savedNav = this.state.reksaDanaNav || {};
+        const defaultNavs = {
+            pasar_uang: 1.052,
+            pendapatan_tetap: 1.258,
+            campuran: 2.165,
+            saham: 3.945
+        };
+        Object.keys(rdPortfolio).forEach(id => {
+            const holding = rdPortfolio[id];
             if (holding && holding.units > 0) {
-                netWorth += holding.units * f.nav * 1000;
+                const nav = Number(savedNav[id]?.nav) || defaultNavs[id] || 1.0;
+                netWorth += (Number(holding.units) || 0) * nav;
             }
         });
 

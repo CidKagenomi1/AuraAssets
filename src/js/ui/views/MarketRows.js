@@ -7,6 +7,7 @@ import tradingPage from '../../trading/TradingPage.js';
 
 // ===== WARNA PER SEKTOR =====
 export const SECTOR_COLORS = {
+    // Stocks
     'Technology':            '#378ADD',
     'Financial Services':    '#1D9E75',
     'Healthcare':            '#D85A30',
@@ -17,7 +18,120 @@ export const SECTOR_COLORS = {
     'Communication Services':'#D4537E',
     'Real Estate':           '#97C459',
     'Utilities':             '#AFA9EC',
+    // Crypto
+    'Layer 1 (L1)':          '#3B82F6',
+    'DeFi & Staking':        '#8B5CF6',
+    'Meme Coin':            '#F59E0B',
+    'Stablecoin & RWA':      '#10B981',
+    'Exchange & CeFi':       '#06B6D4',
+    'Payments & Privacy':    '#EC4899',
+    'DePIN, Cloud & Infra':  '#6366F1',
+    'Layer 2 & Interop':     '#A855F7',
+    'AI & Big Data':         '#14B8A6'
 };
+
+// ===== KLASIFIKASI VOLATILITAS / RISIKO =====
+export function getVolatilityLevel(asset, type = 'stock') {
+    const vol = typeof asset.volatility === 'number' ? asset.volatility : 0.02;
+    if (type === 'stock') {
+        if (vol <= 0.016) {
+            return {
+                key: 'low',
+                label: 'Rendah',
+                badge: '🛡️ Rendah',
+                color: '#10b981',
+                bg: 'rgba(16, 185, 129, 0.12)',
+                border: 'rgba(16, 185, 129, 0.28)',
+                pctText: `±${(vol * 100).toFixed(1)}%`
+            };
+        }
+        if (vol <= 0.028) {
+            return {
+                key: 'medium',
+                label: 'Moderat',
+                badge: '⚖️ Moderat',
+                color: '#f59e0b',
+                bg: 'rgba(245, 158, 11, 0.12)',
+                border: 'rgba(245, 158, 11, 0.28)',
+                pctText: `±${(vol * 100).toFixed(1)}%`
+            };
+        }
+        return {
+            key: 'high',
+            label: 'Tinggi',
+            badge: '🚀 Tinggi',
+            color: '#ef4444',
+            bg: 'rgba(239, 68, 68, 0.12)',
+            border: 'rgba(239, 68, 68, 0.28)',
+            pctText: `±${(vol * 100).toFixed(1)}%`
+        };
+    } else {
+        if (vol <= 0.02) {
+            return {
+                key: 'low',
+                label: 'Rendah',
+                badge: '🛡️ Rendah',
+                color: '#10b981',
+                bg: 'rgba(16, 185, 129, 0.12)',
+                border: 'rgba(16, 185, 129, 0.28)',
+                pctText: `±${(vol * 100).toFixed(1)}%`
+            };
+        }
+        if (vol <= 0.07) {
+            return {
+                key: 'medium',
+                label: 'Moderat',
+                badge: '⚖️ Moderat',
+                color: '#f59e0b',
+                bg: 'rgba(245, 158, 11, 0.12)',
+                border: 'rgba(245, 158, 11, 0.28)',
+                pctText: `±${(vol * 100).toFixed(1)}%`
+            };
+        }
+        return {
+            key: 'high',
+            label: 'Tinggi',
+            badge: '🚀 Tinggi',
+            color: '#ef4444',
+            bg: 'rgba(239, 68, 68, 0.12)',
+            border: 'rgba(239, 68, 68, 0.28)',
+            pctText: `±${(vol * 100).toFixed(1)}%`
+        };
+    }
+}
+
+// ===== HEADER TABEL PASAR =====
+export function buildMarketTableHeader(type = 'stock', sort = { key: 'default', dir: 'asc' }) {
+    const getSortIndicator = (key) => {
+        if (sort.key !== key) return '<span class="sort-icon-idle">↕</span>';
+        return sort.dir === 'asc' ? '<span class="sort-icon-active">▲</span>' : '<span class="sort-icon-active">▼</span>';
+    };
+
+    const sectorLabel = type === 'stock' ? 'Sektor' : 'Kategori';
+
+    return `
+      <div class="market-table-header">
+        <div class="col-header col-symbol ${sort.key === 'name' ? 'active' : ''}" onclick="window.setMarketSort('name')" title="Urutkan Simbol">
+          <span>Aset</span> ${getSortIndicator('name')}
+        </div>
+        <div class="col-header col-name" title="Nama Lengkap Aset">
+          <span>Nama</span>
+        </div>
+        <div class="col-header col-sector ${sort.key === 'sector' ? 'active' : ''}" onclick="window.setMarketSort('sector')" title="Urutkan Sektor">
+          <span>${sectorLabel}</span> ${getSortIndicator('sector')}
+        </div>
+        <div class="col-header col-volatility ${sort.key === 'volatility' ? 'active' : ''}" onclick="window.setMarketSort('volatility')" title="Urutkan Tingkat Volatilitas / Risiko">
+          <span>Volatilitas</span> ${getSortIndicator('volatility')}
+        </div>
+        <div class="col-header col-price ${sort.key === 'price' ? 'active' : ''}" onclick="window.setMarketSort('price')" title="Urutkan Harga Pasar">
+          <span>Harga</span> ${getSortIndicator('price')}
+        </div>
+        <div class="col-header col-change ${sort.key === 'change' ? 'active' : ''}" onclick="window.setMarketSort('change')" title="Urutkan Perubahan 24 Jam">
+          <span>24h %</span> ${getSortIndicator('change')}
+        </div>
+      </div>
+    `;
+}
 
 // ===== RENDER BARIS SAHAM =====
 export function buildStockRow(stock) {
@@ -27,14 +141,39 @@ export function buildStockRow(stock) {
     const priceText = `$${stock.price.toLocaleString('en-US', {
         minimumFractionDigits: 2, maximumFractionDigits: 2
     })}`;
+    const vol = getVolatilityLevel(stock, 'stock');
+    const sectorName = stock.sector || 'Defensif';
 
     return `
-      <div class="market-row" onclick="openStockDetail('${stock.symbol}')">
-        <span class="sector-dot" style="background:${color}"></span>
-        <span class="market-symbol">${stock.symbol}</span>
-        <span class="market-name">${stock.name}</span>
-        <span class="market-price">${priceText}</span>
-        <span class="market-change ${up ? 'up' : 'down'}">${changeText}</span>
+      <div class="market-row" onclick="openStockDetail('${stock.symbol}')" title="Klik untuk membuka grafik & perdagangan ${stock.symbol} (${stock.name})">
+        <div class="market-col col-symbol">
+          <span class="sector-dot" style="background:${color}" title="Sektor: ${sectorName}"></span>
+          <span class="market-symbol">${stock.symbol}</span>
+        </div>
+        <div class="market-col col-name">
+          <span class="market-name" title="${stock.name}">${stock.name}</span>
+        </div>
+        <div class="market-col col-sector">
+          <span class="market-sector-badge" style="color:${color}; background:${color}18; border:1px solid ${color}44;">
+            ${sectorName}
+          </span>
+        </div>
+        <div class="market-col col-volatility">
+          <span class="market-volatility-badge vol-${vol.key}" style="color:${vol.color}; background:${vol.bg}; border:1px solid ${vol.border};" title="Volatilitas ${vol.label} (${vol.pctText} harian)">
+            ${vol.badge}
+          </span>
+        </div>
+        <div class="market-col col-price">
+          <span class="market-price">${priceText}</span>
+        </div>
+        <div class="market-col col-change">
+          <span class="market-change ${up ? 'up' : 'down'}">${changeText}</span>
+        </div>
+        <!-- Subline untuk tampilan mobile/layar sempit -->
+        <div class="market-row-subline">
+          <span class="market-sector-badge" style="color:${color}; background:${color}18; border:1px solid ${color}44;">${sectorName}</span>
+          <span class="market-volatility-badge vol-${vol.key}" style="color:${vol.color}; background:${vol.bg}; border:1px solid ${vol.border};">${vol.badge}</span>
+        </div>
       </div>`;
 }
 
@@ -48,13 +187,40 @@ export function buildCryptoRow(crypto) {
     else if (crypto.price >= 1)     priceText = `$${crypto.price.toFixed(2)}`;
     else                            priceText = `$${crypto.price.toFixed(6)}`;
 
+    const sectorName = crypto.sector || crypto.category || 'Crypto';
+    const color = SECTOR_COLORS[crypto.sector] || '#3b82f6';
+    const vol = getVolatilityLevel(crypto, 'crypto');
+
     return `
-      <div class="market-row" onclick="openCryptoDetail('${crypto.symbol}')">
-        <span style="font-size:17px;min-width:24px;text-align:center">${crypto.icon}</span>
-        <span class="market-symbol">${crypto.symbol}</span>
-        <span class="market-name">${crypto.name}</span>
-        <span class="market-price">${priceText}</span>
-        <span class="market-change ${up ? 'up' : 'down'}">${changeText}</span>
+      <div class="market-row" onclick="openCryptoDetail('${crypto.symbol}')" title="Klik untuk membuka grafik & perdagangan ${crypto.symbol} (${crypto.name})">
+        <div class="market-col col-symbol">
+          <span class="crypto-icon" style="font-size:16px;min-width:20px;text-align:center">${crypto.icon || '🪙'}</span>
+          <span class="market-symbol">${crypto.symbol}</span>
+        </div>
+        <div class="market-col col-name">
+          <span class="market-name" title="${crypto.name}">${crypto.name}</span>
+        </div>
+        <div class="market-col col-sector">
+          <span class="market-sector-badge" style="color:${color}; background:${color}18; border:1px solid ${color}44;">
+            ${sectorName}
+          </span>
+        </div>
+        <div class="market-col col-volatility">
+          <span class="market-volatility-badge vol-${vol.key}" style="color:${vol.color}; background:${vol.bg}; border:1px solid ${vol.border};" title="Volatilitas ${vol.label} (${vol.pctText} harian)">
+            ${vol.badge}
+          </span>
+        </div>
+        <div class="market-col col-price">
+          <span class="market-price">${priceText}</span>
+        </div>
+        <div class="market-col col-change">
+          <span class="market-change ${up ? 'up' : 'down'}">${changeText}</span>
+        </div>
+        <!-- Subline untuk tampilan mobile/layar sempit -->
+        <div class="market-row-subline">
+          <span class="market-sector-badge" style="color:${color}; background:${color}18; border:1px solid ${color}44;">${sectorName}</span>
+          <span class="market-volatility-badge vol-${vol.key}" style="color:${vol.color}; background:${vol.bg}; border:1px solid ${vol.border};">${vol.badge}</span>
+        </div>
       </div>`;
 }
 

@@ -434,12 +434,23 @@ class NewsManager {
         this.loadState();
         this.startBackgroundTimer();
 
+        // Listen to game events
+        gameState.on('dayPass', () => this.onDayPass());
+
         // Connect to Supabase Cloud Realtime for multi-device synchronized events
         try {
             initGlobalNewsRealtime(this);
         } catch (e) {
             console.warn('[NewsManager] Supabase Realtime init bypassed:', e);
         }
+
+        // Initial launch check: Ensure market always has active catalyst
+        setTimeout(() => {
+            if (this.activeNews.length === 0) {
+                console.log('📢 [NewsManager] No active breaking news found on launch, releasing market catalyst...');
+                this.triggerRandomEvent();
+            }
+        }, 3500);
     }
 
     loadState() {
@@ -463,8 +474,39 @@ class NewsManager {
 
     startBackgroundTimer() {
         if (this.cleanupInterval) return;
-        // Check active event expiration every 10 seconds
-        this.cleanupInterval = setInterval(() => this.checkExpiredNews(), 10000);
+        // Periodic check every 15 seconds for expiration and new news release
+        this.cleanupInterval = setInterval(() => {
+            this.checkExpiredNews();
+            this.evaluatePeriodicTrigger();
+        }, 15000);
+    }
+
+    /**
+     * Periodically evaluate whether a new catalyst should be released into the market
+     */
+    evaluatePeriodicTrigger() {
+        const now = Date.now();
+        const minCooldownMs = 3 * 60 * 1000; // 3 menit jeda antar peristiwa
+        const maxActiveEvents = 2; // Maksimal 2 berita aktif bersamaan agar tren terarah
+
+        if (this.activeNews.length < maxActiveEvents) {
+            const timeSinceLast = now - (this.lastTriggerTimestamp || 0);
+
+            // Jika pasar kosong sama sekali dan sudah 30 detik sejak event terakhir berakhir
+            if (this.activeNews.length === 0 && timeSinceLast > 30000) {
+                if (Math.random() < 0.50) {
+                    this.triggerRandomEvent();
+                    return;
+                }
+            }
+
+            // Pemicu berkala jika sudah melewati masa cooldown minimum
+            if (timeSinceLast > minCooldownMs) {
+                if (Math.random() < 0.35) {
+                    this.triggerRandomEvent();
+                }
+            }
+        }
     }
 
     checkExpiredNews() {
@@ -772,15 +814,8 @@ class NewsManager {
      */
     onDayPass() {
         this.checkExpiredNews();
-
-        const now = Date.now();
-        const minCooldownMs = 20 * 60 * 1000; // Minimal 20 menit jeda sebelum peristiwa berikutnya
-
-        if (this.activeNews.length < 3 && (now - this.lastTriggerTimestamp > minCooldownMs)) {
-            // 60% probability of triggering a new event when slot is available
-            if (Math.random() < 0.60) {
-                this.triggerRandomEvent();
-            }
+        if (this.activeNews.length < 2) {
+            this.triggerRandomEvent();
         }
     }
 

@@ -161,11 +161,11 @@
           </span>
           <span class="sidebar-label">Portofolio</span>
         </a>
-        <a class="sidebar-link nav-btn" data-view="property" data-feature="property" title="Aset Properti">
+        <a class="sidebar-link nav-btn" data-view="commodity" data-feature="market" title="Pasar Komoditas">
           <span class="sidebar-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
           </span>
-          <span class="sidebar-label">Aset Properti</span>
+          <span class="sidebar-label">Komoditas</span>
         </a>
         <a class="sidebar-link nav-btn" data-view="loan" data-feature="loan" title="Pinjaman">
           <span class="sidebar-icon">
@@ -185,12 +185,6 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
           </span>
           <span class="sidebar-label">Riwayat</span>
-        </a>
-        <a class="sidebar-link nav-btn" data-view="marketplace" data-feature="marketplace" title="Marketplace">
-          <span class="sidebar-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-          </span>
-          <span class="sidebar-label">Marketplace</span>
         </a>
         <div class="sidebar-divider"></div>
         <a class="sidebar-link nav-btn" data-view="transfer" data-feature="transfer" title="Transfer Dana">
@@ -410,15 +404,31 @@
                     <span style="display: inline-flex; align-items: center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-warning)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span>
                     <span>Top Movers</span>
                   </div>
-                  <div class="top-movers-tabs" role="tablist">
-                    <button type="button" class="movers-tab-btn active" data-movers-tab="gainers" style="display: inline-flex; align-items: center; gap: 4px;">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                      Top Gainers
-                    </button>
-                    <button type="button" class="movers-tab-btn" data-movers-tab="losers" style="display: inline-flex; align-items: center; gap: 4px;">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
-                      Top Losers
-                    </button>
+                  <div class="top-movers-controls">
+                    <!-- Market Category Filter: Semua, Saham, Kripto -->
+                    <div class="top-movers-tabs movers-market-tabs" role="tablist">
+                      <button type="button" class="movers-tab-btn movers-market-btn active" data-movers-market="all" title="Semua Pasar">
+                        Semua
+                      </button>
+                      <button type="button" class="movers-tab-btn movers-market-btn" data-movers-market="stock" title="Top Mover Saham">
+                        📈 Saham
+                      </button>
+                      <button type="button" class="movers-tab-btn movers-market-btn" data-movers-market="crypto" title="Top Mover Kripto">
+                        🪙 Kripto
+                      </button>
+                    </div>
+
+                    <!-- Trend Direction Filter: Gainers, Losers -->
+                    <div class="top-movers-tabs movers-trend-tabs" role="tablist">
+                      <button type="button" class="movers-tab-btn movers-trend-btn active" data-movers-tab="gainers" style="display: inline-flex; align-items: center; gap: 4px;" title="Top Gainers (Naik)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                        Gainers
+                      </button>
+                      <button type="button" class="movers-tab-btn movers-trend-btn" data-movers-tab="losers" style="display: inline-flex; align-items: center; gap: 4px;" title="Top Losers (Turun)">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                        Losers
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div id="top-movers-list" class="top-movers-grid">

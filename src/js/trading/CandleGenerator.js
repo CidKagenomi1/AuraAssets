@@ -2,31 +2,38 @@
  * CandleGenerator.js - Mathematical OHLC Series & Candle Generation Utility
  * Handles:
  *  - Timeframe-adaptive OHLC candle generation (1h, 1d, 1w, 1m)
- *  - Stable deterministic historical series + dynamic live tick updates
- *  - Realistic candlestick archetype shapes (hammer, doji, marubozu, etc.)
- *  - Price history synthesis & Elliott Wave / pattern annotations
+ *  - Structured technical pattern waypoints (Head & Shoulders, Triangles, Doji consolidation)
+ *  - Realistic candlestick archetype shapes (Doji, hammer, marubozu)
+ *  - 48-Hour pattern memory integration via PatternTrajectoryManager
  */
+
+import patternTrajectoryManager from './PatternTrajectoryManager.js';
 
 class CandleGenerator {
   /**
-   * Synthesize realistic price history if asset has insufficient history ticks.
+   * Synthesize realistic price history guided by 48-hour structured pattern waypoints.
    */
   generatePriceHistory(asset, needed = 300) {
     if (!asset.priceHistory) asset.priceHistory = [];
     if (asset.priceHistory.length >= needed) return;
 
     const currentPrice = asset.price;
-    const vol = Math.min(0.03, (asset.volatility || 0.025) * 0.25);
-    const changePct = asset.change || 0;
-    const startPrice = currentPrice / (1 + changePct / 100);
+    const vol = Math.min(0.04, (asset.volatility || 0.025) * 0.3);
+    const symbol = asset?.symbol || 'ASSET';
+    const activePattern = patternTrajectoryManager.getActivePattern(symbol, asset);
     const history = [];
 
-    // Synthesize structured harmonic wave drift smoothly between startPrice and currentPrice
+    // Synthesize structured price history mapped along pattern trajectory waypoints
     for (let i = 0; i < needed; i++) {
       const progress = i / (needed - 1 || 1);
-      const trend = startPrice + (currentPrice - startPrice) * progress;
-      const cycleNoise = Math.sin(i * 0.09) * vol * 0.4 + Math.sin(i * 0.28) * vol * 0.2;
-      const p = trend * (1 + cycleNoise);
+      const patternMul = patternTrajectoryManager.getTargetMultiplier(activePattern, progress);
+      const baseTrend = (asset.basePrice || currentPrice) * patternMul;
+      
+      const cycleNoise = activePattern.isDoji 
+        ? (Math.sin(i * 0.15) * 0.0008) 
+        : (Math.sin(i * 0.09) * vol * 0.25 + Math.sin(i * 0.28) * vol * 0.15);
+      
+      const p = baseTrend * (1 + cycleNoise);
       history.push(Math.max(p, currentPrice * 0.05));
     }
     history[history.length - 1] = currentPrice;
@@ -51,6 +58,8 @@ class CandleGenerator {
 
     // Stable deterministic seed from asset symbol
     const symbol = asset?.symbol || 'ASSET';
+    const activePattern = patternTrajectoryManager.getActivePattern(symbol, asset);
+
     let seed = 0;
     for (let c = 0; c < symbol.length; c++) {
       seed = (seed * 31 + symbol.charCodeAt(c)) % 100000;
@@ -122,29 +131,55 @@ class CandleGenerator {
       const progress = i / (totalPoints - 1 || 1);
       const isLive = i === totalPoints - 1;
 
-      // Base target along trend line from startPrice to currentPrice
-      const trendPrice = startPrice + (currentPrice - startPrice) * progress;
+      // Ambil target harga terstruktur dari koordinat waypoints pola (H&S, Triangles, Doji)
+      let targetMultiplier = 1.0;
+      if (timeframe === '1d' || timeframe === '1h') {
+        targetMultiplier = patternTrajectoryManager.getTargetMultiplier(activePattern, progress);
+      } else {
+        // Multi-wave cycle dinamis untuk 1w dan 1m (mencegah garis lurus linear)
+        const cycleCount = timeframe === '1w' ? 2 : 4;
+        const subP = (progress * cycleCount) % 1;
+        const subMul = patternTrajectoryManager.getTargetMultiplier(activePattern, subP);
+        const macroTrend = 1.0 + (progress - 0.5) * (changePct / 100);
+        targetMultiplier = subMul * macroTrend;
+      }
 
-      // Stable noise for historical candles (0 to totalPoints - 2); current price for live candle
+      const patternPrice = (asset?.basePrice || startPrice) * targetMultiplier;
+      const trendPrice = isLive ? currentPrice : patternPrice;
+
+      // Variasi micro-market non-linear alami untuk garis close
       const rnd = isLive ? 0.5 : pseudoRandom(i);
-      const noise = (Math.sin(i * 1.3 + (seed % 10)) * 0.4 + (rnd - 0.5)) * volatility * trendPrice;
-      let targetClose = isLive ? currentPrice : trendPrice + noise;
+      const rnd2 = isLive ? 0.5 : pseudoRandom(i + 50);
+      const noiseAmp = activePattern.isDoji ? volatility * 0.12 : volatility * 0.45;
+      const naturalNoise = ((rnd - 0.5) * 0.7 + (rnd2 - 0.5) * 0.3) * noiseAmp * trendPrice;
+
+      let targetClose = isLive ? currentPrice : trendPrice + naturalNoise;
       targetClose = Math.max(targetClose, currentPrice * 0.1);
 
-      const open = isLive ? (prevClose || targetClose) : prevClose;
-      const close = targetClose;
+      let open = isLive ? (prevClose || targetClose) : prevClose;
+      let close = targetClose;
+
+      // KHUSUS POLA DOJI: Pasar sedang rata-rata saja -> body sangat tipis / datar (|close - open| tipis)
+      if (activePattern.isDoji && !isLive) {
+        const dojiBodyDelta = (pseudoRandom(i) - 0.5) * open * 0.0004;
+        close = open + dojiBodyDelta;
+      }
+
       const body = Math.abs(close - open);
       const mid = (open + close) / 2;
 
-      // Clean realistic wicks
-      const wickRange = Math.max(body * 0.8, mid * (volatility * 0.5));
+      // Sumbu candle realistis
+      const wickRange = activePattern.isDoji 
+        ? Math.max(0.01, mid * (volatility * 0.35))
+        : Math.max(body * 0.85, mid * (volatility * 0.55));
       const wickRnd = isLive ? 0.5 : pseudoRandom(i + 100);
       const high = Math.max(open, close) + wickRnd * wickRange;
       const low = Math.max(0.01, Math.min(open, close) - (1 - wickRnd) * wickRange);
 
-      // Volume calculation
+      // Volume calculation: saat doji volume lebih tenang
       const baseVol = (asset?.volume24h ? asset.volume24h / totalPoints : 25000);
-      const volMultiplier = 0.6 + (isLive ? 0.4 : pseudoRandom(i + 200) * 0.8) + (body / (mid || 1)) * 5;
+      const dojiVolFactor = activePattern.isDoji ? 0.55 : 1.0;
+      const volMultiplier = (0.6 + (isLive ? 0.4 : pseudoRandom(i + 200) * 0.8) + (body / (mid || 1)) * 5) * dojiVolFactor;
       const volume = Math.round(baseVol * volMultiplier);
 
       candles.push({

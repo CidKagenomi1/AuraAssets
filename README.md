@@ -11,7 +11,12 @@ An advanced, dark-themed **Idle Financial Portfolio & Enterprise Simulation Game
 ### 1. 📈 Financial & Investment Markets
 - **Stock Market (Authoritative & Local Fallback):** Real-time stock price fluctuations across 100 stocks and 10 sectors, backed by a continuous limit order book matching engine (Price-Time Priority / FIFO) with automatic price improvement refunds.
 - **Cryptocurrency Exchange:** Trade 102 digital assets categorized across 10 standardized bidang (L1, DeFi, AI & Big Data, Meme, Stablecoin, DePIN, etc.) with multi-criteria filtering and drilldown sub-categories.
-- **Top Movers & AI Market Signals:** Live dashboard widget showcasing real-time Top Gainers, Top Losers, and active AI Technical Signals (🚀 MOON, 🔥 HOT, ⚡ HEAT).
+- **Reksa Dana & Exchange-Traded Funds (ETF) Market:** Diversified managed portfolio and index fund market featuring 4 conventional mutual fund classes (Pasar Uang, Pendapatan Tetap, Campuran, Saham) and 6 Global ETFs (`SPY`, `QQQ`, `SMH`, `VNQ`, `EEM`, `XLV`) with daily Net Asset Value (NAV/NAB) drift, macroeconomic yield simulations, expense ratios, dividend yields, and passive compounding.
+- **Dedicated Global Commodity Market (Brankas Fisik Digital):** Spot trading and digital custody vault across 4 distinct commodity sectors: Logam Mulia (Gold, Silver, Platinum), Energi (WTI Crude, Brent, Natural Gas), Logam Industri (Copper, Nickel, Lithium, Aluminum), and Agrikultur (CPO, Coffee, Wheat). Features 1:1 digital vault storage, fractional spot purchases, real-time Plotly candlestick charts, and instant cash liquidations.
+- **Ultra-Safe Investment for Beginners & Settled Players:** Dedicated low-risk fund (*Manulife Dana Kas Mandiri* with ~5.2% p.a. guaranteed non-negative daily drift) engineered for beginner capital preservation and settled players securing profits away from high-volatility markets.
+- **Interactive Investment Suite & Live Return Simulator:** Modern fund purchase menu equipped with real-time 1-month and 1-year profit projections, total 1-year capital growth forecasts, quick capital allocation buttons (Min, 25%, 50%, 75%, Maks), quick-boost pills (+$250, +$500, +$1K, +$5K), live unit calculation @ NAV, and 0% transaction fee guarantees.
+- **Top Movers & AI Market Signals:** Live dashboard widget showcasing real-time Top Gainers and Top Losers with independent market category filters (**Semua**, **📈 Saham**, **🪙 Kripto**) and active AI Technical Signals (🚀 MOON, 🔥 HOT, ⚡ HEAT).
+- **Comprehensive Market Table & Category Labeling:** Modern tabular market view featuring explicit, clickable sortable headers (**Aset**, **Nama**, **Sektor**, **Volatilitas**, **Harga**, **24h %**) with colored sector pills and risk badges (🛡️ Rendah, ⚖️ Moderat, 🚀 Tinggi) clearly visible even when unfiltered, plus mobile-optimized card sublines.
 - **Investor Risk Profile Assessment:** Interactive onboarding questionnaire that evaluates player behavior and classifies them into **Investor Konservatif** (🛡️), **Investor Pasif** (⚖️), or **Investor Agresif** (🚀).
 - **Financial Milestones with 75% Cash Rewards:** Tiered financial achievements rewarding 75% of the milestone target value as instant claimable cash.
 - **Random Market Events & Breaking News (40 Macro & Sectoral Events):** Dynamic event engine containing 20 US Stock Market and 20 Cryptocurrency breaking news items that directly drive price movements, volatility shifts, and sectoral rallies or sell-offs over multi-day durations.
@@ -22,8 +27,8 @@ An advanced, dark-themed **Idle Financial Portfolio & Enterprise Simulation Game
 - **Going Public (IPO):** Scale your enterprise, meet listing criteria, and launch an Initial Public Offering (IPO) to trade on the public stock exchange.
 - **AI Competitors:** Navigate a dynamic market with rival corporations competing for market share.
 
-### 3. 🏠 Real Estate & Wealth Management
-- **Aset Properti:** Buy, hold, and sell residential and commercial real estate properties for passive rental income and capital appreciation.
+### 3. 🏦 Banking System & Wealth Management
+- **Digital Custody Vault:** 1:1 asset backing for physical commodity reserves with zero holding fees and automated net worth consolidation.
 - **Banking System:** Secure capital through bank loans or park your excess cash in high-yield time deposits.
 - **Taxation (Perpajakan):** File monthly tax reports, declare income/assets, and manage corporate tax rates to stay compliant.
 
@@ -107,10 +112,8 @@ AuraAssets/
 │       ├── main.js         # Game entry point, Risk Assessment onboarding, & master orchestration
 │       ├── core/           # GameState, TimeManager, GlobalEconomy, RoleManager (Risk Profiles)
 │       ├── finance/        # Core engines: FinanceManager, BankSystem, SavingsManager, TaxSystem
-│       ├── property/       # Real estate management and property panel
-│       ├── trading/        # StockMarket, MarketClient, CryptoMarket, PassiveIncome, ChartEngine, CandleGenerator, TradingPage
-│       │   └── panels/     # OrderPanel, TradeHistoryPanel, AssetSearchModal, StockPanel, CryptoPanel, TradingSignalPanel
-│       ├── marketplace/    # Luxury status goods, watches, and portfolio boosters
+│       ├── trading/        # StockMarket, MarketClient, CryptoMarket, CommodityManager, MutualFundManager, PassiveIncome, ChartEngine, CandleGenerator, TradingPage
+│       │   └── panels/     # OrderPanel, TradeHistoryPanel, AssetSearchModal, StockPanel, CryptoPanel, CommodityPanel, TradingSignalPanel
 │       └── ui/             # ViewManager, HomeScreen, LoginPortal, KeyboardNav, UIManager
 ├── market-server/          # Authoritative Multiplayer Stock Market Backend
 │   ├── migrations/         # PostgreSQL schema, immutable ledger trigger, & atomic PL/pgSQL procedures
@@ -121,6 +124,8 @@ AuraAssets/
 │   │   └── routes/         # market.routes.js, orders.routes.js, portfolio.routes.js
 │   └── tests/              # Vitest suites: matching-engine.test.js, trading.test.js, concurrency.test.js
 ├── isolated_features/      # Isolated feature modules (cleanly decoupled)
+│   ├── property/           # Archived Real Estate & Property Management engine
+│   ├── marketplace/        # Archived Luxury Goods & Watch Marketplace
 │   ├── gambling/           # Full Casino engines (Slot, Mahjong, Zeus, Wheel, Lottery, Parlay)
 │   ├── business/           # Enterprise, 12 Sectors, 12 Ops Panels, Board, M&A, IPO Dashboard
 │   └── career/             # Office Workplace, Work Simulations, Assistant, Politics System
@@ -210,6 +215,112 @@ Bagian ini menjadi penanda status terakhir pengerjaan agar sesi pengembangan ber
   - Mengintegrasikan listener Postgres Changes di `SupabaseClient.js` untuk tabel `market_state` dan `crypto_market_state`.
   - Sinkronisasi instan jika backend multi-player cloud aktif, dengan fallback otomatis yang mulus ke simulasi mikro-tick lokal yang telah distabilkan saat offline.
 
+#### 5. 💼 Reksa Dana Market Engine, Instrumen Ultra-Aman & Suite Pembelian Interaktif
+- **Mesin Pasar Reksa Dana Terintegrasi (`MutualFundManager.js` & `FinancePanel.js`):**
+  - Mengintegrasikan 4 kelas aset reksa dana: Pasar Uang, Pendapatan Tetap, Campuran, dan Saham dengan perhitungan Nilai Aktiva Bersih (NAB/NAV) harian, imbal hasil historis 1 tahun, dan alokasi portofolio terkelola.
+  - Perbaikan error navigasi dan dependensi instance pada `FinancePanel` dan `UIManager` sehingga tab Reksa Dana dapat dibuka dan ditransaksikan dengan lancar tanpa crash.
+- **Aset Paling Aman & Stabil untuk Pemula & Settle:**
+  - Menghadirkan instrumen **Manulife Dana Kas Mandiri** dengan badge khusus **`⭐ PALING AMAN & STABIL • PEMULA & SETTLE`**.
+  - Dirancang dengan algoritma pergerakan NAB non-negatif terjamin (~5.2% p.a., fluktuasi harian $+0.012\% \text{ s/d } +0.018\%$), menjadi tempat teraman bagi pemain pemula yang baru membangun modal atau pemain yang sudah mapan (*settle*) untuk mengunci kekayaan dari risiko penurunan harga saham dan kripto.
+- **Redesain Modern Menu Pembelian Reksa Dana (Interactive Purchase Suite):**
+  - **Live Return Simulator:** Menghitung dan menampilkan proyeksi laba bersih secara dinamis (*Est. Return 1 Bulan* dan *Est. Return 1 Tahun*) serta estimasi total modal di akhir tahun pertama sesuai nominal yang diketik pemain.
+  - **Kalkulator Unit Otomatis:** Menghitung jumlah unit penyertaan yang didapat secara presisi berdasarkan harga NAB/unit saat ini.
+  - **Preset Alokasi Cepat (Quick Allocation Chips):** Tombol persentase kas instan (**Min**, **25%**, **50%**, **75%**, **Maks**) serta chip penambah saldo nominal (**+$250**, **+$500**, **+$1.000**, **+$5.000**) untuk input nominal yang fleksibel dan cepat.
+  - **Validasi Finansial & Transparansi Biaya:** Validasi batas minimum investasi (\$10) dan kecukupan saldo kas secara real-time, dilengkapi garansi Biaya Beli 0% dan Biaya Manajer Investasi 0%.
+- **Optimalisasi Skala Dinamis Grafik Plotly (`ChartEngine.js`):**
+  - Memperbaiki batas bawah (*baseline*) grafik garis agar tidak lagi terkunci ke titik \$0. Sumbu Y kini menggunakan rentang dinamis berbasis harga terendah (*lowest price stretch scaling*) dengan padding 15% dari spread harga, sehingga formasi gelombang pasar, pola harga, dan tren pergerakan terlihat jelas dan proporsional.
+
+#### 6. ☁️ Direct Frontend Cloud Persistence Supabase (Zero-Server Architecture) & Real-Time Auto-Periodic News Engine
+- **Direct Supabase Cloud Persistence (Tanpa Ketergantungan Server Lokal):**
+  - **Skema Database Baru (`006_direct_cloud_sync.sql`):**
+    - `player_saves`: Menyimpan profil pemain, saldo kas, kekayaan bersih (*net worth*), role risiko investor, credit score, dan seluruh snapshot `save_data` (JSONB).
+    - `player_portfolio`: Tabel relasional yang mencerminkan seluruh kepemilikan aset aktif pemain (saham, kripto, reksa dana) dengan harga beli rata-rata (*avg buy price*), unit, total modal investasi, harga terkini, dan valuasi terkini untuk inspeksi langsung di Supabase Table Editor.
+    - `player_transactions`: Pencatatan mutasi transaksi keuangan dan aktivitas pasar pemain secara persisten ke cloud.
+    - Penerapan Row Level Security (RLS) terbuka untuk akses anon key dan pendaftaran tabel ke publikasi `supabase_realtime`.
+  - **Dual-Layer Persistence Engine (`GameState.js` & `SupabaseClient.js`):**
+    - **Performa Instan Bebas Lag:** Game tetap menulis ke `localStorage` untuk loading 0-ms dan kemampuan bermain offline tanpa hambatan jaringan.
+    - **Sinkronisasi Asinkron Cloud:** Sinkronisasi di latar belakang (*background sync*) ke Supabase Cloud setiap kali state berubah, saldo bermutasi, atau transaksi dieksekusi.
+    - **Cross-Device State Hydration:** Deteksi otomatis saat pemain membuka game di browser baru atau HP; profil akun dari Supabase langsung muncul di portal login dan mengunduh save data terbaru.
+  - **Portal Login Terintegrasi Cloud (`LoginPortal.js`):**
+    - Mendeteksi dan menampilkan chip akun pemain yang tersimpan di Supabase Cloud saat login dibuka di perangkat baru.
+    - Autentikasi dan registrasi asinkron dengan proteksi username ganda di cloud serta visual loading feedback (*"Sinkronisasi Cloud..."*).
+- **Aktivasi & Kalibrasi Mesin Berita Otomatis Berkala (Auto-Periodic Market Engine - `NewsManager.js`):**
+  - **Resolusi Bug Pemicu Berita:** Mengidentifikasi dan memperbaiki masalah di mana 40 data breaking news (20 saham AS & 20 kripto) sebelumnya tidak pernah terpicu karena fungsi pemicunya (`triggerRandomEvent`) hanya ada di dalam `onDayPass()` tanpa pemanggil berkala aktif.
+  - **Startup Market Catalyst (Auto-Seed):** Memastikan pasar tidak pernah dingin atau statis. Dalam 3.5 detik setelah game dimuat, jika tidak ada berita aktif di cloud, sistem otomatis merilis 1 breaking news katalis pasar pertama.
+  - **Background Periodic Ticker (15s Loop):** Interval berkala 15 detik yang membersihkan berita kedaluwarsa dan mengevaluasi peluang rilis berita baru (cooldown 3 menit, peluang 35%, maksimal 2 berita aktif bersamaan agar sentimen pasar tetap terarah).
+  - **Integrasi Cloud Broadcast Supabase:** Setiap berita yang dirilis langsung dikirimkan ke tabel `market_events` di Supabase via `broadcastCloudEvent` dan disinkronkan ke seluruh pemain/perangkat via Supabase Realtime.
+  - **Reaktivitas UI & Audio:** Menghubungkan visual toast alert (Bullish Surge / Bearish Shock), audio notifikasi, widget snapshot breaking news di dashboard, dan hitung mundur sisa durasi (countdown).
+- **Perbaikan Bug Render Arus Kas Dashboard (`HomeScreen.js`):**
+  - Mengeliminasi `ReferenceError: propertyRent is not defined` pada `renderHomeCashflow()` dengan perhitungan yield sewa properti yang aman langsung dari `gameState.get('properties')`, mencegah crash saat me-render dashboard.
+
+#### 7. 📊 Tabel Pasar Cerdas (Kolom Sektor & Volatilitas) & Filter Dua Dimensi Top Movers
+- **Kolom Kategori Sektor & Volatilitas pada Tabel Pasar (`MarketRows.js` & `ViewManager.js`):**
+  - Menambahkan kolom eksplisit **Sektor** dan **Volatilitas / Risiko** pada setiap baris aset saham dan kripto di bursa pasar, sehingga identitas kategori aset tetap terbaca jelas bahkan saat tidak menggunakan filter (*unfiltered state*).
+  - **Badge Sektor Terstandar:** Menampilkan nama dan aksen warna tematik untuk 10 sektor saham (Teknologi, Finansial, Kesehatan, Energi, dll.) dan 9 bidang kripto (Layer 1, DeFi, Meme Coin, Stablecoin, AI, DePIN, dll.).
+  - **Klasifikasi Risiko Volatilitas:** Setiap instrumen dilabeli dengan badge risiko visual:
+    - 🛡️ **Rendah** (Hijau): Aset defensif/stabil (`volatility <= 1.6%` saham / `<= 2%` kripto).
+    - ⚖️ **Moderat** (Kuning): Volatilitas menengah (`1.8% - 2.8%` saham / `2% - 7%` kripto).
+    - 🚀 **Tinggi** (Merah): Aset momentum tinggi & fluktuatif (`> 2.8%` saham / `> 7%` kripto).
+  - **Header Tabel Pasar Terstruktur (`buildMarketTableHeader`):** Baris header interaktif (`ASET`, `NAMA`, `SEKTOR`, `VOLATILITAS`, `HARGA`, `24H %`) lengkap dengan ikon sortir (`▲`/`▼`) yang langsung tersinkronisasi dengan opsi pengurutan saat diklik.
+  - **Adaptasi Mobile (< 720px):** Baris beralih ke layout kartu bertingkat yang rapi dengan subline badge kategori di bawah nama aset tanpa menimbulkan overflow atau scroll horizontal yang canggung.
+  - **Integrasi Filter & Pipeline Sortir:** Dropdown risiko volatilitas (`#market-filter-risk`), filter tren (`#market-filter-trend`), sector chips, pencarian teks, dan tombol reset filter kini terhubung penuh ke pipeline filter & sortir dengan ringkasan jumlah aset yang tampil.
+- **Tombol Kategori Dua Dimensi pada Widget Top Movers (`HomeScreen.js` & `index.html`):**
+  - Menambahkan grup tombol filter instrumen pasar di widget **Top Movers** di Beranda: **Semua**, **📈 Saham**, dan **🪙 Kripto**.
+  - Beroperasi independen dan bersinergi dengan filter arah pergerakan (**Gainers / Losers**), memungkinkan pemain melihat Top Gainers Saham, Top Losers Saham, Top Gainers Kripto, atau Top Losers Kripto secara instan.
+  - Reaktif dan terikat langsung ke siklus pembaruan harga real-time tanpa perlu reload, serta responsif di desktop maupun layar mobile.
+
+#### 8. 📦 Pasar Komoditas Global Mandiri & Brankas Kustodian Fisik Digital 1:1 (`CommodityManager.js` & `CommodityPanel.js`)
+- **Mesin Pasar Komoditas Dedikasi Penuh (`CommodityManager.js`):**
+  - Mengimplementasikan perdagangan komoditas spot global yang mencakup 13 instrumen nyata dengan satuan fisik standar, terbagi dalam 4 sektor berbatas tegas:
+    - **🏛️ Logam Mulia (Precious Metals):** Emas (`XAU` - $2.740/t.oz), Perak (`XAG` - $34.20/t.oz), Platina (`XPT` - $1.025/t.oz).
+    - **⚡ Energi (Energy):** Minyak Mentah WTI (`WTI` - $71.80/barrel), Minyak Mentah Brent (`BRENT` - $75.60/barrel), Gas Alam (`NATGAS` - $2.85/MMBtu).
+    - **🏭 Logam Industri (Industrial Metals):** Tembaga (`COPPER` - $4.42/lb), Nikel (`NICKEL` - $16.350/ton), Litium Karbonat (`LITHIUM` - $11.200/ton), Aluminium (`ALU` - $2.640/ton).
+    - **🌾 Agrikultur & Pangan (Agriculture):** Minyak Sawit CPO (`CPO` - $985/ton), Kopi Robusta (`COFFEE` - $4.650/ton), Gandum Berjangka (`WHEAT` - $5.75/bushel).
+  - **Model Fluktuasi Pasar Komoditas:** Algoritma fluktuasi harian berbasis batas volatilitas sektoral ($0.8\% - 3.2\%$), pergerakan 24h High/Low deterministik, serta spread pasar spot wajar ($0.15\% - 0.50\%$).
+- **Brankas Kustodian Fisik Digital 1:1 (Digital Custody Vault):**
+  - Tracking kepemilikan unit fisik fraksional (`units`, `avgPrice`, `currentValue`, `pnl`, `pnlPercent`) yang dijamin 1:1 oleh sertifikat kustodian resmi bebas biaya penitipan (*zero storage fee*).
+  - Konsolidasi instan: Nilai brankas komoditas terhubung langsung ke kalkulasi Kekayaan Bersih (*Total Net Worth*) dan grafik alokasi aset di `FinancePanel.js`.
+- **Terminal Trading Komoditas Interaktif (`CommodityPanel.js`):**
+  - **Hero Brankas & Likuiditas Kas:** 3 Kartu metrik utama (Total Valuasi Brankas Komoditas, Jumlah Aset Tersimpan, dan Saldo Kas Siap Beli).
+  - **Navigasi Sektor & Pembagian Berbatas Jelas:** Filter pil sektor interaktif (Semua, Logam Mulia, Energi, Logam Industri, Agrikultur) lengkap dengan banner header tematik per sektor.
+  - **Grafik Interaktif Candlestick 30 Hari (Plotly.js):** Modal grafik candlestick historis berbasis deret waktu deterministik dengan tooltips OHLC dan responsif layar.
+  - **Modal Beli Spot dengan Konversi Fraksional Live:** Input nominal dolar fleksibel dengan konversi instan ke unit fisik, validasi saldo, serta tombol alokasi cepat (+$50, +$250, +$1K, 50% Saldo, Maksimal).
+  - **Modal Pencairan Kas (Likuidasi):** Menjual unit komoditas tersimpan langsung kembali ke saldo kas utama secara instan tanpa potongan tersembunyi.
+
+#### 9. 🌐 Exchange-Traded Funds (ETF) & Pemisahan Sektor Terstruktur (`MutualFundManager.js` & `ViewManager.js`)
+- **Penambahan Pasar ETF Global:**
+  - Mengintegrasikan 6 instrumen ETF terkemuka dunia ke dalam engine portofolio terkelola:
+    - **SPY** (SPDR S&P 500 ETF Trust) — Indeks Global
+    - **QQQ** (Invesco QQQ Trust) — Teknologi & AI
+    - **SMH** (VanEck Semiconductor ETF) — Semikonduktor
+    - **VNQ** (Vanguard Real Estate ETF) — REITs Properti Komersial & Residensial
+    - **EEM** (iShares MSCI Emerging Markets ETF) — Pasar Berkembang
+    - **XLV** (Health Care Select Sector SPDR Fund) — Kesehatan & Farmasi
+- **Segmented Toggle Switcher & Filter Sektoral:**
+  - Pemisahan tegas antarmuka antara **Reksa Dana Konvensional** (Manulife, Schroder, Batavia) dan **Exchange-Traded Funds (ETF)** lewat kontrol segmented bar 2 arah yang intuitif.
+  - Filter pil sektor khusus ETF (Semua Sektor, Indeks Global, Teknologi & AI, Semikonduktor, REITs Properti, Pasar Berkembang, Kesehatan) untuk navigasi instrumen terarah.
+- **Transparansi Parameter ETF:**
+  - Kartu instrumen ETF dilengkapi dengan badge ticker bursa, Expense Ratio tertera transparan (0.09% - 0.68%), dan estimasi Dividend Yield tahunan.
+
+#### 10. 🧹 Pemurnian Fokus Simulasi Trading & Isolasi Fitur Legacy (Property & Marketplace)
+- **Isolasi Penuh Fitur Non-Trading (`isolated_features/`):**
+  - Seluruh direktori dan file `src/js/property/` dan `src/js/marketplace/` telah dipindahkan dan diarsipkan secara rapi ke `isolated_features/property/` dan `isolated_features/marketplace/`.
+  - Game secara murni bertransisi menjadi simulasi trading dan manajemen portofolio investasi modern (Saham, Kripto, Reksa Dana, ETF, Komoditas, Deposito Perbankan, dan Pinjaman).
+- **Pembersihan Dependensi Antar-Modul:**
+  - Menghapus ketergantungan unit properti (`propertyManager`) dan kepemilikan jam/aset marketplace dari `CareerManager.js`, `FinancePanel.js`, `HomeScreen.js`, `RoleManager.js`, dan `main.js`.
+  - Menggantikan target promosi karier dan achievement lama dengan milestone portofolio finansial modern (*mutual_fund_owner* dan *net worth progression*).
+
+#### 11. 📱 Restrukturisasi Navigasi Mobile & Kepatuhan Penuh Panduan `mobile.md`
+- **Modernisasi Bottom Navigation Bar (`MobileNav.js`):**
+  - Menggantikan ikon lama properti di bilah navigasi bawah ponsel dengan **Kilas Berita & Makro Pasar (`news`)**.
+  - 4 Menu Utama Navigasi Bawah: `home` (Beranda), `market` (Bursa Pasar), `portfolio` (Portofolio), dan `news` (Berita & Makro) + Tombol `Lainnya` yang membuka bottom sheet modal.
+  - Memasukkan **Pasar Komoditas** ke dalam grup Pasar Finansial pada modal menu "Lainnya", serta membersihkan opsi properti & marketplace lama.
+- **Implementasi Komprehensif Media Query (`mobile.css`):**
+  - **Carousel Swipe Horizontal untuk Kartu KPI:** Baris kartu statistik brankas komoditas (`.commodity-vault-hero-row`) dan statistik reksa dana otomatis berubah menjadi carousel horizontal (`scroll-snap-type: x mandatory`, flex `80% - 90%`) pada tablet dan ponsel (≤ 768px dan ≤ 360px), mencegah halaman bertumpuk vertikal berlebihan.
+  - **Grid Kolaps 1-Kolom Bebas Overflow:** Grid kartu komoditas (`.commodity-cards-grid`) dan reksa dana/ETF (`.funds-cards-grid`) kolaps ke `1fr` dengan `min-width: 0` dan `box-sizing: border-box`, mengeliminasi bug scroll horizontal pada seluruh target viewport (`360×640`, `375×667`, `390×844`, `412×915`, `768×1024`).
+  - **Ergonomi Sentuh Standar Tinggi (≥ 40px):** Seluruh tombol aksi kartu, tombol filter sektor (`.commodity-filter-btn`, `.etf-sector-pill`), segmented switch (`.funds-category-toggle`), dan chip alokasi cepat modal memenuhi target sentuh minimum 40px/38px dengan `-webkit-tap-highlight-color: transparent` dan `touch-action: manipulation`.
+  - **Optimasi Modal Bottom Sheet & Plotly Chart:** Tinggi grafik Plotly diatur adaptif (270px di mobile) agar tetap pas di dalam batas modal sheet 92vh, dan font-size input minimal 14px (0.875rem) untuk mencegah auto-zoom browser iOS.
+
 ---
 
 ### 🧠 Arsitektur Finansial & Pembelajaran Sistem Baru (Financial Engineering Insights)
@@ -244,17 +355,43 @@ Dokumentasi prinsip matematika keuangan dan rekayasa perangkat lunak yang diimpl
 * **Konsep:** Menghilangkan disparitas tampilan emoji antar sistem operasi (Windows Segoe UI Emoji, Apple Color Emoji, Android Noto Color Emoji) yang kerap tampak tidak profesional atau bergaya kartun di antarmuka keuangan.
 * **Solusi:** Membangun repositori ikon vektor SVG mandiri (`src/js/ui/Icons.js`) dengan standar `viewBox="0 0 24 24"`, *stroke-based styling*, dan pewarnaan CSS dinamis untuk menjaga estetika terminal trading kelas institusi di seluruh perangkat.
 
+#### 6. Proteksi Modal Reksa Dana Pasar Uang & Dynamic Stretch Scaling
+* **Konsep Finansial Pasar Uang:** Instrumen pasar uang (*Money Market Fund*) di dunia nyata berinvestasi pada deposito perbankan dan surat utang jangka pendek (< 1 tahun) dengan imbal hasil terakresi harian bebas risiko penurunan modal (*zero drawdown*).
+* **Solusi Permainan:** Menerapkan drift harian bernilai positif murni ($+0.012\% \dots +0.018\%$ per hari permainan) pada reksa dana pasar uang pilihan, memberikan tempat parkir modal yang aman bagi pemain pemula dan pemain tahap lanjut (*settle*).
+* **Dynamic Stretch Scaling pada Chart:** Menggantikan batas sumbu Y berbasis `$0` dengan rentang dinamis $[Y_{\min} - \text{padding}, Y_{\max} + \text{padding}]$ sehingga fluktuasi harga mikro tidak terkompresi secara vertikal, memungkinkan pola pergerakan harga terbaca secara visual dan estetik.
+
+#### 7. Arsitektur Dual-Layer Persistence (Offline-First Zero-Latency + Background Supabase Sync)
+* **Konsep:** Pengguna mengharapkan respons instan (0-ms latency) saat berinteraksi dengan antarmuka finansial lokal, sekaligus mengharapkan portabilitas data di cloud saat berganti perangkat (laptop, tablet, HP) tanpa perlu menyalakan server lokal secara mandiri.
+* **Solusi Arsitektur:**
+  - *Layer 1 (Lokal):* Setiap aksi langsung dimutasi ke `localStorage` sehingga game tetap dapat dimainkan offline tanpa blocking network round-trip.
+  - *Layer 2 (Cloud):* Mutasi secara asinkron disinkronkan ke Supabase Cloud (`player_saves`, `player_portfolio`, `player_transactions`).
+  - *Reconciliation on Startup:* Saat game dibuka, jika save di cloud memiliki timestamp lebih baru daripada lokal, state lokal di-*hydrate* secara mulus tanpa kehilangan progres.
+
+#### 8. Mesin Katalis Sentimen Pasar Real-Time (Auto-Periodic Event Loop & Startup Seeding)
+* **Konsep:** Pasar modal di dunia nyata digerakkan oleh aliran berita dan sentimen makro yang terus bergulir. Pasar tanpa katalis terasa sepi dan mekanis.
+* **Solusi Gameplay:** Mengintegrasikan loop evaluasi berkala (15 detik) dengan cooldown 3–5 menit dan auto-seed pada saat startup. Berita yang aktif memberikan bias dorongan harga yang nyata, tersinkronisasi lintas perangkat via WebSocket Supabase CDC, dan langsung termanifestasi pada candlestick grafik.
+
+#### 9. Kustodian Brankas Komoditas Digital 1:1 & Alokasi Fraksional Bebas Biaya Simpan
+* **Konsep Finansial:** Membeli komoditas fisik batangan secara konvensional seringkali terkendala modal besar dan biaya penitipan brankas berkala (*storage/custody fee*).
+* **Solusi Permainan:** Menerapkan sistem kepemilikan fraksional berbasis kustodian digital 1:1 (*vault allocated ownership*). Pemain dapat membeli komoditas spot mulai dari nominal terjangkau ($10 - $100), mendapatkan konversi unit fisik terpresisi hingga 4 digit desimal (misal 0.0365 t.oz emas), dan menyimpannya di brankas digital tanpa potongan biaya simpan harian. Nilai aset terkonsolidasi secara live ke total kekayaan bersih.
+
+#### 10. Struktur Biaya ETF vs Reksa Dana Konvensional (Expense Ratio & Transparansi Dividen)
+* **Konsep Finansial:** Exchange-Traded Funds (ETF) di bursa global menawarkan diversifikasi sektoral instan dengan biaya pengelolaan (*expense ratio*) yang jauh lebih rendah daripada reksa dana konvensional (misal SPY 0.09% vs reksa dana aktif 1.5%–2.5%), serta memberikan imbal hasil dividen kas transparan (*dividend yield*).
+* **Implementasi Desain:** Memisahkan kedua instrumen dengan switcher berkategori jelas, menampilkan indikator *Expense Ratio* dan *Dividend Yield* secara eksplisit pada setiap kartu ETF, dan memungkinkan pemain membangun portofolio indeks pasif bertaraf global.
+
+#### 11. Deterministik Candlestick Generator untuk Komoditas Spot
+* **Konsep:** Grafik komoditas memerlukan kontinuitas historis yang logis dan konsisten ketika dibuka berulang kali oleh pemain tanpa membuat data server bengkak.
+* **Solusi:** Memanfaatkan generator pseudo-random deterministik berbasis seed unik instrumen dan timestamp hari kalender untuk merender 30 lilin candlestick harian (Open, High, Low, Close) dengan batas volatilitas realistis, candle terakhir tertaut presisi ke harga spot saat ini (*live market anchor*).
+
 ---
 
 ### ⏳ Tahap Selanjutnya (Rekomendasi Pengembangan Berikutnya)
-- [ ] **Langkah 1 — Playtest Transaksi Real-Time ke Supabase:**
-  - Memasang order limit/market dari terminal trading frontend dan memverifikasi rekaman langsung di tabel `orders`, `positions`, dan `ledger_entries` Supabase.
+- [x] **Langkah 1 & 3 — Integrasi Direct Cloud Persistence Supabase:**
+  - Menyimpan profil pemain, save state JSONB, dan cerminan portofolio langsung ke tabel `player_saves`, `player_portfolio`, dan `player_transactions` di Supabase.
 - [ ] **Langkah 2 — Tes Multi-User Matching Engine:**
-  - Uji coba transaksi dua arah (jual & beli) secara simultan dari dua tab browser berbeda untuk menguji eksekusi instan order book matching.
-- [ ] **Langkah 3 — Integrasi Supabase Auth di Frontend:**
-  - Menghubungkan formulir Sign In / Sign Up Supabase Auth agar data profil dan aset pemain tersimpan per akun pengguna.
+  - Uji coba transaksi dua arah (jual & beli) secara simultan dari dua tab browser berbeda untuk menguji eksekusi instan order book matching via `market-server`.
 - [ ] **Langkah 4 — Deployment Produksi Backend:**
-  - Menerapkan `market-server/` ke cloud hosting (Render, Railway, atau VPS) dan menghubungkan URL produksi ke frontend.
+  - Menerapkan `market-server/` ke cloud hosting (Render, Railway, atau VPS) jika bursa multipemain terpusat ingin dijalankan 24 jam.
 
 ---
 

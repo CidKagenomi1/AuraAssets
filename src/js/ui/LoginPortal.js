@@ -4,6 +4,7 @@
  */
 
 import gameState from '../core/GameState.js';
+import { getCloudAccounts } from '../core/SupabaseClient.js';
 
 // ─── Inject global styles once ───────────────────────────────────────────────
 if (!document.getElementById('lp-global-style')) {
@@ -213,6 +214,31 @@ class LoginPortal {
             this.suggestedName = suggestions[Math.floor(Math.random() * suggestions.length)];
 
             this._renderAccountStep(overlay, resolve);
+
+            // Background check for cloud accounts from Supabase
+            getCloudAccounts().then((cloudAccs) => {
+                if (cloudAccs && cloudAccs.length > 0) {
+                    const localAccs = gameState.getAccounts();
+                    let updated = false;
+                    for (const ca of cloudAccs) {
+                        const low = ca.username.toLowerCase();
+                        if (!localAccs[low]) {
+                            localAccs[low] = {
+                                username: ca.display_name || ca.username,
+                                password: '',
+                                createdAt: new Date(ca.updated_at || Date.now()).getTime(),
+                                fromCloud: true,
+                                balance: ca.balance
+                            };
+                            updated = true;
+                        }
+                    }
+                    if (updated && document.getElementById('login-portal-overlay')) {
+                        gameState.saveAccounts(localAccs);
+                        this._renderAccountStep(overlay, resolve);
+                    }
+                }
+            }).catch(() => {});
         });
     }
 
@@ -344,19 +370,29 @@ class LoginPortal {
         });
 
         // Form submit
-        container.querySelector('#lp-form').addEventListener('submit', (e) => {
+        container.querySelector('#lp-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = container.querySelector('#lp-username').value.trim();
             const password = container.querySelector('#lp-password').value;
+            const submitBtn = container.querySelector('button[type="submit"]');
+            const originalText = submitBtn ? submitBtn.innerHTML : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span>⏳ Sinkronisasi Cloud...</span>';
+            }
             try {
                 if (isRegister) {
-                    gameState.register(username, password);
+                    await gameState.register(username, password);
                 } else {
-                    gameState.login(username, password);
+                    await gameState.login(username, password);
                 }
                 // Directly close and resolve: no character layer
                 this._close(container, resolve);
             } catch (err) {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
                 this._shake(container);
                 this._renderAccountStep(container, resolve, {
                     prefillUser: username,

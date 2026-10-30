@@ -8,6 +8,7 @@ import financeManager from '../finance/FinanceManager.js';
 import marketClient from './MarketClient.js';
 import newsManager from '../core/NewsManager.js';
 import { initMarketStateRealtime } from '../core/SupabaseClient.js';
+import patternTrajectoryManager from './PatternTrajectoryManager.js';
 
 
 class StockMarket {
@@ -293,33 +294,39 @@ class StockMarket {
                 }
             }
 
-            // 2. Scaled micro-tick volatility (~0.02% to ~0.08% per 6-second tick)
+            // 2. Structured technical pattern trajectory & waypoints (H&S, Triangles, Doji consolidation)
+            const patternInfo = patternTrajectoryManager.getPatternDrift(symbol, stock, stock.price);
+            const patternDrift = patternInfo.drift;
+            stock.activePattern = patternInfo.pattern;
+
+            // 3. Scaled micro-tick volatility (~0.02% to ~0.08% per 6-second tick, dampened during Doji consolidation)
             const tickScale = 0.02; // 2% of daily volatility per tick
-            const scaledVol = Math.max(0.0004, (stock.volatility + signalVolAdd) * tickScale);
+            const volDampener = patternInfo.volatilityScale || 1.0;
+            const scaledVol = Math.max(0.0003, (stock.volatility + signalVolAdd) * tickScale * volDampener);
             const brownianMotion = (Math.random() - 0.5) * 2 * scaledVol;
 
-            // 3. Controlled signal drift
+            // 4. Controlled signal drift
             const signalDrift = signalBulls * 0.004;
 
-            // 4. Directional drift from active breaking news events (accelerated 2.5x pacing)
+            // 5. Directional drift from active breaking news events (accelerated 2.5x pacing)
             const newsDrift = newsManager.getPriceBias(symbol, stock.sector);
 
-            // 5. Gentle mean reversion towards basePrice to maintain authentic institutional trading bands
-            const meanReversion = ((stock.basePrice - stock.price) / (stock.basePrice || 1)) * 0.003;
+            // 6. Gentle mean reversion towards basePrice to maintain authentic institutional trading bands
+            const meanReversion = ((stock.basePrice - stock.price) / (stock.basePrice || 1)) * 0.002;
 
-            // 6. Macro economy & luck drift
+            // 7. Macro economy & luck drift
             const luckActive = (gameState.get('donations.luckTicksRemaining') || 0) > 0;
             const luckDrift = luckActive ? 0.0006 : 0;
             const marketInfluence = (marketFactor - 1) * 0.0003;
 
-            // 7. Recent order flow imbalance (from player and simulated institutional block trades)
+            // 8. Recent order flow imbalance (from player and simulated institutional block trades)
             const orderImbalance = (stock.recentBuyVolume || 0) - (stock.recentSellVolume || 0);
             const orderFlowDrift = Math.max(-0.003, Math.min(0.003, orderImbalance / 20000000));
             // Decay recent order volumes
             stock.recentBuyVolume = (stock.recentBuyVolume || 0) * 0.88;
             stock.recentSellVolume = (stock.recentSellVolume || 0) * 0.88;
 
-            const totalChange = brownianMotion + signalDrift + newsDrift + meanReversion + marketInfluence + luckDrift + orderFlowDrift;
+            const totalChange = brownianMotion + signalDrift + newsDrift + meanReversion + marketInfluence + luckDrift + orderFlowDrift + patternDrift;
             const newPrice = Math.max(0.01, parseFloat((stock.price * (1 + totalChange)).toFixed(2)));
 
             stock.previousPrice = stock.price;
