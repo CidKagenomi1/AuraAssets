@@ -546,9 +546,14 @@ class NewsManager {
         if (news.market !== 'stock') return false;
 
         const sec = (news.sector || '').toLowerCase();
-        const target = (news.ticker_target || '').toUpperCase();
+        const target = (news.ticker_target || news.target_asset || '').toUpperCase();
         const sym = (symbol || '').toUpperCase();
         const sSec = (stockSector || '').toLowerCase();
+
+        // 1. Direct single-asset target match (e.g. NVDA, AAPL, TSLA, MSFT, GOOGL)
+        if (target === sym || (news.ticker_target && news.ticker_target.toUpperCase() === sym) || (news.target_asset && news.target_asset.toUpperCase() === sym)) {
+            return true;
+        }
 
         if (sec.includes('broad_market') || target === 'SPY' || target === 'VOO' || target === 'QQQ') return true;
 
