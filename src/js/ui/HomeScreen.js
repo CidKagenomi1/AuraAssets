@@ -1874,7 +1874,15 @@ class HomeScreen {
                                             ${n.message}
                                         </div>
 
-                                        <div style="display:flex; justify-content:flex-end; align-items:center; margin-top:2px;">
+                                        <div style="display:flex; justify-content:flex-end; align-items:center; gap:0.5rem; margin-top:4px;">
+                                            ${n.subType === 'transfer' ? `
+                                                <button type="button" class="btn-view-transfer-receipt" data-notif-id="${n.id}" style="
+                                                    padding:5px 12px; border-radius:8px; font-size:0.75rem; font-weight:700; cursor:pointer; font-family:inherit;
+                                                    background:rgba(255,255,255,0.06); border:1px solid var(--border-color); color:var(--text-secondary); transition:all 0.15s ease;
+                                                " onmouseenter="this.style.color='#fff'; this.style.borderColor='var(--accent-primary)'" onmouseleave="this.style.color='var(--text-secondary)'; this.style.borderColor='var(--border-color)'">
+                                                    🧾 Bukti Transfer
+                                                </button>
+                                            ` : ''}
                                             ${!isClaimed ? `
                                                 <button type="button" class="btn-claim-single-check" data-notif-id="${n.id}" style="
                                                     padding:6px 14px; border-radius:8px; font-size:0.76rem; font-weight:800; cursor:pointer; font-family:inherit;
@@ -1975,6 +1983,29 @@ class HomeScreen {
                             bindNotifEvents();
                         }
                     }
+                });
+            });
+
+            // View transfer receipt modal
+            document.querySelectorAll('.btn-view-transfer-receipt').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const notifId = btn.dataset.notifId;
+                    const notifs = gameState.get('notifications') || [];
+                    const targetNotif = notifs.find(n => n.id === notifId);
+                    if (!targetNotif) return;
+
+                    const { transferManager } = await import('../finance/TransferManager.js');
+                    const receiptData = targetNotif.receipt || {
+                        id: targetNotif.id,
+                        from: targetNotif.sender || 'Pemain',
+                        to: gameState.currentUser || gameState.get('player.name') || 'Saya',
+                        amount: targetNotif.rewardAmount || 0,
+                        note: targetNotif.note || '',
+                        timestamp: targetNotif.claimedAt || Date.now(),
+                        gameDate: targetNotif.date || 'Terkini'
+                    };
+                    transferManager.showTransferReceiptModal(receiptData);
                 });
             });
 

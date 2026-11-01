@@ -9,6 +9,7 @@ import financeManager from './FinanceManager.js';
 import ui from '../ui/UIManager.js';
 import { supabase } from '../core/SupabaseClient.js';
 import { createFloatingText } from '../ui/Animations.js';
+import { escapeHtml } from '../core/SecurityUtils.js';
 
 class TransferManager {
     constructor() {
@@ -123,7 +124,10 @@ class TransferManager {
         // 2. Persist in local storage for target player (supports local multi-character/sessions)
         this.savePendingTransferForUser(target, transferPayload);
 
-        // 3. Add sent receipt to sender's notifications
+        // 3. Save receipt locally for sender
+        this.saveTransferReceipt(transferPayload);
+
+        // 4. Add sent receipt to sender's notifications
         ui.addNotification({
             type: 'info',
             title: '📤 Transfer Terkirim',
@@ -219,8 +223,12 @@ class TransferManager {
             rewardAmount: payload.amount,
             rewardClaimed: false,
             sender: payload.from,
-            note: payload.note || ''
+            note: payload.note || '',
+            receipt: payload
         };
+
+        // Also save receipt for recipient
+        this.saveTransferReceipt(payload);
 
         const updated = [newNotif, ...notifs].slice(0, 50);
         gameState.set('notifications', updated);
@@ -544,16 +552,16 @@ class TransferManager {
                     submitBtn.textContent = 'Memproses...';
 
                     try {
-                        await this.sendTransfer({ toUsername: toUser, amount, note });
+                        const payload = await this.sendTransfer({ toUsername: toUser, amount, note });
                         ui.closeModal();
-                        ui.success(
-                            `Transfer sebesar $ ${financeManager.formatCurrency(amount)} berhasil dikirimkan ke @${toUser}!`,
-                            '🚀 Transfer Berhasil'
-                        );
                         import('../ui/HomeScreen.js').then(m => {
                             m.default.updateBalanceCard();
                             m.default.updateRecentTransactions();
                         });
+                        // Automatically pop up official transfer receipt modal
+                        setTimeout(() => {
+                            this.showTransferReceiptModal(payload);
+                        }, 250);
                     } catch (e) {
                         submitBtn.disabled = false;
                         submitBtn.textContent = '🚀 Kirim Transfer Sekarang';
@@ -563,6 +571,418 @@ class TransferManager {
             }
         });
     }
+
+    /**
+     * Save transfer receipt to local storage
+     */
+    saveTransferReceipt(receipt) {
+        if (!receipt || !receipt.id) return;
+        try {
+            const key = 'aura_saved_transfer_receipts';
+            const existing = JSON.parse(localStorage.getItem(key) || '[]');
+            const filtered = existing.filter(r => r.id !== receipt.id);
+            filtered.unshift(receipt);
+            localStorage.setItem(key, JSON.stringify(filtered.slice(0, 50)));
+        } catch (e) {
+            console.warn('[TransferManager] Failed to save receipt:', e);
+        }
+    }
+
+    /**
+     * Retrieve list of saved transfer receipts
+     */
+    getSavedReceipts() {
+        try {
+            const key = 'aura_saved_transfer_receipts';
+            return JSON.parse(localStorage.getItem(key) || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    /**
+     * Display digital transfer receipt modal with instant download PNG button
+     */
+    showTransferReceiptModal(receipt) {
+        if (!receipt) {
+            ui.error('Bukti transfer tidak tersedia.');
+            return;
+        }
+
+        const formattedAmount = financeManager.formatCurrency(receipt.amount);
+        const safeSender = escapeHtml(receipt.from || this.getCurrentUsername());
+        const safeTarget = escapeHtml(receipt.to || 'Pemain');
+        const safeNote = receipt.note ? escapeHtml(receipt.note) : '';
+        const safeId = escapeHtml(receipt.id || 'TRF-' + Date.now());
+        const dateStr = new Date(receipt.timestamp || Date.now()).toLocaleString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const content = `
+            <div style="display:flex; flex-direction:column; gap:1.2rem; align-items:stretch;">
+                <!-- Header Status & Amount -->
+                <div style="text-align:center; padding:1.25rem 1rem; background:radial-gradient(circle at center top, rgba(16,185,129,0.18), rgba(16,185,129,0.02) 75%); border:1px solid rgba(16,185,129,0.25); border-radius:14px; position:relative;">
+                    <div style="width:52px; height:52px; border-radius:50%; background:rgba(16,185,129,0.18); border:2px solid #10b981; display:flex; align-items:center; justify-content:center; margin:0 auto 0.75rem auto; font-size:1.6rem; color:#10b981;">
+                        ✓
+                    </div>
+                    <div style="font-size:0.75rem; font-weight:800; letter-spacing:1px; color:#10b981; text-transform:uppercase;">
+                        Transfer Berhasil
+                    </div>
+                    <div style="font-size:2rem; font-weight:900; color:#fff; margin:0.35rem 0 0.15rem 0; letter-spacing:-0.5px;">
+                        $ ${formattedAmount}
+                    </div>
+                    <div style="font-size:0.72rem; color:var(--text-muted); font-weight:600;">
+                        Bebas Biaya Admin • Instan Settled
+                    </div>
+                </div>
+
+                <!-- Receipt Detail Card -->
+                <div style="background:rgba(255,255,255,0.025); border:1px solid var(--border-color); border-radius:12px; padding:1rem; font-size:0.82rem; display:flex; flex-direction:column; gap:0.65rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:var(--text-muted); font-size:0.75rem;">ID Referensi:</span>
+                        <code style="color:var(--accent-primary); font-size:0.72rem; font-family:monospace; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${safeId}</code>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:var(--text-muted); font-size:0.75rem;">Waktu Transaksi:</span>
+                        <span style="color:#fff; font-weight:600;">${dateStr}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:var(--text-muted); font-size:0.75rem;">Tanggal Game:</span>
+                        <span style="color:#fff; font-weight:600;">Hari ${escapeHtml(String(receipt.gameDate || 'Terkini'))}</span>
+                    </div>
+                    <div style="height:1px; background:rgba(255,255,255,0.06); margin:2px 0;"></div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:var(--text-muted); font-size:0.75rem;">Pengirim:</span>
+                        <span style="color:#fff; font-weight:700;">@${safeSender}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:var(--text-muted); font-size:0.75rem;">Penerima (Tujuan):</span>
+                        <span style="color:#38bdf8; font-weight:800;">@${safeTarget}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:var(--text-muted); font-size:0.75rem;">Biaya Admin:</span>
+                        <span style="color:#10b981; font-weight:700;">$ 0.00 (Gratis)</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:var(--text-muted); font-size:0.75rem;">Status Jaringan:</span>
+                        <span style="color:#10b981; font-weight:800; display:flex; align-items:center; gap:4px;">
+                            <span style="width:6px; height:6px; border-radius:50%; background:#10b981; display:inline-block;"></span>
+                            TERVERIFIKASI
+                        </span>
+                    </div>
+                    ${safeNote ? `
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem; margin-top:2px;">
+                            <span style="color:var(--text-muted); font-size:0.75rem; white-space:nowrap;">Pesan / Berita:</span>
+                            <span style="color:#e2e8f0; font-style:italic; text-align:right; font-size:0.78rem;">"${safeNote}"</span>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- Digital Security Stamp -->
+                <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(16,185,129,0.04); border:1px dashed rgba(16,185,129,0.22); border-radius:10px; padding:0.6rem 0.85rem; font-size:0.7rem; color:var(--text-dim);">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:1.1rem;">🔒</span>
+                        <div>
+                            <div style="font-weight:700; color:#10b981;">Aura Assets Digital Security Seal</div>
+                            <div>Tervalidasi & terenkripsi di Cloud Ledger</div>
+                        </div>
+                    </div>
+                    <span style="font-family:monospace; font-size:0.65rem; color:#64748b;">SHA256-OK</span>
+                </div>
+
+                <!-- Actions -->
+                <div style="display:flex; gap:0.75rem; margin-top:0.25rem;">
+                    <button type="button" id="btn-close-receipt-modal" style="
+                        flex:1; padding:0.8rem; border-radius:10px; background:rgba(255,255,255,0.06); border:1px solid var(--border-color); color:var(--text-secondary); font-weight:700; cursor:pointer; font-family:inherit;
+                    ">Tutup</button>
+                    <button type="button" id="btn-download-receipt-png" style="
+                        flex:2; padding:0.8rem; border-radius:10px; background:linear-gradient(135deg, #10b981 0%, #059669 100%); border:none; color:#fff; font-weight:800; cursor:pointer; font-family:inherit; box-shadow:0 4px 14px rgba(16,185,129,0.3); transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:6px;
+                    " onmouseenter="this.style.filter='brightness(1.1)'" onmouseleave="this.style.filter=''">
+                        📥 Unduh Bukti Transfer (PNG)
+                    </button>
+                </div>
+            </div>
+        `;
+
+        ui.showModal({
+            title: '🧾 Bukti Transfer Resmi',
+            content,
+            onShow: () => {
+                document.getElementById('btn-close-receipt-modal')?.addEventListener('click', () => {
+                    ui.closeModal();
+                });
+
+                document.getElementById('btn-download-receipt-png')?.addEventListener('click', () => {
+                    this.downloadTransferReceipt(receipt);
+                });
+            }
+        });
+    }
+
+    /**
+     * Export Transfer Receipt as high-resolution PNG image (2x Retina Canvas)
+     */
+    downloadTransferReceipt(receipt) {
+        if (!receipt) {
+            ui.error('Data bukti transfer tidak ditemukan!');
+            return;
+        }
+
+        try {
+            const W = 620;
+            const H = 840;
+            const canvas = document.createElement('canvas');
+            canvas.width = W * 2;
+            canvas.height = H * 2;
+            canvas.style.width = W + 'px';
+            canvas.style.height = H + 'px';
+            const ctx = canvas.getContext('2d');
+            ctx.scale(2, 2);
+
+            // 1. Background Gradient (Fintech Dark Slate)
+            const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+            bgGrad.addColorStop(0, '#090d16');
+            bgGrad.addColorStop(0.5, '#0d1527');
+            bgGrad.addColorStop(1, '#080c14');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, W, H);
+
+            // Background subtle grid pattern
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+            ctx.lineWidth = 1;
+            const gridSize = 24;
+            for (let x = 0; x < W; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, H);
+                ctx.stroke();
+            }
+            for (let y = 0; y < H; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(W, y);
+                ctx.stroke();
+            }
+
+            // Top decorative glow
+            const topGlow = ctx.createRadialGradient(W / 2, 0, 10, W / 2, 0, 260);
+            topGlow.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+            topGlow.addColorStop(1, 'rgba(16, 185, 129, 0)');
+            ctx.fillStyle = topGlow;
+            ctx.fillRect(0, 0, W, 260);
+
+            // Card Border Outer
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(16, 16, W - 32, H - 32);
+
+            // Inner frame corner accents
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 3;
+            const cornerLen = 22;
+            // Top-left
+            ctx.beginPath(); ctx.moveTo(16, 16 + cornerLen); ctx.lineTo(16, 16); ctx.lineTo(16 + cornerLen, 16); ctx.stroke();
+            // Top-right
+            ctx.beginPath(); ctx.moveTo(W - 16 - cornerLen, 16); ctx.lineTo(W - 16, 16); ctx.lineTo(W - 16, 16 + cornerLen); ctx.stroke();
+            // Bottom-left
+            ctx.beginPath(); ctx.moveTo(16, H - 16 - cornerLen); ctx.lineTo(16, H - 16); ctx.lineTo(16 + cornerLen, H - 16); ctx.stroke();
+            // Bottom-right
+            ctx.beginPath(); ctx.moveTo(W - 16 - cornerLen, H - 16); ctx.lineTo(W - 16, H - 16); ctx.lineTo(W - 16, H - 16 - cornerLen); ctx.stroke();
+
+            // 2. Header Brand
+            ctx.textAlign = 'center';
+            ctx.font = '900 13px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = '#10b981';
+            ctx.fillText('AURA ASSETS FINANCIAL NETWORK', W / 2, 52);
+
+            ctx.font = '600 10px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText('BUKTI TRANSAKSI ELEKTRONIK RESMI • P2P INSTANT TRANSFER', W / 2, 69);
+
+            // Line separator
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(40, 84);
+            ctx.lineTo(W - 40, 84);
+            ctx.stroke();
+
+            // 3. Success Check Circle
+            const circleY = 126;
+            ctx.beginPath();
+            ctx.arc(W / 2, circleY, 28, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.15)';
+            ctx.fill();
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // Checkmark
+            ctx.beginPath();
+            ctx.moveTo(W / 2 - 12, circleY);
+            ctx.lineTo(W / 2 - 3, circleY + 9);
+            ctx.lineTo(W / 2 + 13, circleY - 9);
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 3.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            // Status Text
+            ctx.font = '800 14px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = '#10b981';
+            ctx.fillText('TRANSFER BERHASIL', W / 2, 178);
+
+            // Nominal Amount
+            ctx.font = '900 36px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = '#ffffff';
+            const formattedAmount = financeManager.formatCurrency(receipt.amount);
+            ctx.fillText(`$ ${formattedAmount}`, W / 2, 224);
+
+            ctx.font = '600 11px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = '#10b981';
+            ctx.fillText('BEBAS BIAYA ADMIN • INSTANT SETTLED', W / 2, 244);
+
+            // 4. Details Box
+            const boxX = 40;
+            const boxY = 265;
+            const boxW = W - 80;
+            const boxH = 390;
+
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.lineWidth = 1;
+            this._roundRect(ctx, boxX, boxY, boxW, boxH, 14, true, true);
+
+            // Rows data
+            const rows = [
+                { label: 'Nomor Referensi', val: receipt.id || 'N/A', highlight: false },
+                { label: 'Waktu Transaksi', val: `${new Date(receipt.timestamp || Date.now()).toLocaleString('id-ID')}`, highlight: false },
+                { label: 'Tanggal Game', val: `Hari ${receipt.gameDate || 'Terkini'}`, highlight: false },
+                { label: 'Pengirim', val: `@${receipt.from || this.getCurrentUsername()}`, highlight: false },
+                { label: 'Penerima (Tujuan)', val: `@${receipt.to || 'Tujuan'}`, highlight: true, color: '#38bdf8' },
+                { label: 'Nominal Transfer', val: `$ ${formattedAmount}`, highlight: true, color: '#10b981' },
+                { label: 'Biaya Admin', val: '$ 0.00 (Gratis)', highlight: false },
+                { label: 'Status Transaksi', val: 'SUKSES / DIVERIFIKASI', highlight: true, color: '#10b981' },
+                { label: 'Berita / Catatan', val: receipt.note ? `"${receipt.note}"` : '—', highlight: false, isNote: true }
+            ];
+
+            let curY = boxY + 28;
+            rows.forEach((r, idx) => {
+                ctx.textAlign = 'left';
+                ctx.font = '600 11px system-ui, -apple-system, sans-serif';
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText(r.label, boxX + 18, curY);
+
+                ctx.textAlign = 'right';
+                ctx.font = r.highlight ? '800 12px system-ui, -apple-system, sans-serif' : '600 11.5px system-ui, -apple-system, sans-serif';
+                ctx.fillStyle = r.color || '#f1f5f9';
+
+                if (r.isNote) {
+                    const noteVal = r.val.length > 32 ? r.val.substring(0, 30) + '...' : r.val;
+                    ctx.fillText(noteVal, boxX + boxW - 18, curY);
+                } else {
+                    ctx.fillText(r.val, boxX + boxW - 18, curY);
+                }
+
+                if (idx < rows.length - 1) {
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+                    ctx.beginPath();
+                    ctx.moveTo(boxX + 16, curY + 11);
+                    ctx.lineTo(boxX + boxW - 16, curY + 11);
+                    ctx.stroke();
+                }
+
+                curY += 41;
+            });
+
+            // 5. Verification Seal / Watermark Box
+            const sealY = 672;
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.05)';
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.2)';
+            ctx.lineWidth = 1;
+            this._roundRect(ctx, boxX, sealY, boxW, 64, 10, true, true);
+
+            // Security Hash & Seal Text
+            ctx.textAlign = 'left';
+            ctx.font = '800 9px monospace';
+            ctx.fillStyle = '#10b981';
+            ctx.fillText('🔒 DIGITAL SECURITY VERIFIED & SETTLED', boxX + 16, sealY + 22);
+
+            const hashBase = `${receipt.id || ''}_${receipt.timestamp || Date.now()}`;
+            const simulatedHash = 'HASH: 0x' + Math.abs(hashBase.split('').reduce((acc, char) => ((acc << 5) - acc) + char.charCodeAt(0) | 0, 0)).toString(16).toUpperCase().padStart(16, '0') + '...VALID';
+            ctx.font = '500 8.5px monospace';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText(simulatedHash, boxX + 16, sealY + 40);
+            ctx.fillText('Jaringan Aura Assets Realtime Cloud Ledger • Saldo Langsung Diperbarui', boxX + 16, sealY + 52);
+
+            // Mini decorative QR-like block
+            const qrSize = 36;
+            const qrX = boxX + boxW - qrSize - 14;
+            const qrY = sealY + 14;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+            ctx.fillRect(qrX, qrY, qrSize, qrSize);
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(qrX, qrY, qrSize, qrSize);
+            ctx.fillStyle = '#10b981';
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if ((i + j) % 2 === 0 || (i * j) % 3 === 0) {
+                        ctx.fillRect(qrX + 4 + i * 7, qrY + 4 + j * 7, 5, 5);
+                    }
+                }
+            }
+
+            // 6. Footer Disclaimer
+            ctx.textAlign = 'center';
+            ctx.font = '500 9.5px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText('Dokumen elektronik ini merupakan bukti transfer sah dalam ekosistem Aura Assets.', W / 2, 765);
+            ctx.font = '600 9px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = '#475569';
+            ctx.fillText(`Simulasi Keuangan • aura-assets.com • ${new Date().getFullYear()}`, W / 2, 782);
+
+            // 7. Auto Download PNG
+            const link = document.createElement('a');
+            const filenameSafeTarget = (receipt.to || 'user').replace(/[^a-zA-Z0-9_-]/g, '');
+            const filenameSafeId = (receipt.id || 'id').substring(0, 14);
+            link.download = `Bukti_Transfer_${filenameSafeTarget}_${filenameSafeId}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+
+            ui.success('Bukti transfer berhasil diunduh (PNG)!', '📥 Bukti Transfer Disimpan');
+        } catch (err) {
+            console.error('[TransferManager] Download receipt failed:', err);
+            ui.error('Gagal membuat gambar bukti transfer.');
+        }
+    }
+
+    _roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        if (fill) ctx.fill();
+        if (stroke) ctx.stroke();
+    }
+}
+
+// Expose globally for convenience
+if (typeof window !== 'undefined') {
+    window.downloadTransferReceipt = (receipt) => transferManager.downloadTransferReceipt(receipt);
+    window.showTransferReceiptModal = (receipt) => transferManager.showTransferReceiptModal(receipt);
 }
 
 export const transferManager = new TransferManager();

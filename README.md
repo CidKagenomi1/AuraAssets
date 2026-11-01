@@ -30,6 +30,8 @@ An advanced, dark-themed **Idle Financial Portfolio & Enterprise Simulation Game
 ### 3. 🏦 Banking System & Wealth Management
 - **Digital Custody Vault:** 1:1 asset backing for physical commodity reserves with zero holding fees and automated net worth consolidation.
 - **Banking System:** Secure capital through bank loans or park your excess cash in high-yield time deposits.
+- **P2P Transfer & Kotak Donasi Komunitas:** Transfer dana instan antar pemain secara peer-to-peer dan bagikan modal melalui Kotak Donasi Komunitas yang terhubung realtime via Supabase.
+- **Bukti Transfer Resmi & Unduh PNG:** Setiap pengiriman transfer dana otomatis memunculkan modal Bukti Transfer Resmi dengan rincian lengkap (ID Referensi unik, waktu transaksi, tanggal game, akun pengirim & penerima, nominal terdebit, biaya admin $0 gratis, dan stempel verifikasi digital). Pemain dapat mengunduh bukti transfer dalam format gambar PNG beresolusi tinggi (2x Retina Canvas) bertema fintech dark luxury, serta mengakses kembali bukti transfer langsung dari kartu riwayat notifikasi cek transfer.
 - **Taxation (Perpajakan):** File monthly tax reports, declare income/assets, and manage corporate tax rates to stay compliant.
 
 ### 4. 👔 Career Progression & Office Simulation
