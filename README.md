@@ -375,6 +375,41 @@ Bagian ini menjadi penanda status terakhir pengerjaan agar sesi pengembangan ber
   - **Ergonomi Sentuh Standar Tinggi (≥ 40px):** Seluruh tombol aksi kartu, tombol filter sektor (`.commodity-filter-btn`, `.etf-sector-pill`), segmented switch (`.funds-category-toggle`), dan chip alokasi cepat modal memenuhi target sentuh minimum 40px/38px dengan `-webkit-tap-highlight-color: transparent` dan `touch-action: manipulation`.
   - **Optimasi Modal Bottom Sheet & Plotly Chart:** Tinggi grafik Plotly diatur adaptif (270px di mobile) agar tetap pas di dalam batas modal sheet 92vh, dan font-size input minimal 14px (0.875rem) untuk mencegah auto-zoom browser iOS.
 
+#### 14. 🛡️ Penguatan Keamanan Kritis, Lockdown RLS Supabase & Sanitasi XSS (`audit.md`)
+- **Lockdown Row Level Security (RLS) Menyeluruh (`008_secure_rls_and_auth.sql`):**
+  - Mengunci akses seluruh tabel PostgreSQL di Supabase dengan kebijakan RLS berbasis Supabase Auth token JWT (`auth.uid()`):
+    - `player_saves`: Akses `SELECT`, `INSERT`, `UPDATE`, `DELETE` hanya diizinkan jika `auth.uid() = id`.
+    - `player_portfolio`: Akses dibatasi ketat ke pemilik akun (`auth.uid() = user_id`).
+    - `player_transactions`: Akses dibatasi ke pemilik akun (`auth.uid() = user_id`).
+  - **Tabel Internal Bursa Terkunci (Service Role Only):**
+    - Tabel `accounts`, `orders`, `ledger_entries`, `crypto_market_state`, `market_state`, dan `outbox_events` dikunci total dari akses public/anon key dan hanya dapat diakses secara terotorisasi oleh backend via `service_role`.
+  - **Penghapusan Kolom Plaintext `password_hash`:**
+    - Menghapus kolom sensitif `password_hash` dari tabel publik `player_saves`. Autentikasi akun kini ditangani penuh oleh infrastruktur resmi **Supabase Auth** (`supabase.auth.signUp()` dan `supabase.auth.signInWithPassword()`).
+    - Penyimpanan offline di `localStorage` menerapkan enkripsi hashing satu arah SHA-256 (`crypto.subtle.digest`) untuk mencegah penyimpanan credential mentah.
+- **Sanitasi XSS (Cross-Site Scripting) Komprehensif (`src/js/core/SecurityUtils.js`):**
+  - Mengembangkan modul utilitas keamanan `escapeHtml()` untuk menyaring seluruh karakter khusus (`&`, `<`, `>`, `"`, `'`).
+  - Mengaudit dan menyematkan proteksi sanitasi pada seluruh injeksi `innerHTML` dinamis pada data input pengguna, nama instrumen pasar, pencarian modal, notifikasi toast, riwayat transaksi (`TradeHistoryPanel.js`), feed berita (`HomeScreen.js`, `MarketNewsSubView.js`), dan portal autentikasi (`LoginPortal.js`).
+- **Penghapusan Kredensial Hardcoded & Isolasi Environment Variables:**
+  - Membersihkan kredensial rahasia (Supabase Service Role Key dan Database Password) dari skrip migrasi dan file publik.
+  - Memusatkan konfigurasi sensitif ke file `.env` yang terisolasi dan dilindungi oleh `.gitignore`.
+
+#### 15. ⚡ Eliminasi Kedipan Halaman Pendapatan Pasif & Arsitektur In-Place Live Update (`PassiveIncomeView.js` & `ViewManager.js`)
+- **Akar Masalah (Root Cause) Kedipan:**
+  - `PassiveIncomeManager.js` memancarkan event `passiveIncomeTick` setiap 1 detik (1000ms) untuk memperbarui hitung mundur Launchdrop & reward staking.
+  - Sebelumnya, `ViewManager.js` merespons event tersebut dengan memanggil `renderPassiveIncomePage()` penuh secara destruktif (`target.innerHTML = ...`). Hal ini merobohkan seluruh struktur DOM halaman dan memicu ulang `animation: fade-up 0.25s ease` setiap detik, serta menyebabkan input teks kehilangan fokus kursor saat pengguna sedang mengetik.
+- **Arsitektur Shell Tunggal (Mount Once):**
+  - Mengadopsi arsitektur container `#passive-income-shell` yang hanya dirender satu kali saat pengguna pertama kali memasuki halaman Pendapatan Pasif.
+- **Pembaruan Elemen Live Tepat Sasaran (In-Place DOM Mutation):**
+  - Mengimplementasikan `updatePassiveIncomeLive()` yang memutasi langsung nilai teks (`textContent`) pada elemen target tanpa merender ulang DOM:
+    - **KPI Hero Banner:** `#pi-hero-staked-usd`, `#pi-hero-staked-pending`, `#pi-hero-bot-profit`, `#pi-hero-ld-status`.
+    - **Launchdrop Timers & Status:** `.launchdrop-timer-val`, `#launchdrop-next-countdown-val`, `.launchdrop-status-badge`.
+    - **Vault Staking Yield:** `.staking-reward-amt`, `.staking-reward-usd`.
+    - **Trading Bot Realtime:** `.bot-profit-val`, `.bot-current-val`, `.bot-change-badge`, `.bot-cycles-val`.
+- **Navigasi Sub-Tab Tanpa Kedip & Proteksi Fokus Input:**
+  - Fungsi `switchPassiveSubTab()` kini hanya mengganti konten internal `#passive-subview-content` tanpa mengganggu shell luar maupun memicu ulang animasi kontainer utama.
+  - Fitur pencarian koin (`setStakingSearch`) dan pemilihan tab filter mempertahankan fokus dan posisi kursor pengguna secara mulus saat data diperbarui.
+  - Tombol switcher pada Laporan Keuangan diperhalus dengan transisi blur terisolasi (`filter: blur(5px)`) dan sinkronisasi navigasi otomatis.
+
 ---
 
 ### 🧠 Arsitektur Finansial & Pembelajaran Sistem Baru (Financial Engineering Insights)
@@ -448,6 +483,17 @@ Dokumentasi prinsip matematika keuangan dan rekayasa perangkat lunak yang diimpl
 #### 14. Pola Grafik Geometris Sebagai Bias Gaya Tarik Halus (Weak Drift Waypoints)
 * **Konsep Pasar Organik:** Pola teknikal seperti Head & Shoulders, Double Bottom, atau Triangle di bursa nyata adalah fenomena probabilistik alami akibat akumulasi/distribusi modal, bukan kurva matematis statis yang dipaksakan.
 * **Solusi Permainan:** Pola geometris dipindahkan perannya menjadi vektor tarikan halus (*weak directional drift* ~0.006 per tick) di dalam mesin harga acak Brownian motion. Chart tidak pernah menggambar pola ideal secara paksa, melainkan membiarkan pola muncul secara berkala dan alami dari dinamika pasar.
+
+#### 15. Arsitektur Pertahanan Berlapis (Defense-in-Depth): Row Level Security (RLS) & Native Supabase Auth
+* **Konsep Keamanan Database:** Dalam arsitektur *Direct Cloud Persistence*, klien frontend berkomunikasi langsung dengan database PostgreSQL menggunakan Supabase anon key. Jika tidak dikunci dengan RLS yang benar, pihak ketiga dapat mengirimkan mutasi langsung (`POST`/`PATCH`) untuk mengubah saldo pemain lain, memalsukan kepemilikan aset, atau mencuri data sensitif.
+* **Solusi Rekayasa:**
+  - Menerapkan Row Level Security (RLS) ketat yang memvalidasi `auth.uid() = id` berbasis JSON Web Token (JWT) kriptografis yang diverifikasi oleh Supabase Auth.
+  - Menghapus kolom password buatan sendiri dan memanfaatkan native identity provider Supabase Auth, sehingga password pemain tidak pernah tersimpan di tabel aplikasi.
+  - Mengisolasi tabel pasar internal (`accounts`, `orders`, `ledger_entries`) di balik hak akses `service_role` sehingga integritas bursa tidak dapat dimanipulasi oleh klien publik.
+
+#### 16. In-Place Element Updates vs Destructive Re-rendering (Zero-Flicker Clock Ticking)
+* **Konsep Antarmuka Real-Time:** Aplikasi finansial modern memiliki puluhan metrik yang terus berdetak setiap detik (countdown timer, pending yield, pergerakan PnL floating bot). Menggunakan pola *full view re-render* (`innerHTML = render()`) pada setiap tick jam akan memicu *DOM thrashing*, *layout recalculation*, *CSS animation replay*, dan hilangnya fokus kursor (*focus dropping*).
+* **Solusi Arsitektur UI:** Membagi antarmuka menjadi **Shell Statis** (dirender sekali saat inisialisasi) dan **Live Data Targets** (elemen span/div spesifik yang diikat oleh atribut data unik seperti `data-ld-id` atau `data-symbol`). Pada setiap tick 1000ms, sistem hanya melakukan mutasi teks langsung (`textContent = newVal`) pada elemen target, menjamin 60 FPS, memori stabil, dan bebas kedipan 100%.
 
 ---
 
