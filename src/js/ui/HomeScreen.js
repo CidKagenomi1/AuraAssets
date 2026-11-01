@@ -925,6 +925,12 @@ class HomeScreen {
             passiveIncomeManager.syncDailyLaunchdrops(piState);
         }
         const drops = (piState.launchdrops || []).filter(l => l.type === 'launchpool' || l.type === 'launchpad');
+        if (drops.length === 0) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+        container.style.display = 'block';
 
         const formatTimer = (sec) => {
             if (!sec || sec <= 0) return '00:00:00';
@@ -934,206 +940,114 @@ class HomeScreen {
             return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         };
 
-        const renderCard = (ld) => {
+        const renderItem = (ld) => {
             const isPool = ld.type === 'launchpool';
-            const crypto = cryptoMarket.getCrypto(ld.symbol);
-            const currentPrice = crypto ? crypto.price : 1.0;
-
-            const isUpcoming = ld.status === 'UPCOMING';
             const isActive = ld.status === 'ACTIVE';
             const isClaimable = ld.status === 'CLAIMABLE';
+            const isUpcoming = ld.status === 'UPCOMING';
             const isEnded = ld.status === 'ENDED';
 
-            let statusBadgeBg = 'rgba(245, 158, 11, 0.12)';
-            let statusTextColor = '#f59e0b';
-            let statusText = 'UPCOMING ⏳';
+            let badgeBg = 'rgba(245, 158, 11, 0.15)';
+            let badgeColor = '#f59e0b';
+            let badgeText = 'TERJADWAL 12:00 UTC';
 
             if (isActive) {
-                statusBadgeBg = 'rgba(16, 185, 129, 0.15)';
-                statusTextColor = '#10b981';
-                statusText = isPool ? 'POOL BUKA 🟢' : 'PRESALE BUKA 🟢';
+                badgeBg = 'rgba(16, 185, 129, 0.18)';
+                badgeColor = '#10b981';
+                badgeText = isPool ? 'POOL BUKA 🟢' : 'PRESALE BUKA 🟢';
             } else if (isClaimable) {
-                statusBadgeBg = 'rgba(16, 185, 129, 0.25)';
-                statusTextColor = '#10b981';
-                statusText = 'SIAP KLAIM 🎁';
+                badgeBg = 'rgba(16, 185, 129, 0.25)';
+                badgeColor = '#10b981';
+                badgeText = 'SIAP KLAIM 🎁';
             } else if (isEnded) {
-                statusBadgeBg = 'rgba(255, 255, 255, 0.06)';
-                statusTextColor = 'var(--text-muted)';
-                statusText = 'SELESAI 🏁';
+                badgeBg = 'rgba(255, 255, 255, 0.08)';
+                badgeColor = 'var(--text-muted)';
+                badgeText = 'SELESAI 🏁';
             }
 
-            let yieldHTML = '';
-            if (isPool) {
-                const yieldRate = ld.yieldRate || 0.12;
-                const rewardTokens = currentPrice > 0 ? (ld.committed * yieldRate) / currentPrice : 0;
-                const rewardUsd = ld.committed * yieldRate;
+            const offerText = isPool 
+                ? 'Modal Kas 100% Aman + Airdrop 12%' 
+                : 'Presale Diskon 50% Listing';
 
-                yieldHTML = `
-                    <div style="font-size: 0.78rem; color: var(--text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; background: rgba(0,0,0,0.25); padding: 0.7rem; border-radius: var(--radius-sm); border: 1px solid rgba(16,185,129,0.15);">
-                        <div>Committed Kas: <span style="color: white; font-weight:700;">$ ${ld.committed.toLocaleString()}</span></div>
-                        <div>Jaminan Modal: <span style="color: #10b981; font-weight:700;">100% Balik Utuh</span></div>
-                        <div>Airdrop Reward: <span style="color: #10b981; font-weight:800;">+${rewardTokens.toFixed(4)} ${ld.symbol}</span></div>
-                        <div>Estimasi Yield: <span style="color: #38bdf8; font-weight:700;">+$ ${Math.round(rewardUsd).toLocaleString()}</span></div>
-                        <div style="grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.06); padding-top:0.35rem; display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size: 0.72rem;">${isUpcoming ? 'Buka dalam:' : isActive ? 'Sisa Waktu Pool:' : 'Durasi 3 Jam:'}</span>
-                            <span class="home-ld-timer-val" data-ld-id="${ld.id}" style="color: ${isActive ? '#10b981' : isUpcoming ? '#f59e0b' : 'white'}; font-weight:800; font-family:monospace; font-size: 0.85rem;">
-                                ${isEnded ? 'Selesai' : formatTimer(ld.timeRemaining)}
-                            </span>
-                        </div>
-                    </div>
+            let actionHTML = '';
+            if (isActive) {
+                actionHTML = `
+                    <button onclick="window.homeCommitLaunchdrop('${ld.id}')" class="btn btn-primary btn-sm" style="font-size: 0.75rem; font-weight: 800; padding: 4px 10px; height: 32px; white-space: nowrap; ${isPool ? 'background: linear-gradient(135deg, #10b981 0%, #059669 100%);' : 'background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);'} box-shadow: 0 2px 8px rgba(0,0,0,0.25); cursor: pointer;">
+                        ${isPool ? '🚀 Stake Kas' : '💎 Beli Presale'}
+                    </button>
                 `;
-            } else {
-                const discountRate = ld.discountRate || 0.50;
-                const presalePrice = currentPrice * (1 - discountRate);
-                const allocatedTokens = presalePrice > 0 ? ld.committed / presalePrice : 0;
-                const marketValue = allocatedTokens * currentPrice;
-
-                yieldHTML = `
-                    <div style="font-size: 0.78rem; color: var(--text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; background: rgba(0,0,0,0.25); padding: 0.7rem; border-radius: var(--radius-sm); border: 1px solid rgba(139,92,246,0.18);">
-                        <div>Harga Presale: <span style="color: #a855f7; font-weight:800;">$ ${presalePrice.toFixed(4)}</span> <span style="font-size:0.65rem; color:#10b981;">(-50%)</span></div>
-                        <div>Harga Pasar: <span style="color: white; font-weight:600;">$ ${currentPrice.toFixed(4)}</span></div>
-                        <div>Committed Anda: <span style="color: white; font-weight:700;">$ ${ld.committed.toLocaleString()}</span></div>
-                        <div>Alokasi Token: <span style="color: #a855f7; font-weight:800;">+${allocatedTokens.toFixed(2)} ${ld.symbol}</span></div>
-                        <div>Nilai Listing: <span style="color: #10b981; font-weight:800;">$ ${Math.round(marketValue).toLocaleString()} (+100%)</span></div>
-                        <div>Status Trade: <span style="color: #eab308; font-weight:600;">Siap trade stlh 5 jam</span></div>
-                        <div style="grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.06); padding-top:0.35rem; display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size: 0.72rem;">${isUpcoming ? 'Presale buka dalam:' : isActive ? 'Listing pasar dalam:' : 'Durasi 5 Jam:'}</span>
-                            <span class="home-ld-timer-val" data-ld-id="${ld.id}" style="color: ${isActive ? '#a855f7' : isUpcoming ? '#f59e0b' : 'white'}; font-weight:800; font-family:monospace; font-size: 0.85rem;">
-                                ${isEnded ? 'Selesai & Listing' : formatTimer(ld.timeRemaining)}
-                            </span>
-                        </div>
-                    </div>
+            } else if (isClaimable) {
+                actionHTML = `
+                    <button onclick="window.homeClaimLaunchdrop('${ld.id}')" class="btn btn-primary btn-sm" style="font-size: 0.75rem; font-weight: 800; padding: 4px 10px; height: 32px; white-space: nowrap; background: #10b981; border-color: #10b981; box-shadow: 0 0 10px rgba(16,185,129,0.3); animation: pulse 2s infinite; cursor: pointer;">
+                        🎁 Klaim
+                    </button>
+                `;
+            } else if (isUpcoming) {
+                actionHTML = `
+                    <button onclick="window.homeSimulateLaunchdrop('${ld.id}')" class="btn btn-outline-warning btn-sm" title="Mode Uji Coba: Buka pool sekarang" style="font-size: 0.7rem; font-weight: 700; height: 30px; padding: 0 8px; cursor: pointer; border-color: rgba(245,158,11,0.35); color: #fbbf24;">
+                        ⚡ Tes Buka
+                    </button>
+                `;
+            } else if (isEnded && !isPool) {
+                actionHTML = `
+                    <button onclick="window.homeOpenCryptoTrade('${ld.symbol}')" class="btn btn-sm btn-primary" style="font-size: 0.72rem; font-weight: 800; height: 30px; background: #3b82f6; border-color: #3b82f6; padding: 0 9px; cursor: pointer;">
+                        📈 Trade
+                    </button>
                 `;
             }
-
-            const cardBorder = isPool ? 'rgba(16, 185, 129, 0.28)' : 'rgba(139, 92, 246, 0.28)';
-            const cardGlow = isPool ? 'rgba(16, 185, 129, 0.05)' : 'rgba(139, 92, 246, 0.05)';
-            const typeBadge = isPool
-                ? `<span style="font-size: 0.65rem; background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); padding: 2px 7px; border-radius: 99px; font-weight: 800; text-transform: uppercase;">🚀 Launchpool • Modal Balik 100%</span>`
-                : `<span style="font-size: 0.65rem; background: rgba(139,92,246,0.15); color: #a855f7; border: 1px solid rgba(139,92,246,0.3); padding: 2px 7px; border-radius: 99px; font-weight: 800; text-transform: uppercase;">💎 Launchpad • Diskon 50%</span>`;
 
             return `
-                <div class="card" style="background: linear-gradient(180deg, ${cardGlow} 0%, rgba(20,20,26,0.75) 100%); border: 1px solid ${cardBorder}; border-radius: var(--radius-md); padding: 1.15rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.85rem;">
-                    <div>
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem; gap: 0.5rem;">
-                            <div>
-                                <div style="margin-bottom: 0.3rem;">${typeBadge}</div>
-                                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                                    <span style="font-size: 1.35rem;">${escapeHtml(ld.icon || '🪙')}</span>
-                                    <div>
-                                        <span style="font-weight: 800; color: white; font-size: 1.05rem;">${escapeHtml(ld.name)}</span>
-                                        <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 700; margin-left: 0.25rem;">${escapeHtml(ld.symbol)}</span>
-                                    </div>
-                                </div>
-                                <div style="font-size: 0.7rem; color: var(--accent-primary); margin-top: 0.15rem; font-weight: 600;">Sektor: ${escapeHtml(ld.sector || 'Kripto')}</div>
+                <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid ${isActive ? (isPool ? 'rgba(16, 185, 129, 0.25)' : 'rgba(139, 92, 246, 0.25)') : 'rgba(255, 255, 255, 0.06)'}; border-radius: 8px; padding: 0.55rem 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.6rem; min-width: 0;">
+                        <span style="font-size: 1.25rem; line-height: 1;">${escapeHtml(ld.icon || '🪙')}</span>
+                        <div style="min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                                <span class="home-ld-status-badge" data-ld-id="${ld.id}" data-status="${ld.status}" style="font-size: 0.65rem; font-weight: 800; background: ${badgeBg}; color: ${badgeColor}; padding: 1px 6px; border-radius: 4px; white-space: nowrap;">
+                                    ${badgeText}
+                                </span>
+                                <strong style="color: white; font-size: 0.84rem; white-space: nowrap;">
+                                    ${isPool ? 'Launchpool' : 'Launchpad'} ${escapeHtml(ld.name)} (${escapeHtml(ld.symbol)})
+                                </strong>
+                                <span style="font-size: 0.72rem; color: ${isPool ? '#34d399' : '#c084fc'}; font-weight: 600;">
+                                    • ${offerText}
+                                </span>
                             </div>
-                            <span class="home-ld-status-badge" data-ld-id="${ld.id}" data-status="${ld.status}" style="font-size: 0.7rem; background: ${statusBadgeBg}; color: ${statusTextColor}; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: 800; white-space: nowrap;">
-                                ${statusText}
-                            </span>
+                            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                ${ld.committed > 0 ? `<span style="color:#10b981; font-weight:700;">Committed: $${ld.committed.toLocaleString()}</span> • ` : ''}
+                                <span>${isUpcoming ? 'Mulai dalam:' : isActive ? 'Sisa waktu:' : 'Status:'} <strong class="home-ld-timer-val" data-ld-id="${ld.id}" style="color: ${isActive ? '#38bdf8' : '#fbbf24'}; font-family: monospace;">${isEnded ? 'Selesai' : formatTimer(ld.timeRemaining)}</strong></span>
+                            </div>
                         </div>
-
-                        <p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.35; margin-bottom: 0.65rem; background: rgba(255,255,255,0.02); padding: 0.45rem 0.6rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.04);">
-                            ${escapeHtml(ld.desc)}
-                        </p>
-
-                        ${yieldHTML}
                     </div>
 
-                    <!-- Direct Action Buttons -->
-                    <div style="display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.25rem;">
-                        ${isActive ? `
-                            <button onclick="window.homeCommitLaunchdrop('${ld.id}')" class="btn btn-primary btn-sm" style="width: 100%; font-size: 0.82rem; font-weight:800; height:38px; justify-content:center; ${isPool ? 'background: linear-gradient(135deg, #10b981 0%, #059669 100%);' : 'background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);'} box-shadow: 0 4px 12px rgba(0,0,0,0.3); cursor: pointer;">
-                                ${isPool ? '🚀 Stake Kas (Modal Aman 100%)' : '💎 Beli Presale Diskon 50%'}
-                            </button>
-                        ` : ''}
-
-                        ${isClaimable ? `
-                            <button onclick="window.homeClaimLaunchdrop('${ld.id}')" class="btn btn-primary btn-sm" style="width: 100%; font-size: 0.82rem; font-weight:800; height:38px; justify-content:center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-color:#10b981; box-shadow: 0 0 15px rgba(16,185,129,0.4); animation: pulse 2s infinite; cursor: pointer;">
-                                ${isPool ? '🎁 Klaim Modal Pokok + Airdrop Gratis' : '🚀 Klaim Token Presale & Siap Trade'}
-                            </button>
-                        ` : ''}
-
-                        ${isUpcoming ? `
-                            <div style="display: flex; gap: 0.4rem;">
-                                <button class="btn btn-secondary btn-sm" style="flex: 1; font-size: 0.75rem; font-weight:700; height:34px; justify-content:center; color: var(--text-muted);" disabled>
-                                    ⏳ Buka Pukul 12:00 UTC
-                                </button>
-                                <button onclick="window.homeSimulateLaunchdrop('${ld.id}')" class="btn btn-outline-warning btn-sm" title="Mode Uji Coba: Buka pool sekarang" style="font-size: 0.72rem; font-weight: 700; height:34px; padding: 0 10px; cursor: pointer;">
-                                    ⚡ Tes Buka
-                                </button>
-                            </div>
-                        ` : ''}
-
-                        ${isEnded ? `
-                            <div style="display: flex; gap: 0.4rem;">
-                                <button class="btn btn-secondary btn-sm" style="flex: 1; font-size: 0.75rem; font-weight:700; height:34px; justify-content:center;" disabled>
-                                    🏁 Event Selesai
-                                </button>
-                                ${!isPool ? `
-                                    <button onclick="window.homeOpenCryptoTrade('${ld.symbol}')" class="btn btn-sm btn-primary" style="font-size: 0.72rem; font-weight: 800; height: 34px; background: #3b82f6; border-color: #3b82f6; padding: 0 12px; cursor: pointer;">
-                                        📈 Trade
-                                    </button>
-                                ` : ''}
-                            </div>
-                        ` : ''}
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                        ${actionHTML}
+                        <button onclick="window.homeGoToPassive()" class="btn btn-secondary btn-sm" style="font-size: 0.72rem; height: 32px; padding: 0 9px; color: var(--text-muted); border-color: rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); cursor: pointer;" title="Buka Detail di Pendapatan Pasif">
+                            Detail ↗
+                        </button>
                     </div>
                 </div>
             `;
         };
 
-        const cardsHTML = drops.length > 0 
-            ? drops.map(renderCard).join('')
-            : `
-                <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 2rem 1rem; background: rgba(0,0,0,0.2); border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
-                    <div style="font-size: 1.5rem; margin-bottom: 0.35rem;">🚀</div>
-                    <div style="font-weight: 700; color: white;">Tidak Ada Launchdrop Aktif Saat Ini</div>
-                    <div style="font-size: 0.75rem; margin-top: 0.25rem;">Event dibuka serentak setiap hari pukul <strong style="color: #fff;">12:00 UTC (19:00 WIB)</strong>.</div>
-                </div>
-            `;
-
-        const hasActiveOrClaimable = drops.some(l => l.status === 'ACTIVE' || l.status === 'CLAIMABLE');
+        const noticeItemsHTML = drops.map(renderItem).join('');
 
         container.innerHTML = `
-            <div class="panel-card" style="margin-bottom: 0; background: linear-gradient(145deg, rgba(20, 20, 28, 0.75), rgba(15, 15, 22, 0.9)); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.15rem 1.25rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
-                            🚀
-                        </div>
-                        <div>
-                            <div style="display: flex; align-items: center; gap: 0.4rem;">
-                                <h3 style="font-size: 1.05rem; font-weight: 800; color: white; margin: 0;">Launchdrop Kripto Sedang Berjalan</h3>
-                                ${hasActiveOrClaimable ? `
-                                    <span style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.18); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); padding: 2px 7px; border-radius: 99px; font-weight: 800; letter-spacing: 0.04em;">LIVE EVENT</span>
-                                ` : `
-                                    <span style="font-size: 0.65rem; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 7px; border-radius: 99px; font-weight: 800;">COUNTDOWN</span>
-                                `}
-                            </div>
-                            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
-                                Beli presale diskon 50% atau stake kas dengan modal 100% aman langsung dari beranda.
-                            </p>
-                        </div>
+            <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(16, 185, 129, 0.04) 50%, rgba(20, 20, 26, 0.6) 100%); border: 1px solid rgba(139, 92, 246, 0.22); border-radius: var(--radius-md); padding: 0.75rem 0.9rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.4rem;">
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <span style="font-size: 1rem;">🚀</span>
+                        <span style="font-size: 0.8rem; font-weight: 800; color: white;">Pemberitahuan Launchdrop Terjadwal</span>
+                        <span style="font-size: 0.65rem; color: var(--text-dim);">Setiap hari 12:00 UTC (19:00 WIB)</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <button id="btn-home-goto-passive" class="btn btn-secondary btn-sm" style="font-size: 0.74rem; font-weight: 700; padding: 5px 12px; cursor: pointer; color: #a78bfa; border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.08);">
-                            Buka Vault Lengkap ↗
-                        </button>
-                    </div>
+                    <button onclick="window.homeGoToPassive()" style="background: none; border: none; font-size: 0.72rem; color: #a78bfa; font-weight: 700; cursor: pointer; padding: 0; text-decoration: underline;">
+                        Lihat Semua Vault ↗
+                    </button>
                 </div>
-
-                <!-- Grid of Launchpool & Launchpad -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 0.85rem;">
-                    ${cardsHTML}
+                <div style="display: flex; flex-direction: column; gap: 0.45rem;">
+                    ${noticeItemsHTML}
                 </div>
             </div>
         `;
-
-        document.getElementById('btn-home-goto-passive')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            import('./ViewManager.js').then(m => {
-                m.default.switchView('passive');
-            });
-        });
     }
 
     updateHomeLaunchdropLive() {
@@ -2597,6 +2511,12 @@ if (typeof window !== 'undefined') {
             if (typeof m.default.switchMarketTab === 'function') {
                 m.default.switchMarketTab('crypto');
             }
+        });
+    };
+
+    window.homeGoToPassive = () => {
+        import('./ViewManager.js').then(m => {
+            m.default.switchView('passive');
         });
     };
 }
