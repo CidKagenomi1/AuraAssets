@@ -569,6 +569,13 @@ class UIManager {
         return this.toast({ type: 'info', message, title, ...options });
     }
 
+    /**
+     * Add notification alias for toast
+     */
+    addNotification(options) {
+        return this.toast(options);
+    }
+
     // ========================================
     // NUMERIC INPUT HELPERS
     // ========================================

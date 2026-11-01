@@ -128,12 +128,16 @@ class TransferManager {
         this.saveTransferReceipt(transferPayload);
 
         // 4. Add sent receipt to sender's notifications
-        ui.addNotification({
-            type: 'info',
-            title: '📤 Transfer Terkirim',
-            message: `Berhasil mentransfer **$ ${financeManager.formatCurrency(numAmount)}** ke **@${target}**.`,
-            icon: '📤'
-        });
+        if (typeof ui.addNotification === 'function') {
+            ui.addNotification({
+                type: 'info',
+                title: '📤 Transfer Terkirim',
+                message: `Berhasil mentransfer **$ ${financeManager.formatCurrency(numAmount)}** ke **@${target}**.`,
+                icon: '📤'
+            });
+        } else {
+            ui.info(`Berhasil mentransfer $ ${financeManager.formatCurrency(numAmount)} ke @${target}.`, '📤 Transfer Terkirim');
+        }
 
         return transferPayload;
     }
