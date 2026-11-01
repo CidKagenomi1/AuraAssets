@@ -105,6 +105,37 @@ async function sendRealtimeBroadcast(event, payload) {
   }
 }
 
+/**
+ * Helper: Mengirim siaran berita/intervensi pasar ke seluruh pemain via Supabase Realtime
+ */
+async function sendMarketEventBroadcast(record) {
+  if (!supabase) return false;
+  try {
+    const channel = supabase.channel('global_market_events_channel');
+    await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(), 3500);
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    });
+
+    const res = await channel.send({
+      type: 'broadcast',
+      event: 'new_market_event',
+      payload: record
+    });
+
+    await new Promise(r => setTimeout(r, 600));
+    await supabase.removeChannel(channel);
+    return res === 'ok';
+  } catch (err) {
+    return false;
+  }
+}
+
 // --------------------------------------------------------------------------
 // 1. GLOBAL STIMULUS / AIRDROP (INSTITUTIONAL)
 // --------------------------------------------------------------------------
@@ -226,8 +257,8 @@ async function handlePumpAsset(rl) {
       market: isCrypto ? 'crypto' : 'stock',
       type: 'positive',
       headline: headline,
-      ticker_target: isCrypto ? null : symbol,
-      target_asset: isCrypto ? symbol : null,
+      ticker_target: symbol,
+      target_asset: symbol,
       sector: isCrypto ? 'crypto' : 'broad_market',
       impact_percent: boost,
       duration_minutes: duration,
@@ -240,6 +271,9 @@ async function handlePumpAsset(rl) {
       console.log(`[ERROR] Gagal memasukkan market event: ${error.message}`);
       return;
     }
+
+    // Siarkan langsung ke seluruh klien yang sedang aktif
+    await sendMarketEventBroadcast(record);
   }
 
   console.log('------------------------------------------------------');
@@ -295,8 +329,8 @@ async function handleDumpAsset(rl) {
       market: isCrypto ? 'crypto' : 'stock',
       type: 'negative',
       headline: headline,
-      ticker_target: isCrypto ? null : symbol,
-      target_asset: isCrypto ? symbol : null,
+      ticker_target: symbol,
+      target_asset: symbol,
       sector: isCrypto ? 'crypto' : 'broad_market',
       impact_percent: -Math.abs(drop),
       duration_minutes: duration,
@@ -309,6 +343,9 @@ async function handleDumpAsset(rl) {
       console.log(`[ERROR] Gagal memasukkan market event: ${error.message}`);
       return;
     }
+
+    // Siarkan langsung ke seluruh klien yang sedang aktif
+    await sendMarketEventBroadcast(record);
   }
 
   console.log('------------------------------------------------------');

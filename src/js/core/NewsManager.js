@@ -613,11 +613,16 @@ class NewsManager {
     matchesCryptoTarget(news, symbol, cryptoSector, cryptoCategory) {
         if (news.market !== 'crypto') return false;
 
-        const target = (news.target_asset || '').toUpperCase();
+        const target = (news.target_asset || news.ticker_target || '').toUpperCase();
         const sec = (news.sector || '').toLowerCase();
         const sym = (symbol || '').toUpperCase();
         const cSec = (cryptoSector || '').toLowerCase();
         const cCat = (cryptoCategory || '').toLowerCase();
+
+        // 1. Direct single-asset target match (e.g. DOGE, SOL, ETH, XRP, PEPE)
+        if (target === sym || (news.ticker_target && news.ticker_target.toUpperCase() === sym)) {
+            return true;
+        }
 
         if (target === 'TOTAL_MARKET') return true;
 
@@ -666,7 +671,7 @@ class NewsManager {
             return !['BTC', 'ETH', 'USDT', 'USDC'].includes(sym);
         }
 
-        return false;
+        return sym === target || sym === (news.ticker_target || '').toUpperCase();
     }
 
     getCryptoPriceBias(symbol, cryptoSector, cryptoCategory) {
@@ -780,6 +785,48 @@ class NewsManager {
 
         this.saveState();
         gameState.emit('newsUpdate', this.activeNews);
+
+        // Immediate market impulse for targeted pump / dump so the price & chart react right away
+        const sym = (eventItem.target_asset || eventItem.ticker_target || '').toUpperCase();
+        if (sym && eventItem.impact_percent) {
+            try {
+                if (eventItem.market === 'crypto') {
+                    import('../trading/CryptoMarket.js').then(m => {
+                        const cm = m.default || m.cryptoMarket;
+                        if (cm && cm.cryptos && cm.cryptos[sym]) {
+                            const c = cm.cryptos[sym];
+                            const isPos = eventItem.impact_percent > 0;
+                            const kickVolume = (c.price * 50000) * (Math.abs(eventItem.impact_percent) / 40);
+                            if (isPos) {
+                                c.recentBuyVolume = (c.recentBuyVolume || 0) + kickVolume;
+                                c.price = c.price * (1 + Math.min(0.06, Math.abs(eventItem.impact_percent) / 1000));
+                            } else {
+                                c.recentSellVolume = (c.recentSellVolume || 0) + kickVolume;
+                                c.price = c.price * (1 - Math.min(0.06, Math.abs(eventItem.impact_percent) / 1000));
+                            }
+                            gameState.emit('cryptosUpdate', cm.cryptos);
+                        }
+                    }).catch(() => {});
+                } else {
+                    import('../trading/StockMarket.js').then(m => {
+                        const sm = m.default || m.stockMarket;
+                        if (sm && sm.stocks && sm.stocks[sym]) {
+                            const s = sm.stocks[sym];
+                            const isPos = eventItem.impact_percent > 0;
+                            const kickVolume = 1000000 * (Math.abs(eventItem.impact_percent) / 40);
+                            if (isPos) {
+                                s.recentBuyVolume = (s.recentBuyVolume || 0) + kickVolume;
+                                s.price = s.price * (1 + Math.min(0.04, Math.abs(eventItem.impact_percent) / 1000));
+                            } else {
+                                s.recentSellVolume = (s.recentSellVolume || 0) + kickVolume;
+                                s.price = s.price * (1 - Math.min(0.04, Math.abs(eventItem.impact_percent) / 1000));
+                            }
+                            gameState.emit('stocksUpdate', sm.stocks);
+                        }
+                    }).catch(() => {});
+                }
+            } catch (e) {}
+        }
 
         if (shouldAnnounce) {
             const isPos = eventItem.type === 'positive';

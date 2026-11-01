@@ -152,9 +152,30 @@ export function initGlobalNewsRealtime(newsManager) {
   // 1. Initial Fetch of active events from Supabase Cloud
   fetchActiveCloudEvents(newsManager);
 
-  // 2. Subscribe to Postgres Changes on market_events table
+  // 2. Subscribe to Postgres Changes & Broadcasts on market_events
   const channel = supabase
     .channel('global_market_events_channel')
+    .on('broadcast', { event: 'new_market_event' }, ({ payload }) => {
+      if (payload) {
+        const incomingEvent = {
+          id: payload.id,
+          market: payload.market,
+          type: payload.type,
+          headline: payload.headline,
+          ticker_target: payload.ticker_target,
+          target_asset: payload.target_asset,
+          sector: payload.sector,
+          impact_percent: parseFloat(payload.impact_percent),
+          duration_minutes: payload.duration_minutes,
+          startTime: new Date(payload.start_time || payload.startTime).getTime(),
+          endTime: new Date(payload.end_time || payload.endTime).getTime(),
+          timestamp: Date.now()
+        };
+        if (incomingEvent.endTime > Date.now()) {
+          newsManager.receiveCloudEvent(incomingEvent);
+        }
+      }
+    })
     .on(
       'postgres_changes',
       {
