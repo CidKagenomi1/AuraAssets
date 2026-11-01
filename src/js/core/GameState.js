@@ -561,31 +561,42 @@ class GameState {
                 cloudUser = result?.user;
             } catch (err) {
                 const msg = err.message ? err.message.toLowerCase() : '';
-                if (err.status === 400 || msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
-                    throw new Error('Password salah atau akun tidak sesuai!');
+                // If cloud sign in fails and user is not present locally, report error
+                if (!account) {
+                    if (err.status === 400 || msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+                        throw new Error('Password salah atau akun tidak sesuai!');
+                    }
                 }
                 console.warn('[GameState] Cloud login notice:', err.message);
             }
         }
 
-        // 2. Local password verification
+        // 2. Local password verification & seamless cloud auth registration
         const enteredHash = await hashPassword(password);
         if (!cloudUser) {
             if (!account) {
                 throw new Error('Nama pengguna tidak ditemukan!');
             }
-            if (account.passwordHash) {
-                if (account.passwordHash !== enteredHash) {
-                    throw new Error('Password salah!');
-                }
-            } else if (account.password) {
-                if (account.password !== password) {
-                    throw new Error('Password salah!');
-                }
+            const isMatch = (account.passwordHash && account.passwordHash === enteredHash) ||
+                            (account.password && account.password === password);
+            if (!isMatch) {
+                throw new Error('Password salah!');
+            }
+            if (!account.passwordHash) {
                 // Migrate legacy plaintext password to secure hash
                 account.passwordHash = enteredHash;
                 delete account.password;
                 this.saveAccounts(accounts);
+            }
+
+            // Seamlessly sync legacy account to Supabase Auth if cloud is available
+            if (isCloudConfigured) {
+                try {
+                    const signUpRes = await authSignUp(cleanName, password);
+                    cloudUser = signUpRes?.user;
+                } catch (e) {
+                    // May already exist or auth disabled, safe to continue
+                }
             }
         } else {
             // Cloud login succeeded: ensure local account has the hashed password

@@ -73,6 +73,38 @@ async function closeClients() {
   }
 }
 
+/**
+ * Helper: Mengirim siaran realtime dengan menunggu status SUBSCRIBED
+ */
+async function sendRealtimeBroadcast(event, payload) {
+  if (!supabase) return false;
+  try {
+    const channel = supabase.channel('aura_transfers_and_grants');
+    await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(), 3500);
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    });
+
+    const res = await channel.send({
+      type: 'broadcast',
+      event: event,
+      payload: payload
+    });
+
+    await new Promise(r => setTimeout(r, 600));
+    await supabase.removeChannel(channel);
+    return res === 'ok';
+  } catch (err) {
+    console.log(`[PERINGATAN] Sinyal real-time gagal dikirim: ${err.message}`);
+    return false;
+  }
+}
+
 // --------------------------------------------------------------------------
 // 1. GLOBAL STIMULUS / AIRDROP (INSTITUTIONAL)
 // --------------------------------------------------------------------------
@@ -95,55 +127,57 @@ async function handleAirdrop(rl) {
   console.log('\n[MEMPROSES] Menyalurkan stimulus ke database dan siaran real-time...');
 
   let accountsUpdated = 0;
-  // 1. Update Database (Postgres)
+  // 1. Update Database (Postgres & Supabase player_saves)
   if (pgPool) {
     try {
+      const resSaves = await pgPool.query(`
+        UPDATE player_saves 
+        SET 
+          balance = balance + $1,
+          net_worth = net_worth + $1,
+          save_data = CASE 
+            WHEN jsonb_typeof(save_data->'player') = 'object' THEN 
+              jsonb_set(
+                save_data, 
+                '{player,balance}', 
+                to_jsonb(COALESCE((save_data->'player'->>'balance')::numeric, 0) + $1)
+              )
+            ELSE save_data
+          END,
+          updated_at = NOW()
+      `, [amount]);
+      accountsUpdated = resSaves.rowCount || 0;
+
+      // Update tabel accounts legacy jika ada
       const scaledAmount = Math.round(amount * PRICE_SCALE);
-      const res = await pgPool.query(
+      await pgPool.query(
         'UPDATE accounts SET available_balance = available_balance + $1, updated_at = NOW()',
         [scaledAmount]
       );
-      accountsUpdated = res.rowCount || 0;
     } catch (err) {
-      console.log(`[PERINGATAN] Gagal update tabel accounts di DB: ${err.message}`);
+      console.log(`[PERINGATAN] Gagal update tabel DB: ${err.message}`);
     }
   }
 
   // 2. Broadcast via Supabase Realtime Channel
-  if (supabase) {
-    try {
-      const channel = supabase.channel('aura_transfers_and_grants');
-      await channel.subscribe();
+  const grantPayload = {
+    id: 'grant_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    donor: donor,
+    totalAmount: amount * 100,
+    perPlayerGrant: amount,
+    note: note,
+    timestamp: Date.now(),
+    gameDate: new Date().toLocaleDateString('id-ID')
+  };
 
-      const grantPayload = {
-        id: 'grant_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-        donor: donor,
-        totalAmount: amount * 100,
-        perPlayerGrant: amount,
-        note: note,
-        timestamp: Date.now(),
-        gameDate: new Date().toLocaleDateString('id-ID')
-      };
-
-      await channel.send({
-        type: 'broadcast',
-        event: 'community_grant',
-        payload: grantPayload
-      });
-
-      // Lepas subscription channel
-      await supabase.removeChannel(channel);
-    } catch (err) {
-      console.log(`[PERINGATAN] Gagal broadcast Supabase Realtime: ${err.message}`);
-    }
-  }
+  await sendRealtimeBroadcast('community_grant', grantPayload);
 
   console.log('------------------------------------------------------');
   console.log(`[SUKSES] Stimulus sebesar $${amount.toLocaleString()} per akun berhasil disalurkan.`);
   console.log(`[PENGIRIM] ${donor}`);
   console.log(`[PESAN] "${note}"`);
   if (accountsUpdated > 0) {
-    console.log(`[DATABASE] ${accountsUpdated} akun di database telah diperbarui saldonya.`);
+    console.log(`[DATABASE] ${accountsUpdated} akun di database (player_saves) telah diperbarui saldonya.`);
   }
   console.log('------------------------------------------------------');
 }
@@ -477,19 +511,46 @@ async function handleDirectCredit(rl) {
 
   if (pgPool) {
     try {
-      const res = await pgPool.query(
-        `UPDATE accounts 
-         SET available_balance = available_balance + $1, updated_at = NOW() 
+      // 1. Update player_saves in Supabase/PostgreSQL (Main game storage)
+      const resSaves = await pgPool.query(
+        `UPDATE player_saves 
+         SET 
+           balance = balance + $1,
+           net_worth = net_worth + $1,
+           save_data = CASE 
+             WHEN jsonb_typeof(save_data->'player') = 'object' THEN 
+               jsonb_set(
+                 save_data, 
+                 '{player,balance}', 
+                 to_jsonb(COALESCE((save_data->'player'->>'balance')::numeric, 0) + $1)
+               )
+             ELSE save_data
+           END,
+           updated_at = NOW() 
          WHERE LOWER(username) = LOWER($2)
-         RETURNING username, available_balance`,
-        [scaledAmount, username]
+         RETURNING username, balance`,
+        [amount, username]
       );
 
-      if (res.rowCount > 0) {
+      if (resSaves.rowCount > 0) {
         dbSuccess = true;
-        newBalance = (Number(res.rows[0].available_balance) / PRICE_SCALE).toLocaleString();
+        newBalance = Number(resSaves.rows[0].balance).toLocaleString();
       } else {
-        console.log(`[INFO] Akun @${username} belum ditemukan di tabel accounts server.`);
+        // Fallback: update legacy accounts table if present
+        const resAcc = await pgPool.query(
+          `UPDATE accounts 
+           SET available_balance = available_balance + $1, updated_at = NOW() 
+           WHERE LOWER(username) = LOWER($2)
+           RETURNING username, available_balance`,
+          [scaledAmount, username]
+        );
+
+        if (resAcc.rowCount > 0) {
+          dbSuccess = true;
+          newBalance = (Number(resAcc.rows[0].available_balance) / PRICE_SCALE).toLocaleString();
+        } else {
+          console.log(`[INFO] Akun @${username} belum ditemukan di tabel database cloud (player_saves).`);
+        }
       }
     } catch (err) {
       console.log(`[PERINGATAN] Error database: ${err.message}`);
@@ -497,29 +558,14 @@ async function handleDirectCredit(rl) {
   }
 
   // Kirim broadcast transfer agar jika user sedang online di client, langsung dapat notif
-  if (supabase) {
-    try {
-      const channel = supabase.channel('aura_transfers_and_grants');
-      await channel.subscribe();
-
-      await channel.send({
-        type: 'broadcast',
-        event: 'player_transfer',
-        payload: {
-          id: 'transfer_' + Date.now(),
-          from: donor,
-          to: username,
-          amount: amount,
-          note: `Hibah Dana Khusus dari ${donor}`,
-          gameDate: new Date().toLocaleDateString('id-ID')
-        }
-      });
-
-      await supabase.removeChannel(channel);
-    } catch (err) {
-      console.log(`[PERINGATAN] Gagal kirim sinyal real-time: ${err.message}`);
-    }
-  }
+  await sendRealtimeBroadcast('player_transfer', {
+    id: 'transfer_' + Date.now(),
+    from: donor,
+    to: username,
+    amount: amount,
+    note: `Hibah Dana Khusus dari ${donor}`,
+    gameDate: new Date().toLocaleDateString('id-ID')
+  });
 
   console.log('------------------------------------------------------');
   console.log(`[SUKSES] Dana sebesar $${amount.toLocaleString()} telah dikirimkan ke @${username}.`);
@@ -544,21 +590,20 @@ async function handleEconomyStats() {
   try {
     const accRes = await pgPool.query(`
       SELECT 
-        COUNT(*) as total_accounts,
-        COALESCE(SUM(available_balance), 0) as total_available,
-        COALESCE(SUM(locked_balance), 0) as total_locked
-      FROM accounts
+        COUNT(*)::int as total_accounts,
+        COALESCE(SUM(balance), 0)::numeric as total_available,
+        COALESCE(SUM(net_worth), 0)::numeric as total_net_worth
+      FROM player_saves
     `);
 
     const stats = accRes.rows[0];
-    const totalM2 = (Number(stats.total_available) + Number(stats.total_locked)) / PRICE_SCALE;
-    const available = Number(stats.total_available) / PRICE_SCALE;
-    const locked = Number(stats.total_locked) / PRICE_SCALE;
+    const totalAccounts = Number(stats.total_accounts);
+    const available = Number(stats.total_available);
+    const totalM2 = Number(stats.total_net_worth);
 
-    console.log(`Total Akun Terdaftar        : ${stats.total_accounts}`);
-    console.log(`Total Uang Beredar (M2)     : $ ${totalM2.toLocaleString()}`);
-    console.log(`- Saldo Tersedia (Cash)     : $ ${available.toLocaleString()}`);
-    console.log(`- Saldo Terkunci (Order Book): $ ${locked.toLocaleString()}`);
+    console.log(`Total Akun Terdaftar        : ${totalAccounts}`);
+    console.log(`Total Saldo Kas Beredar (M1): $ ${available.toLocaleString()}`);
+    console.log(`Total Kekayaan Bersih (M2)  : $ ${totalM2.toLocaleString()}`);
 
     // Tampilkan berita pasar aktif
     if (supabase) {
