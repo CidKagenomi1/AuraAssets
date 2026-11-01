@@ -2001,6 +2001,7 @@ class HomeScreen {
                         from: targetNotif.sender || 'Pemain',
                         to: gameState.currentUser || gameState.get('player.name') || 'Saya',
                         amount: targetNotif.rewardAmount || 0,
+                        adminFee: targetNotif.adminFee || (targetNotif.rewardAmount ? Math.max(1, Math.ceil(targetNotif.rewardAmount / 100)) : 0),
                         note: targetNotif.note || '',
                         timestamp: targetNotif.claimedAt || Date.now(),
                         gameDate: targetNotif.date || 'Terkini'

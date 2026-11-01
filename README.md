@@ -30,8 +30,8 @@ An advanced, dark-themed **Idle Financial Portfolio & Enterprise Simulation Game
 ### 3. 🏦 Banking System & Wealth Management
 - **Digital Custody Vault:** 1:1 asset backing for physical commodity reserves with zero holding fees and automated net worth consolidation.
 - **Banking System:** Secure capital through bank loans or park your excess cash in high-yield time deposits.
-- **P2P Transfer & Kotak Donasi Komunitas:** Transfer dana instan antar pemain secara peer-to-peer dan bagikan modal melalui Kotak Donasi Komunitas yang terhubung realtime via Supabase.
-- **Bukti Transfer Resmi & Unduh PNG:** Setiap pengiriman transfer dana otomatis memunculkan modal Bukti Transfer Resmi dengan rincian lengkap (ID Referensi unik, waktu transaksi, tanggal game, akun pengirim & penerima, nominal terdebit, biaya admin $0 gratis, dan stempel verifikasi digital). Pemain dapat mengunduh bukti transfer dalam format gambar PNG beresolusi tinggi (2x Retina Canvas) bertema fintech dark luxury, serta mengakses kembali bukti transfer langsung dari kartu riwayat notifikasi cek transfer.
+- **P2P Transfer & Kotak Donasi Komunitas:** Transfer dana instan antar pemain secara peer-to-peer (dengan biaya admin jaringan $ 1 per setiap $ 100 transfer) dan bagikan modal melalui Kotak Donasi Komunitas yang terhubung realtime via Supabase.
+- **Bukti Transfer Resmi & Unduh PNG (Minimalis Polos):** Setiap pengiriman transfer dana otomatis memunculkan modal Bukti Transfer Resmi berdesain struk perbankan digital putih polos minimalis yang realistis (lengkap dengan No. Referensi unik, waktu transaksi nyata, tanggal game, akun pengirim & penerima, nominal terdebit, rincian biaya admin $1/$100, status transaksi berhasil, dan catatan transfer). Pemain dapat mengunduh resi transfer dalam format gambar PNG beresolusi tinggi (2x Retina Canvas 1080x1480 px), serta membuka kembali bukti transfer kapan saja dari notifikasi cek transfer.
 - **Taxation (Perpajakan):** File monthly tax reports, declare income/assets, and manage corporate tax rates to stay compliant.
 
 ### 4. 👔 Career Progression & Office Simulation
