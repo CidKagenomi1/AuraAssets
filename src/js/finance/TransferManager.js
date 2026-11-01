@@ -42,6 +42,9 @@ class TransferManager {
                 .on('broadcast', { event: 'community_grant' }, ({ payload }) => {
                     this.handleIncomingCommunityGrant(payload);
                 })
+                .on('broadcast', { event: 'whale_trade' }, ({ payload }) => {
+                    this.handleIncomingWhaleTrade(payload);
+                })
                 .subscribe((status) => {
                     if (status === 'SUBSCRIBED') {
                         console.log('🌐 [TransferManager] Connected to Community Transfers & Grants channel!');
@@ -307,6 +310,125 @@ class TransferManager {
         try {
             import('../ui/AuraSound.js').then(m => m.default?.playClaimMoney?.());
         } catch (e) {}
+    }
+
+    /**
+     * Broadcast a whale transaction to other players ONLY if amount >= $1,000,000
+     */
+    async broadcastWhaleTrade(tradeData) {
+        if (!tradeData || !tradeData.amount || Number(tradeData.amount) < 1000000) {
+            return false; // User requirement: "broadcast hanya pembelian di atas 1 juta"
+        }
+
+        const trader = this.getCurrentUsername();
+        const payload = {
+            id: 'whale_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+            symbol: (tradeData.symbol || '').toUpperCase(),
+            market: tradeData.market || 'crypto',
+            side: tradeData.side || 'BUY',
+            amount: Math.round(Number(tradeData.amount)),
+            shares: tradeData.shares || null,
+            price: tradeData.price || null,
+            trader,
+            timestamp: Date.now()
+        };
+
+        if (this.channel && this.isListening) {
+            try {
+                await this.channel.send({
+                    type: 'broadcast',
+                    event: 'whale_trade',
+                    payload
+                });
+                return true;
+            } catch (err) {
+                console.warn('[TransferManager] Whale broadcast error:', err);
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Handle incoming whale order from another player
+     */
+    handleIncomingWhaleTrade(payload) {
+        if (!payload || !payload.symbol || !payload.amount) return;
+        const current = this.getCurrentUsername().toLowerCase();
+        if (payload.trader && payload.trader.toLowerCase() === current) return;
+
+        const isBuy = payload.side === 'BUY';
+        const formattedAmount = financeManager.formatCurrency(payload.amount);
+        const actionText = isBuy ? 'memborong' : 'melepas';
+        const actionEmoji = isBuy ? '🟢' : '🔴';
+
+        ui.info(
+            `🚨 **WHALE ALERT ${actionEmoji}:** Trader **@${payload.trader}** mengeksekusi ${actionText} **$ ${formattedAmount}** pada aset **${payload.symbol}**!`,
+            '🐋 Transaksi Paus Pasar'
+        );
+
+        try {
+            import('../ui/AuraSound.js').then(m => m.default?.playNotification?.());
+        } catch (e) {}
+
+        // Apply price and volume impact to local market so all screens sync!
+        if (payload.market === 'crypto') {
+            import('../trading/CryptoMarket.js').then(m => {
+                const cm = m.default || m.cryptoMarket;
+                const c = cm?.cryptos?.[payload.symbol];
+                if (c) {
+                    const liquidityDepth = (c.price > 1000) ? 50000000 : 5000000;
+                    const rawImpact = (payload.amount / liquidityDepth) * 0.22;
+                    const impact = Math.min(0.18, Math.max(0.0005, rawImpact));
+                    c.previousPrice = c.price;
+                    c.price = isBuy ? c.price * (1 + impact) : Math.max(0.0001, c.price * (1 - impact));
+                    c.change = ((c.price - c.basePrice) / (c.basePrice || 1)) * 100;
+                    if (isBuy) {
+                        c.recentBuyVolume = (c.recentBuyVolume || 0) + payload.amount;
+                        if (c.price > (c.high24h || c.price)) c.high24h = c.price;
+                    } else {
+                        c.recentSellVolume = (c.recentSellVolume || 0) + payload.amount;
+                        if (c.price < (c.low24h || c.price)) c.low24h = c.price;
+                    }
+                    c.volume24h = (c.volume24h || 1000000) + payload.amount;
+                    if (!c.priceHistory) c.priceHistory = [];
+                    c.priceHistory.push(c.price);
+                    if (c.priceHistory.length > 300) c.priceHistory.shift();
+
+                    import('../trading/PriceHistoryStore.js').then(phs => {
+                        phs.default?.recordTick?.(payload.symbol, c.price, payload.amount / (c.price || 1), Date.now());
+                    }).catch(() => {});
+                    gameState.emit('cryptosUpdate', cm.cryptos);
+                }
+            }).catch(() => {});
+        } else {
+            import('../trading/StockMarket.js').then(m => {
+                const sm = m.default || m.stockMarket;
+                const s = sm?.stocks?.[payload.symbol];
+                if (s) {
+                    const impact = Math.min(0.10, (payload.amount / 50000000) * 0.20);
+                    s.previousPrice = s.price;
+                    s.price = parseFloat((isBuy ? s.price * (1 + impact) : Math.max(0.01, s.price * (1 - impact))).toFixed(2));
+                    s.change = parseFloat((((s.price - s.basePrice) / (s.basePrice || 1)) * 100).toFixed(2));
+                    if (isBuy) {
+                        s.recentBuyVolume = (s.recentBuyVolume || 0) + payload.amount;
+                        if (s.price > (s.high24h || s.price)) s.high24h = s.price;
+                    } else {
+                        s.recentSellVolume = (s.recentSellVolume || 0) + payload.amount;
+                        if (s.price < (s.low24h || s.price)) s.low24h = s.price;
+                    }
+                    s.volume24h = (s.volume24h || 100000) + (payload.shares || 100);
+                    if (!s.priceHistory) s.priceHistory = [];
+                    s.priceHistory.push(s.price);
+                    if (s.priceHistory.length > 300) s.priceHistory.shift();
+
+                    import('../trading/PriceHistoryStore.js').then(phs => {
+                        phs.default?.recordTick?.(payload.symbol, s.price, payload.shares || 100, Date.now());
+                    }).catch(() => {});
+                    gameState.emit('stocksUpdate', sm.stocks);
+                }
+            }).catch(() => {});
+        }
     }
 
     /**

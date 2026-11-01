@@ -9,6 +9,7 @@ import newsManager from '../core/NewsManager.js';
 import { initMarketStateRealtime } from '../core/SupabaseClient.js';
 import patternTrajectoryManager from './PatternTrajectoryManager.js';
 import priceHistoryStore from './PriceHistoryStore.js';
+import deterministicMarket from './DeterministicMarket.js';
 
 class CryptoMarket {
     constructor() {
@@ -233,11 +234,11 @@ class CryptoMarket {
             crypto.activePattern = patternInfo.pattern;
 
             // 3. Scaled micro-tick volatility (~0.05% to ~0.20% per 4-second tick, dampened during Doji)
-            // Daily volatility (0.05 for BTC, 0.25 for PEPE) is converted to per-tick standard deviation
+            // Synchronized via deterministic UTC time bucket across all accounts
             const tickScale = 0.025; 
             const volDampener = patternInfo.volatilityScale || 1.0;
             const scaledVol = Math.max(0.0005, (crypto.volatility + signalVolAdd) * tickScale * volDampener);
-            const brownianMotion = (Math.random() - 0.5) * 2 * scaledVol;
+            const brownianMotion = deterministicMarket.getBrownianTick(symbol, 4000, scaledVol);
 
             // 4. Signal drift (e.g. MOON gives steady +0.12% per tick)
             const signalDrift = signalBulls * 0.005;
@@ -255,7 +256,7 @@ class CryptoMarket {
 
             // 8. Recent order flow imbalance (from active player & simulated market trades)
             const orderImbalance = (crypto.recentBuyVolume || 0) - (crypto.recentSellVolume || 0);
-            const orderFlowDrift = Math.max(-0.003, Math.min(0.003, orderImbalance / 20000000));
+            const orderFlowDrift = Math.max(-0.018, Math.min(0.018, orderImbalance / 10000000));
             // Decay recent order flow volumes over time
             crypto.recentBuyVolume = (crypto.recentBuyVolume || 0) * 0.88;
             crypto.recentSellVolume = (crypto.recentSellVolume || 0) * 0.88;
@@ -333,9 +334,10 @@ class CryptoMarket {
         const balance = gameState.getBalance();
         if (amountUSD > balance) throw new Error('Saldo tidak cukup');
 
-        // Immediate price impact from buy volume (slippage / taking ask liquidity)
+        // Dynamic price impact from buy volume (slippage / taking ask liquidity)
         const liquidityDepth = (crypto.price > 1000) ? 50000000 : 5000000;
-        const impact = Math.min(0.035, (amountUSD / liquidityDepth) * 0.2);
+        const rawImpact = (amountUSD / liquidityDepth) * 0.22;
+        const impact = Math.min(0.18, Math.max(0.0005, rawImpact));
         if (impact > 0.00001) {
             crypto.previousPrice = crypto.price;
             crypto.price = crypto.price * (1 + impact);
@@ -359,6 +361,22 @@ class CryptoMarket {
         crypto.volume24h = (crypto.volume24h || (crypto.price * 50000)) + amountUSD;
         crypto.recentBuyVolume = (crypto.recentBuyVolume || 0) + amountUSD;
         priceHistoryStore.recordTick(actualSymbol, crypto.price, amountUSD / (crypto.price || 1), Date.now());
+
+        // Broadcast Whale Order if purchase >= $1,000,000
+        if (amountUSD >= 1000000) {
+            try {
+                import('../finance/TransferManager.js').then(m => {
+                    const tm = m.default || m.transferManager;
+                    tm?.broadcastWhaleTrade?.({
+                        symbol: actualSymbol,
+                        market: 'crypto',
+                        side: 'BUY',
+                        amount: amountUSD,
+                        price: crypto.price
+                    });
+                }).catch(() => {});
+            } catch (e) {}
+        }
 
         gameState.emit('cryptoBuy', {
             symbol: actualSymbol,
@@ -387,9 +405,10 @@ class CryptoMarket {
 
         const totalValueUSD = crypto.price * cryptoAmount;
 
-        // Immediate price impact from sell volume (slippage / hitting bid liquidity)
+        // Dynamic price impact from sell volume (slippage / hitting bid liquidity)
         const liquidityDepth = (crypto.price > 1000) ? 50000000 : 5000000;
-        const impact = Math.min(0.035, (totalValueUSD / liquidityDepth) * 0.2);
+        const rawImpact = (totalValueUSD / liquidityDepth) * 0.22;
+        const impact = Math.min(0.18, Math.max(0.0005, rawImpact));
         if (impact > 0.00001) {
             crypto.previousPrice = crypto.price;
             crypto.price = Math.max(0.0001, crypto.price * (1 - impact));
@@ -412,6 +431,22 @@ class CryptoMarket {
         crypto.volume24h = (crypto.volume24h || (crypto.price * 50000)) + totalValueUSD;
         crypto.recentSellVolume = (crypto.recentSellVolume || 0) + totalValueUSD;
         priceHistoryStore.recordTick(actualSymbol, crypto.price, cryptoAmount, Date.now());
+
+        // Broadcast Whale Order if sale >= $1,000,000
+        if (totalValueUSD >= 1000000) {
+            try {
+                import('../finance/TransferManager.js').then(m => {
+                    const tm = m.default || m.transferManager;
+                    tm?.broadcastWhaleTrade?.({
+                        symbol: actualSymbol,
+                        market: 'crypto',
+                        side: 'SELL',
+                        amount: totalValueUSD,
+                        price: crypto.price
+                    });
+                }).catch(() => {});
+            } catch (e) {}
+        }
 
         // Record to trade history
         const tradeLog = {

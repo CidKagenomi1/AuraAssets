@@ -10,6 +10,7 @@ import newsManager from '../core/NewsManager.js';
 import { initMarketStateRealtime } from '../core/SupabaseClient.js';
 import patternTrajectoryManager from './PatternTrajectoryManager.js';
 import priceHistoryStore from './PriceHistoryStore.js';
+import deterministicMarket from './DeterministicMarket.js';
 
 
 class StockMarket {
@@ -301,10 +302,11 @@ class StockMarket {
             stock.activePattern = patternInfo.pattern;
 
             // 3. Scaled micro-tick volatility (~0.02% to ~0.08% per 6-second tick, dampened during Doji consolidation)
+            // Synchronized via deterministic UTC time bucket across all accounts
             const tickScale = 0.02; // 2% of daily volatility per tick
             const volDampener = patternInfo.volatilityScale || 1.0;
             const scaledVol = Math.max(0.0003, (stock.volatility + signalVolAdd) * tickScale * volDampener);
-            const brownianMotion = (Math.random() - 0.5) * 2 * scaledVol;
+            const brownianMotion = deterministicMarket.getBrownianTick(symbol, 6000, scaledVol);
 
             // 4. Controlled signal drift
             const signalDrift = signalBulls * 0.004;
@@ -322,7 +324,7 @@ class StockMarket {
 
             // 8. Recent order flow imbalance (from player and simulated institutional block trades)
             const orderImbalance = (stock.recentBuyVolume || 0) - (stock.recentSellVolume || 0);
-            const orderFlowDrift = Math.max(-0.003, Math.min(0.003, orderImbalance / 20000000));
+            const orderFlowDrift = Math.max(-0.012, Math.min(0.012, orderImbalance / 15000000));
             // Decay recent order volumes
             stock.recentBuyVolume = (stock.recentBuyVolume || 0) * 0.88;
             stock.recentSellVolume = (stock.recentSellVolume || 0) * 0.88;
@@ -394,9 +396,10 @@ class StockMarket {
 
         if (totalCost > balance) throw new Error('Saldo tidak cukup');
 
-        // Immediate price impact from buy volume
+        // Dynamic price impact from buy volume
         const liquidityShares = (stock.sharesOutstanding || 10000000) * 0.005;
-        const impact = Math.min(0.025, (shares / liquidityShares) * 0.1);
+        const rawImpact = (shares / liquidityShares) * 0.15;
+        const impact = Math.min(0.12, Math.max(0.0003, rawImpact));
         if (impact > 0.00001) {
             stock.previousPrice = stock.price;
             stock.price = parseFloat((stock.price * (1 + impact)).toFixed(2));
@@ -419,6 +422,23 @@ class StockMarket {
         stock.volume24h = (stock.volume24h || 100000) + shares;
         stock.recentBuyVolume = (stock.recentBuyVolume || 0) + totalCost;
         priceHistoryStore.recordTick(actualSymbol, stock.price, shares, Date.now());
+
+        // Broadcast Whale Order if purchase >= $1,000,000
+        if (totalCost >= 1000000) {
+            try {
+                import('../finance/TransferManager.js').then(m => {
+                    const tm = m.default || m.transferManager;
+                    tm?.broadcastWhaleTrade?.({
+                        symbol: actualSymbol,
+                        market: 'stock',
+                        side: 'BUY',
+                        amount: totalCost,
+                        shares: shares,
+                        price: stock.price
+                    });
+                }).catch(() => {});
+            } catch (e) {}
+        }
 
         gameState.emit('stockBuy', {
             symbol: actualSymbol,
@@ -447,9 +467,10 @@ class StockMarket {
 
         const totalValue = stock.price * shares;
 
-        // Immediate price impact from sell volume
+        // Dynamic price impact from sell volume
         const liquidityShares = (stock.sharesOutstanding || 10000000) * 0.005;
-        const impact = Math.min(0.025, (shares / liquidityShares) * 0.1);
+        const rawImpact = (shares / liquidityShares) * 0.15;
+        const impact = Math.min(0.12, Math.max(0.0003, rawImpact));
         if (impact > 0.00001) {
             stock.previousPrice = stock.price;
             stock.price = Math.max(0.01, parseFloat((stock.price * (1 - impact)).toFixed(2)));
@@ -472,6 +493,23 @@ class StockMarket {
         stock.volume24h = (stock.volume24h || 100000) + shares;
         stock.recentSellVolume = (stock.recentSellVolume || 0) + totalValue;
         priceHistoryStore.recordTick(actualSymbol, stock.price, shares, Date.now());
+
+        // Broadcast Whale Order if sale >= $1,000,000
+        if (totalValue >= 1000000) {
+            try {
+                import('../finance/TransferManager.js').then(m => {
+                    const tm = m.default || m.transferManager;
+                    tm?.broadcastWhaleTrade?.({
+                        symbol: actualSymbol,
+                        market: 'stock',
+                        side: 'SELL',
+                        amount: totalValue,
+                        shares: shares,
+                        price: stock.price
+                    });
+                }).catch(() => {});
+            } catch (e) {}
+        }
 
         // Record to trade history
         const tradeLog = {
