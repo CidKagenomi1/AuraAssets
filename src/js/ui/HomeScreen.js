@@ -15,6 +15,7 @@ import stockMarket from '../trading/StockMarket.js';
 import cryptoMarket from '../trading/CryptoMarket.js';
 import newsManager from '../core/NewsManager.js';
 import careerManager from '../career/CareerManager.js';
+import passiveIncomeManager from '../trading/PassiveIncomeManager.js';
 import ui from './UIManager.js';
 import { Icons } from './Icons.js';
 import { countUp, pulseElement, staggerFadeUp, createFloatingText } from './Animations.js';
@@ -59,6 +60,7 @@ class HomeScreen {
         });
         gameState.on('cryptoUpdate', () => {
             this.renderTopMovers();
+            this.renderHomeLaunchdrop();
             if (this.activeTimeframe === '1D') {
                 this.updateDashboardChart();
             }
@@ -77,6 +79,9 @@ class HomeScreen {
             this.renderHomeCashflow();
         });
         gameState.on('utcTick', () => this.updateStatusBar());
+        document.addEventListener('passiveIncomeTick', () => {
+            this.updateHomeLaunchdropLive();
+        });
         gameState.on('dayPass', () => this.updateStatusBar());
         gameState.on('monthPass', () => {
             this.updateStatusBar();
@@ -84,6 +89,7 @@ class HomeScreen {
             this.renderTopMovers();
             this.renderHomeCashflow();
             this.renderHomeCareer();
+            this.renderHomeLaunchdrop();
             this.renderMilestones();
             this.updateRecentTransactions();
             this.updateDashboardChart();
@@ -97,6 +103,7 @@ class HomeScreen {
         gameState.on('transaction', () => {
             this.renderMilestones();
             this.renderHomeCashflow();
+            this.renderHomeLaunchdrop();
             this.updateRecentTransactions();
             this.updateDashboardChart();
             this.renderOnboardingCard();
@@ -234,6 +241,7 @@ class HomeScreen {
         this.renderTopMovers();
         this.renderHomeCashflow();
         this.renderHomeCareer();
+        this.renderHomeLaunchdrop();
         this.renderMilestones();
         this.updateRecentTransactions();
         this.updateDashboardChart();
@@ -906,6 +914,258 @@ class HomeScreen {
                 m.default.switchView('portfolio');
             });
         });
+    }
+
+    renderHomeLaunchdrop() {
+        const container = document.getElementById('home-launchdrop-widget');
+        if (!container) return;
+
+        const piState = passiveIncomeManager.getState();
+        if ((!piState.launchdrops || piState.launchdrops.length === 0) && typeof passiveIncomeManager.syncDailyLaunchdrops === 'function') {
+            passiveIncomeManager.syncDailyLaunchdrops(piState);
+        }
+        const drops = (piState.launchdrops || []).filter(l => l.type === 'launchpool' || l.type === 'launchpad');
+
+        const formatTimer = (sec) => {
+            if (!sec || sec <= 0) return '00:00:00';
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = sec % 60;
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        };
+
+        const renderCard = (ld) => {
+            const isPool = ld.type === 'launchpool';
+            const crypto = cryptoMarket.getCrypto(ld.symbol);
+            const currentPrice = crypto ? crypto.price : 1.0;
+
+            const isUpcoming = ld.status === 'UPCOMING';
+            const isActive = ld.status === 'ACTIVE';
+            const isClaimable = ld.status === 'CLAIMABLE';
+            const isEnded = ld.status === 'ENDED';
+
+            let statusBadgeBg = 'rgba(245, 158, 11, 0.12)';
+            let statusTextColor = '#f59e0b';
+            let statusText = 'UPCOMING ⏳';
+
+            if (isActive) {
+                statusBadgeBg = 'rgba(16, 185, 129, 0.15)';
+                statusTextColor = '#10b981';
+                statusText = isPool ? 'POOL BUKA 🟢' : 'PRESALE BUKA 🟢';
+            } else if (isClaimable) {
+                statusBadgeBg = 'rgba(16, 185, 129, 0.25)';
+                statusTextColor = '#10b981';
+                statusText = 'SIAP KLAIM 🎁';
+            } else if (isEnded) {
+                statusBadgeBg = 'rgba(255, 255, 255, 0.06)';
+                statusTextColor = 'var(--text-muted)';
+                statusText = 'SELESAI 🏁';
+            }
+
+            let yieldHTML = '';
+            if (isPool) {
+                const yieldRate = ld.yieldRate || 0.12;
+                const rewardTokens = currentPrice > 0 ? (ld.committed * yieldRate) / currentPrice : 0;
+                const rewardUsd = ld.committed * yieldRate;
+
+                yieldHTML = `
+                    <div style="font-size: 0.78rem; color: var(--text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; background: rgba(0,0,0,0.25); padding: 0.7rem; border-radius: var(--radius-sm); border: 1px solid rgba(16,185,129,0.15);">
+                        <div>Committed Kas: <span style="color: white; font-weight:700;">$ ${ld.committed.toLocaleString()}</span></div>
+                        <div>Jaminan Modal: <span style="color: #10b981; font-weight:700;">100% Balik Utuh</span></div>
+                        <div>Airdrop Reward: <span style="color: #10b981; font-weight:800;">+${rewardTokens.toFixed(4)} ${ld.symbol}</span></div>
+                        <div>Estimasi Yield: <span style="color: #38bdf8; font-weight:700;">+$ ${Math.round(rewardUsd).toLocaleString()}</span></div>
+                        <div style="grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.06); padding-top:0.35rem; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size: 0.72rem;">${isUpcoming ? 'Buka dalam:' : isActive ? 'Sisa Waktu Pool:' : 'Durasi 3 Jam:'}</span>
+                            <span class="home-ld-timer-val" data-ld-id="${ld.id}" style="color: ${isActive ? '#10b981' : isUpcoming ? '#f59e0b' : 'white'}; font-weight:800; font-family:monospace; font-size: 0.85rem;">
+                                ${isEnded ? 'Selesai' : formatTimer(ld.timeRemaining)}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const discountRate = ld.discountRate || 0.50;
+                const presalePrice = currentPrice * (1 - discountRate);
+                const allocatedTokens = presalePrice > 0 ? ld.committed / presalePrice : 0;
+                const marketValue = allocatedTokens * currentPrice;
+
+                yieldHTML = `
+                    <div style="font-size: 0.78rem; color: var(--text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; background: rgba(0,0,0,0.25); padding: 0.7rem; border-radius: var(--radius-sm); border: 1px solid rgba(139,92,246,0.18);">
+                        <div>Harga Presale: <span style="color: #a855f7; font-weight:800;">$ ${presalePrice.toFixed(4)}</span> <span style="font-size:0.65rem; color:#10b981;">(-50%)</span></div>
+                        <div>Harga Pasar: <span style="color: white; font-weight:600;">$ ${currentPrice.toFixed(4)}</span></div>
+                        <div>Committed Anda: <span style="color: white; font-weight:700;">$ ${ld.committed.toLocaleString()}</span></div>
+                        <div>Alokasi Token: <span style="color: #a855f7; font-weight:800;">+${allocatedTokens.toFixed(2)} ${ld.symbol}</span></div>
+                        <div>Nilai Listing: <span style="color: #10b981; font-weight:800;">$ ${Math.round(marketValue).toLocaleString()} (+100%)</span></div>
+                        <div>Status Trade: <span style="color: #eab308; font-weight:600;">Siap trade stlh 5 jam</span></div>
+                        <div style="grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.06); padding-top:0.35rem; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size: 0.72rem;">${isUpcoming ? 'Presale buka dalam:' : isActive ? 'Listing pasar dalam:' : 'Durasi 5 Jam:'}</span>
+                            <span class="home-ld-timer-val" data-ld-id="${ld.id}" style="color: ${isActive ? '#a855f7' : isUpcoming ? '#f59e0b' : 'white'}; font-weight:800; font-family:monospace; font-size: 0.85rem;">
+                                ${isEnded ? 'Selesai & Listing' : formatTimer(ld.timeRemaining)}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const cardBorder = isPool ? 'rgba(16, 185, 129, 0.28)' : 'rgba(139, 92, 246, 0.28)';
+            const cardGlow = isPool ? 'rgba(16, 185, 129, 0.05)' : 'rgba(139, 92, 246, 0.05)';
+            const typeBadge = isPool
+                ? `<span style="font-size: 0.65rem; background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); padding: 2px 7px; border-radius: 99px; font-weight: 800; text-transform: uppercase;">🚀 Launchpool • Modal Balik 100%</span>`
+                : `<span style="font-size: 0.65rem; background: rgba(139,92,246,0.15); color: #a855f7; border: 1px solid rgba(139,92,246,0.3); padding: 2px 7px; border-radius: 99px; font-weight: 800; text-transform: uppercase;">💎 Launchpad • Diskon 50%</span>`;
+
+            return `
+                <div class="card" style="background: linear-gradient(180deg, ${cardGlow} 0%, rgba(20,20,26,0.75) 100%); border: 1px solid ${cardBorder}; border-radius: var(--radius-md); padding: 1.15rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.85rem;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem; gap: 0.5rem;">
+                            <div>
+                                <div style="margin-bottom: 0.3rem;">${typeBadge}</div>
+                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                    <span style="font-size: 1.35rem;">${escapeHtml(ld.icon || '🪙')}</span>
+                                    <div>
+                                        <span style="font-weight: 800; color: white; font-size: 1.05rem;">${escapeHtml(ld.name)}</span>
+                                        <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 700; margin-left: 0.25rem;">${escapeHtml(ld.symbol)}</span>
+                                    </div>
+                                </div>
+                                <div style="font-size: 0.7rem; color: var(--accent-primary); margin-top: 0.15rem; font-weight: 600;">Sektor: ${escapeHtml(ld.sector || 'Kripto')}</div>
+                            </div>
+                            <span class="home-ld-status-badge" data-ld-id="${ld.id}" data-status="${ld.status}" style="font-size: 0.7rem; background: ${statusBadgeBg}; color: ${statusTextColor}; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: 800; white-space: nowrap;">
+                                ${statusText}
+                            </span>
+                        </div>
+
+                        <p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.35; margin-bottom: 0.65rem; background: rgba(255,255,255,0.02); padding: 0.45rem 0.6rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.04);">
+                            ${escapeHtml(ld.desc)}
+                        </p>
+
+                        ${yieldHTML}
+                    </div>
+
+                    <!-- Direct Action Buttons -->
+                    <div style="display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.25rem;">
+                        ${isActive ? `
+                            <button onclick="window.homeCommitLaunchdrop('${ld.id}')" class="btn btn-primary btn-sm" style="width: 100%; font-size: 0.82rem; font-weight:800; height:38px; justify-content:center; ${isPool ? 'background: linear-gradient(135deg, #10b981 0%, #059669 100%);' : 'background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);'} box-shadow: 0 4px 12px rgba(0,0,0,0.3); cursor: pointer;">
+                                ${isPool ? '🚀 Stake Kas (Modal Aman 100%)' : '💎 Beli Presale Diskon 50%'}
+                            </button>
+                        ` : ''}
+
+                        ${isClaimable ? `
+                            <button onclick="window.homeClaimLaunchdrop('${ld.id}')" class="btn btn-primary btn-sm" style="width: 100%; font-size: 0.82rem; font-weight:800; height:38px; justify-content:center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-color:#10b981; box-shadow: 0 0 15px rgba(16,185,129,0.4); animation: pulse 2s infinite; cursor: pointer;">
+                                ${isPool ? '🎁 Klaim Modal Pokok + Airdrop Gratis' : '🚀 Klaim Token Presale & Siap Trade'}
+                            </button>
+                        ` : ''}
+
+                        ${isUpcoming ? `
+                            <div style="display: flex; gap: 0.4rem;">
+                                <button class="btn btn-secondary btn-sm" style="flex: 1; font-size: 0.75rem; font-weight:700; height:34px; justify-content:center; color: var(--text-muted);" disabled>
+                                    ⏳ Buka Pukul 12:00 UTC
+                                </button>
+                                <button onclick="window.homeSimulateLaunchdrop('${ld.id}')" class="btn btn-outline-warning btn-sm" title="Mode Uji Coba: Buka pool sekarang" style="font-size: 0.72rem; font-weight: 700; height:34px; padding: 0 10px; cursor: pointer;">
+                                    ⚡ Tes Buka
+                                </button>
+                            </div>
+                        ` : ''}
+
+                        ${isEnded ? `
+                            <div style="display: flex; gap: 0.4rem;">
+                                <button class="btn btn-secondary btn-sm" style="flex: 1; font-size: 0.75rem; font-weight:700; height:34px; justify-content:center;" disabled>
+                                    🏁 Event Selesai
+                                </button>
+                                ${!isPool ? `
+                                    <button onclick="window.homeOpenCryptoTrade('${ld.symbol}')" class="btn btn-sm btn-primary" style="font-size: 0.72rem; font-weight: 800; height: 34px; background: #3b82f6; border-color: #3b82f6; padding: 0 12px; cursor: pointer;">
+                                        📈 Trade
+                                    </button>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        };
+
+        const cardsHTML = drops.length > 0 
+            ? drops.map(renderCard).join('')
+            : `
+                <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 2rem 1rem; background: rgba(0,0,0,0.2); border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+                    <div style="font-size: 1.5rem; margin-bottom: 0.35rem;">🚀</div>
+                    <div style="font-weight: 700; color: white;">Tidak Ada Launchdrop Aktif Saat Ini</div>
+                    <div style="font-size: 0.75rem; margin-top: 0.25rem;">Event dibuka serentak setiap hari pukul <strong style="color: #fff;">12:00 UTC (19:00 WIB)</strong>.</div>
+                </div>
+            `;
+
+        const hasActiveOrClaimable = drops.some(l => l.status === 'ACTIVE' || l.status === 'CLAIMABLE');
+
+        container.innerHTML = `
+            <div class="panel-card" style="margin-bottom: 0; background: linear-gradient(145deg, rgba(20, 20, 28, 0.75), rgba(15, 15, 22, 0.9)); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.15rem 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
+                            🚀
+                        </div>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <h3 style="font-size: 1.05rem; font-weight: 800; color: white; margin: 0;">Launchdrop Kripto Sedang Berjalan</h3>
+                                ${hasActiveOrClaimable ? `
+                                    <span style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.18); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); padding: 2px 7px; border-radius: 99px; font-weight: 800; letter-spacing: 0.04em;">LIVE EVENT</span>
+                                ` : `
+                                    <span style="font-size: 0.65rem; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 7px; border-radius: 99px; font-weight: 800;">COUNTDOWN</span>
+                                `}
+                            </div>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
+                                Beli presale diskon 50% atau stake kas dengan modal 100% aman langsung dari beranda.
+                            </p>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <button id="btn-home-goto-passive" class="btn btn-secondary btn-sm" style="font-size: 0.74rem; font-weight: 700; padding: 5px 12px; cursor: pointer; color: #a78bfa; border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.08);">
+                            Buka Vault Lengkap ↗
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Grid of Launchpool & Launchpad -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 0.85rem;">
+                    ${cardsHTML}
+                </div>
+            </div>
+        `;
+
+        document.getElementById('btn-home-goto-passive')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            import('./ViewManager.js').then(m => {
+                m.default.switchView('passive');
+            });
+        });
+    }
+
+    updateHomeLaunchdropLive() {
+        const container = document.getElementById('home-launchdrop-widget');
+        if (!container) return;
+
+        const piState = passiveIncomeManager.getState();
+        const drops = piState.launchdrops || [];
+        let needsFullReRender = false;
+
+        const formatTimer = (sec) => {
+            if (!sec || sec <= 0) return '00:00:00';
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = sec % 60;
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        };
+
+        drops.forEach(ld => {
+            const timerEl = container.querySelector(`.home-ld-timer-val[data-ld-id="${ld.id}"]`);
+            if (timerEl) {
+                timerEl.textContent = ld.status === 'ENDED' ? 'Selesai' : formatTimer(ld.timeRemaining);
+            }
+            const badgeEl = container.querySelector(`.home-ld-status-badge[data-ld-id="${ld.id}"]`);
+            if (badgeEl && badgeEl.dataset.status !== ld.status) {
+                needsFullReRender = true;
+            }
+        });
+
+        if (needsFullReRender) {
+            this.renderHomeLaunchdrop();
+        }
     }
 
     renderHomeCareer() {
@@ -2268,4 +2528,77 @@ class HomeScreen {
 }
 
 export const homeScreen = new HomeScreen();
+
+// Global window actions for Home Launchdrop
+if (typeof window !== 'undefined') {
+    window.homeCommitLaunchdrop = async (id) => {
+        try {
+            const state = passiveIncomeManager.getState();
+            const ld = (state.launchdrops || []).find(l => l.id === id);
+            if (!ld) { ui.error('Pool Launchdrop tidak ditemukan'); return; }
+
+            const balance = gameState.getBalance();
+            if (balance <= 0) { ui.error('Saldo kas Anda kosong. Dapatkan kas terlebih dahulu.'); return; }
+
+            const isPool = ld.type === 'launchpool';
+            const title = isPool ? `Stake Kas ke Launchpool ${ld.name}` : `Beli Presale Diskon 50% ${ld.name}`;
+
+            const amount = await ui.promptMoney({
+                title,
+                maxAmount: balance,
+                confirmText: isPool ? 'Stake Kas' : 'Beli Presale'
+            });
+
+            if (amount && amount > 0) {
+                passiveIncomeManager.commitLaunchdrop(id, amount);
+                if (isPool) {
+                    ui.success(`Berhasil stake $${amount.toLocaleString()} ke Launchpool ${ld.name}! Modal kas aman 100% dan akan dikembalikan saat klaim.`, 'Launchpool');
+                } else {
+                    ui.success(`Berhasil membeli presale $${amount.toLocaleString()} untuk ${ld.name}! Alokasi diskon 50% Anda siap di-trade setelah event selesai.`, 'Launchpad Presale');
+                }
+                homeScreen.renderHomeLaunchdrop();
+            }
+        } catch (e) {
+            ui.error(e.message);
+        }
+    };
+
+    window.homeClaimLaunchdrop = (id) => {
+        try {
+            const res = passiveIncomeManager.claimLaunchdrop(id);
+            if (res.type === 'launchpool') {
+                ui.success(`🎉 Berhasil! Modal pokok $${res.refundCash.toLocaleString()} kembali 100% + reward airdrop ${res.tokenReward.toFixed(4)} ${res.symbol} masuk ke dompet!`, 'Klaim Launchpool', { deviceNotify: true });
+            } else {
+                ui.success(`🚀 Berhasil! ${res.allocatedTokens.toFixed(2)} ${res.symbol} hasil presale diskon 50% telah masuk dompet dan siap di-trade di pasar!`, 'Klaim Launchpad', { deviceNotify: true });
+            }
+            homeScreen.renderHomeLaunchdrop();
+        } catch (e) {
+            ui.error(e.message);
+        }
+    };
+
+    window.homeSimulateLaunchdrop = (id) => {
+        try {
+            const ld = passiveIncomeManager.simulateNextPhase(id);
+            if (ld.status === 'ACTIVE') {
+                ui.info(`⚡ Mode Uji Coba: ${ld.name} sekarang DIBUKA (Active) selama ${ld.timeRemaining} detik untuk pengujian!`, 'Tes Mode');
+            } else if (ld.status === 'CLAIMABLE') {
+                ui.success(`⚡ Mode Uji Coba: Durasi ${ld.name} selesai! Status berubah menjadi SIAP DIKLAIM (Claimable)!`, 'Tes Mode');
+            }
+            homeScreen.renderHomeLaunchdrop();
+        } catch (e) {
+            ui.error(e.message);
+        }
+    };
+
+    window.homeOpenCryptoTrade = (symbol) => {
+        import('./ViewManager.js').then(m => {
+            m.default.switchView('market');
+            if (typeof m.default.switchMarketTab === 'function') {
+                m.default.switchMarketTab('crypto');
+            }
+        });
+    };
+}
+
 export default homeScreen;

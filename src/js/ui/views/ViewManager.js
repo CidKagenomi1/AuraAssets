@@ -26,6 +26,7 @@ export class ViewManager {
       '#top-movers-widget',
       '#home-news-snapshot-widget',
       '#home-cashflow-career-row',
+      '#home-launchdrop-widget',
       '.quick-actions',
       '#footer-dashboard-grid'
     ];
