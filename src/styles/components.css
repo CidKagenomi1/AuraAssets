@@ -261,29 +261,6 @@ p, .desc, .description, [class*="-desc"], [class*="-description"], .biz-pros, .l
   display: none;
 }
 
-/* ── TOPBAR STATUS & QUICK GUIDE ── */
-.connection-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-full);
-  padding: 4px 10px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  cursor: default;
-  transition: all 0.2s ease;
-}
-.connection-status-pill .status-indicator-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  box-shadow: 0 0 6px var(--accent-primary);
-}
-
 /* ── TIMEFRAME BUTTONS (TOUCH-FRIENDLY) ── */
 .chart-timeframe-selectors {
   display: flex;
