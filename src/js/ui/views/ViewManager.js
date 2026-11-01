@@ -101,7 +101,13 @@ export class ViewManager {
 
     document.addEventListener('passiveIncomeTick', () => {
       if (this.currentView === 'passive') {
-        import('./PassiveIncomeView.js').then(m => m.renderPassiveIncomePage());
+        import('./PassiveIncomeView.js').then(m => {
+          if (typeof m.updatePassiveIncomeLive === 'function') {
+            m.updatePassiveIncomeLive();
+          } else {
+            m.renderPassiveIncomePage();
+          }
+        });
       }
     });
 

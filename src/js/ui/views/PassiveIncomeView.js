@@ -20,24 +20,13 @@ export function setActivePassiveSubTab(tab) {
 }
 
 /**
- * Render the dedicated Passive Income standalone page
+ * Compute aggregate KPIs across Staking, AI Bots, and Launchdrops
  */
-export function renderPassiveIncomePage(container = null) {
-  const target = container || document.getElementById('passive-page-container') || document.getElementById('view-passive');
-  if (!target) return;
-
-  const piState = passiveIncomeManager.getState();
-  const btc = cryptoMarket.getCrypto('BTC');
-  const btcPrice = btc ? btc.price : 60000;
-
-  // 1. Calculate Hero KPIs
-  // A. Staking Metrics
+export function computePassiveKpis(piState = passiveIncomeManager.getState()) {
   let totalStakedUSD = 0;
   let totalPendingRewardsUSD = 0;
   let stakedAssetsCount = 0;
-  const wallet = gameState.get('crypto') || {};
 
-  // Calculate across all staked assets dynamically
   const allStakedSymbols = new Set([
     ...Object.keys(piState.staked || {}),
     ...Object.keys(piState.stakingRewards || {})
@@ -58,7 +47,6 @@ export function renderPassiveIncomePage(container = null) {
     }
   });
 
-  // B. AI Bot Metrics
   const activeBots = piState.bots || [];
   let totalBotCapital = 0;
   let totalBotProfit = 0;
@@ -68,7 +56,6 @@ export function renderPassiveIncomePage(container = null) {
   });
   const botRoiPct = totalBotCapital > 0 ? (totalBotProfit / totalBotCapital) * 100 : 0;
 
-  // D. Launchdrop Metrics
   const launchdrops = piState.launchdrops || [];
   let totalCommittedLaunchdrop = 0;
   let claimableLaunchdropsCount = 0;
@@ -81,9 +68,221 @@ export function renderPassiveIncomePage(container = null) {
     }
   });
 
-  // Preserve focus if user is typing in search or input fields
+  return {
+    totalStakedUSD,
+    totalPendingRewardsUSD,
+    stakedAssetsCount,
+    activeBots,
+    totalBotCapital,
+    totalBotProfit,
+    botRoiPct,
+    launchdrops,
+    totalCommittedLaunchdrop,
+    claimableLaunchdropsCount
+  };
+}
+
+/**
+ * Live Hero KPI updater - modifies only the text nodes in-place (Zero Flicker!)
+ */
+export function updatePassiveHeroKpis(kpis = computePassiveKpis()) {
+  const elStakedCount = document.getElementById('pi-hero-staked-count');
+  if (elStakedCount) elStakedCount.textContent = `${kpis.stakedAssetsCount} Aset`;
+
+  const elStakedUsd = document.getElementById('pi-hero-staked-usd');
+  if (elStakedUsd) elStakedUsd.textContent = `$ ${kpis.totalStakedUSD.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+
+  const elStakedPending = document.getElementById('pi-hero-staked-pending');
+  if (elStakedPending) elStakedPending.textContent = `Pending: +$ ${kpis.totalPendingRewardsUSD.toFixed(2)}`;
+
+  const elBotCount = document.getElementById('pi-hero-bot-count');
+  if (elBotCount) elBotCount.textContent = `${kpis.activeBots.length} Berjalan`;
+
+  const elBotProfit = document.getElementById('pi-hero-bot-profit');
+  if (elBotProfit) {
+    elBotProfit.textContent = `${kpis.totalBotProfit >= 0 ? '+' : ''}$ ${Math.round(kpis.totalBotProfit).toLocaleString()}`;
+    elBotProfit.style.color = kpis.totalBotProfit >= 0 ? 'var(--accent-primary)' : 'var(--accent-danger)';
+  }
+
+  const elBotDetails = document.getElementById('pi-hero-bot-details');
+  if (elBotDetails) elBotDetails.textContent = `Modal: $ ${Math.round(kpis.totalBotCapital).toLocaleString()} (${kpis.botRoiPct >= 0 ? '+' : ''}${kpis.botRoiPct.toFixed(1)}%)`;
+
+  const elLdCount = document.getElementById('pi-hero-ld-count');
+  if (elLdCount) elLdCount.textContent = `${kpis.launchdrops.length} Event`;
+
+  const elLdCommitted = document.getElementById('pi-hero-ld-committed');
+  if (elLdCommitted) elLdCommitted.textContent = `$ ${kpis.totalCommittedLaunchdrop.toLocaleString()}`;
+
+  const elLdStatus = document.getElementById('pi-hero-ld-status');
+  if (elLdStatus) {
+    elLdStatus.textContent = kpis.claimableLaunchdropsCount > 0 ? `🎁 ${kpis.claimableLaunchdropsCount} Token Siap Diklaim!` : 'Menunggu distribusi token';
+    elLdStatus.style.color = kpis.claimableLaunchdropsCount > 0 ? '#10b981' : 'var(--text-muted)';
+    elLdStatus.style.fontWeight = kpis.claimableLaunchdropsCount > 0 ? '700' : 'normal';
+  }
+}
+
+/**
+ * Granular Live Timer & Numbers Updater
+ * Called every second by ViewManager's passiveIncomeTick without tearing down DOM or causing screen flashes
+ */
+export function updatePassiveIncomeLive() {
+  const target = document.getElementById('passive-page-container') || document.getElementById('view-passive');
+  if (!target) return;
+  const shell = target.querySelector('#passive-income-shell');
+  if (!shell) {
+    renderPassiveIncomePage(target);
+    return;
+  }
+
+  // 1. Update Hero KPI metrics in place
+  updatePassiveHeroKpis();
+
+  // 2. Protect any active search or input field
   const activeEl = document.activeElement;
-  const isUserTyping = activeEl && target.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
+  if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+    return;
+  }
+
+  // 3. Update active sub-view specifics
+  if (currentPassiveSubTab === 'launchdrop') {
+    const piState = passiveIncomeManager.getState();
+    const drops = piState.launchdrops || [];
+    let statusNeedsRefresh = false;
+
+    const formatTimer = (sec) => {
+      if (!sec || sec <= 0) return '00:00:00';
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    };
+
+    drops.forEach(ld => {
+      const timerEl = document.querySelector(`.launchdrop-timer-val[data-ld-id="${ld.id}"]`);
+      if (timerEl) {
+        timerEl.textContent = ld.status === 'ENDED' ? 'Selesai & Listing' : formatTimer(ld.timeRemaining);
+      }
+      const badgeEl = document.querySelector(`.launchdrop-status-badge[data-ld-id="${ld.id}"]`);
+      if (badgeEl && badgeEl.dataset.status !== ld.status) {
+        statusNeedsRefresh = true;
+      }
+    });
+
+    const nextCountdownEl = document.getElementById('launchdrop-next-countdown-val');
+    if (nextCountdownEl) {
+      const now = new Date();
+      const currentUtcSeconds = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
+      const targetUtcSeconds = 12 * 3600;
+      let secondsToNext = targetUtcSeconds - currentUtcSeconds;
+      if (secondsToNext <= 0) secondsToNext += 24 * 3600;
+      nextCountdownEl.textContent = `⏳ ${formatTimer(secondsToNext)}`;
+    }
+
+    if (statusNeedsRefresh) {
+      const subContainer = document.getElementById('passive-subview-content');
+      if (subContainer) {
+        subContainer.innerHTML = renderLaunchdropView();
+        bindPassiveIncomeButtons();
+      }
+    }
+  } else if (currentPassiveSubTab === 'staking') {
+    const piState = passiveIncomeManager.getState();
+    Object.entries(piState.stakingRewards || {}).forEach(([sym, amt]) => {
+      const amtEl = document.querySelector(`.staking-reward-amt[data-symbol="${sym}"]`);
+      const usdEl = document.querySelector(`.staking-reward-usd[data-symbol="${sym}"]`);
+      if (amtEl || usdEl) {
+        const crypto = cryptoMarket.getCrypto(sym);
+        const price = crypto ? crypto.price : 1;
+        if (amtEl) amtEl.textContent = `+${cryptoMarket.formatAmount(amt)} ${sym}`;
+        if (usdEl) usdEl.textContent = `+$${(amt * price).toFixed(3)}`;
+      }
+    });
+  } else if (currentPassiveSubTab === 'bot') {
+    const piState = passiveIncomeManager.getState();
+    (piState.bots || []).forEach(b => {
+      const profitEl = document.querySelector(`.bot-profit-val[data-bot-id="${b.id}"]`);
+      const valEl = document.querySelector(`.bot-current-val[data-bot-id="${b.id}"]`);
+      const badgeEl = document.querySelector(`.bot-change-badge[data-bot-id="${b.id}"]`);
+      if (profitEl) {
+        const up = b.profit >= 0;
+        const color = up ? 'var(--accent-primary)' : 'var(--accent-danger)';
+        profitEl.textContent = `${up ? '+' : ''}$ ${Math.round(b.profit).toLocaleString()}`;
+        profitEl.style.color = color;
+        if (valEl) valEl.textContent = `$ ${Math.round(Math.max(0, b.capital + b.profit)).toLocaleString()}`;
+        if (badgeEl) {
+          badgeEl.textContent = `${up ? '+' : ''}${(b.profitPct || 0).toFixed(2)}%`;
+          badgeEl.style.color = color;
+        }
+        const cyclesEl = document.querySelector(`.bot-cycles-val[data-bot-id="${b.id}"]`);
+        if (cyclesEl) {
+          cyclesEl.textContent = `${b.runtimeTicks || 1} Siklus`;
+        }
+      }
+    });
+  }
+}
+
+/**
+ * Switch Passive sub-tab without re-rendering the outer shell or triggering page flashes
+ */
+export function switchPassiveSubTab(selectedTab, container = null) {
+  currentPassiveSubTab = selectedTab;
+
+  document.querySelectorAll('.passive-subtab-btn').forEach(btn => {
+    const isAct = btn.dataset.subtab === selectedTab;
+    btn.classList.toggle('active', isAct);
+    if (btn.dataset.subtab === 'staking') {
+      btn.style.background = isAct ? 'linear-gradient(135deg, var(--accent-primary) 0%, #059669 100%)' : 'transparent';
+      btn.style.color = isAct ? '#000' : 'var(--text-muted)';
+      btn.style.boxShadow = isAct ? '0 2px 8px rgba(16,185,129,0.3)' : 'none';
+    } else if (btn.dataset.subtab === 'bot') {
+      btn.style.background = isAct ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'transparent';
+      btn.style.color = isAct ? '#fff' : 'var(--text-muted)';
+      btn.style.boxShadow = isAct ? '0 2px 8px rgba(59,130,246,0.3)' : 'none';
+    } else if (btn.dataset.subtab === 'launchdrop') {
+      btn.style.background = isAct ? 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)' : 'transparent';
+      btn.style.color = isAct ? '#fff' : 'var(--text-muted)';
+      btn.style.boxShadow = isAct ? '0 2px 8px rgba(139,92,246,0.3)' : 'none';
+    }
+  });
+
+  const subContainer = document.getElementById('passive-subview-content');
+  if (subContainer) {
+    let subViewContent = '';
+    if (selectedTab === 'staking') subViewContent = renderStakingMiningView_OnlyStaking();
+    else if (selectedTab === 'bot') subViewContent = renderBotTradingView();
+    else if (selectedTab === 'launchdrop') subViewContent = renderLaunchdropView();
+    subContainer.innerHTML = subViewContent;
+    bindPassiveIncomeButtons();
+  } else {
+    renderPassiveIncomePage(container);
+  }
+}
+
+/**
+ * Render the dedicated Passive Income standalone page
+ */
+export function renderPassiveIncomePage(container = null) {
+  const target = container || document.getElementById('passive-page-container') || document.getElementById('view-passive');
+  if (!target) return;
+
+  const shell = target.querySelector('#passive-income-shell');
+  if (shell) {
+    // If the shell is already in place, avoid rewriting the whole DOM
+    updatePassiveHeroKpis();
+    const subContainer = document.getElementById('passive-subview-content');
+    if (subContainer && !subContainer.innerHTML.trim()) {
+      let subViewContent = '';
+      if (currentPassiveSubTab === 'staking') subViewContent = renderStakingMiningView_OnlyStaking();
+      else if (currentPassiveSubTab === 'bot') subViewContent = renderBotTradingView();
+      else if (currentPassiveSubTab === 'launchdrop') subViewContent = renderLaunchdropView();
+      subContainer.innerHTML = subViewContent;
+      bindPassiveIncomeButtons();
+    }
+    return;
+  }
+
+  const kpis = computePassiveKpis();
 
   // Sub-view HTML generator
   let subViewContent = '';
@@ -98,17 +297,8 @@ export function renderPassiveIncomePage(container = null) {
     subViewContent = renderStakingMiningView_OnlyStaking();
   }
 
-  // Only rewrite innerHTML if not actively typing inside input fields, or update dynamically
-  if (isUserTyping) {
-    const subContainer = document.getElementById('passive-subview-content');
-    if (subContainer) {
-      // Don't disturb active search inputs
-      return;
-    }
-  }
-
   target.innerHTML = `
-    <div style="display: flex; flex-direction: column; gap: 1.25rem; animation: fade-up 0.25s ease;">
+    <div id="passive-income-shell" style="display: flex; flex-direction: column; gap: 1.25rem;">
       <!-- Page Header -->
       <div class="passive-header-banner" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; border-bottom: 1px solid rgba(255,255,255,0.07); padding-bottom: 1rem;">
         <div>
@@ -136,11 +326,11 @@ export function renderPassiveIncomePage(container = null) {
         <div class="card passive-kpi-card" style="background: rgba(24, 24, 27, 0.65); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); padding: 1rem; position: relative; overflow: hidden;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
             <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🔒 Staking Vault</span>
-            <span style="font-size: 0.7rem; color: var(--accent-primary); background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 4px;">${stakedAssetsCount} Aset</span>
+            <span id="pi-hero-staked-count" style="font-size: 0.7rem; color: var(--accent-primary); background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 4px;">${kpis.stakedAssetsCount} Aset</span>
           </div>
-          <div style="font-size: 1.25rem; font-weight: 800; color: white;">$ ${totalStakedUSD.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-          <div style="font-size: 0.75rem; color: #10b981; margin-top: 0.25rem; font-weight: 600;">
-            Pending: +$ ${totalPendingRewardsUSD.toFixed(2)}
+          <div id="pi-hero-staked-usd" style="font-size: 1.25rem; font-weight: 800; color: white;">$ ${kpis.totalStakedUSD.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+          <div id="pi-hero-staked-pending" style="font-size: 0.75rem; color: #10b981; margin-top: 0.25rem; font-weight: 600;">
+            Pending: +$ ${kpis.totalPendingRewardsUSD.toFixed(2)}
           </div>
         </div>
 
@@ -148,13 +338,13 @@ export function renderPassiveIncomePage(container = null) {
         <div class="card passive-kpi-card" style="background: rgba(24, 24, 27, 0.65); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); padding: 1rem; position: relative; overflow: hidden;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
             <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🤖 AI Trading Bot</span>
-            <span style="font-size: 0.7rem; color: #3b82f6; background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">${activeBots.length} Berjalan</span>
+            <span id="pi-hero-bot-count" style="font-size: 0.7rem; color: #3b82f6; background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">${kpis.activeBots.length} Berjalan</span>
           </div>
-          <div style="font-size: 1.25rem; font-weight: 800; color: ${totalBotProfit >= 0 ? 'var(--accent-primary)' : 'var(--accent-danger)'};">
-            ${totalBotProfit >= 0 ? '+' : ''}$ ${Math.round(totalBotProfit).toLocaleString()}
+          <div id="pi-hero-bot-profit" style="font-size: 1.25rem; font-weight: 800; color: ${kpis.totalBotProfit >= 0 ? 'var(--accent-primary)' : 'var(--accent-danger)'};">
+            ${kpis.totalBotProfit >= 0 ? '+' : ''}$ ${Math.round(kpis.totalBotProfit).toLocaleString()}
           </div>
-          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
-            Modal: $ ${Math.round(totalBotCapital).toLocaleString()} (${botRoiPct >= 0 ? '+' : ''}${botRoiPct.toFixed(1)}%)
+          <div id="pi-hero-bot-details" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Modal: $ ${Math.round(kpis.totalBotCapital).toLocaleString()} (${kpis.botRoiPct >= 0 ? '+' : ''}${kpis.botRoiPct.toFixed(1)}%)
           </div>
         </div>
 
@@ -162,11 +352,11 @@ export function renderPassiveIncomePage(container = null) {
         <div class="card passive-kpi-card" style="background: rgba(24, 24, 27, 0.65); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-md); padding: 1rem; position: relative; overflow: hidden;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
             <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🚀 Launchdrop Kripto</span>
-            <span style="font-size: 0.7rem; color: #8b5cf6; background: rgba(139,92,246,0.1); padding: 2px 6px; border-radius: 4px;">${launchdrops.length} Event</span>
+            <span id="pi-hero-ld-count" style="font-size: 0.7rem; color: #8b5cf6; background: rgba(139,92,246,0.1); padding: 2px 6px; border-radius: 4px;">${kpis.launchdrops.length} Event</span>
           </div>
-          <div style="font-size: 1.25rem; font-weight: 800; color: white;">$ ${totalCommittedLaunchdrop.toLocaleString()}</div>
-          <div style="font-size: 0.75rem; color: ${claimableLaunchdropsCount > 0 ? '#10b981' : 'var(--text-muted)'}; margin-top: 0.25rem; font-weight: ${claimableLaunchdropsCount > 0 ? '700' : 'normal'};">
-            ${claimableLaunchdropsCount > 0 ? `🎁 ${claimableLaunchdropsCount} Token Siap Diklaim!` : 'Menunggu distribusi token'}
+          <div id="pi-hero-ld-committed" style="font-size: 1.25rem; font-weight: 800; color: white;">$ ${kpis.totalCommittedLaunchdrop.toLocaleString()}</div>
+          <div id="pi-hero-ld-status" style="font-size: 0.75rem; color: ${kpis.claimableLaunchdropsCount > 0 ? '#10b981' : 'var(--text-muted)'}; margin-top: 0.25rem; font-weight: ${kpis.claimableLaunchdropsCount > 0 ? '700' : 'normal'};">
+            ${kpis.claimableLaunchdropsCount > 0 ? `🎁 ${kpis.claimableLaunchdropsCount} Token Siap Diklaim!` : 'Menunggu distribusi token'}
           </div>
         </div>
       </div>
@@ -175,17 +365,17 @@ export function renderPassiveIncomePage(container = null) {
       <div class="passive-subtab-strip" style="background: rgba(18, 18, 20, 0.85); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 4px; display: flex; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;" id="passive-subtab-group">
         <button class="btn btn-sm passive-subtab-btn ${currentPassiveSubTab === 'staking' ? 'active' : ''}" data-subtab="staking" style="flex: 1; min-width: 130px; height: 38px; font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem; border-radius: 6px; transition: all 0.2s ease; border: none; ${currentPassiveSubTab === 'staking' ? 'background: linear-gradient(135deg, var(--accent-primary) 0%, #059669 100%); color: #000; box-shadow: 0 2px 8px rgba(16,185,129,0.3);' : 'background: transparent; color: var(--text-muted);'}">
           <span>🔒</span> Vault Staking
-          ${stakedAssetsCount > 0 ? `<span style="font-size: 0.65rem; background: ${currentPassiveSubTab === 'staking' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.08)'}; padding: 1px 5px; border-radius: 99px;">${stakedAssetsCount}</span>` : ''}
+          ${kpis.stakedAssetsCount > 0 ? `<span style="font-size: 0.65rem; background: ${currentPassiveSubTab === 'staking' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.08)'}; padding: 1px 5px; border-radius: 99px;">${kpis.stakedAssetsCount}</span>` : ''}
         </button>
 
         <button class="btn btn-sm passive-subtab-btn ${currentPassiveSubTab === 'bot' ? 'active' : ''}" data-subtab="bot" style="flex: 1; min-width: 140px; height: 38px; font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem; border-radius: 6px; transition: all 0.2s ease; border: none; ${currentPassiveSubTab === 'bot' ? 'background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #fff; box-shadow: 0 2px 8px rgba(59,130,246,0.3);' : 'background: transparent; color: var(--text-muted);'}">
           <span>🤖</span> AI Trading Bot
-          ${activeBots.length > 0 ? `<span style="font-size: 0.65rem; background: ${currentPassiveSubTab === 'bot' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)'}; padding: 1px 5px; border-radius: 99px;">${activeBots.length}</span>` : ''}
+          ${kpis.activeBots.length > 0 ? `<span style="font-size: 0.65rem; background: ${currentPassiveSubTab === 'bot' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)'}; padding: 1px 5px; border-radius: 99px;">${kpis.activeBots.length}</span>` : ''}
         </button>
 
         <button class="btn btn-sm passive-subtab-btn ${currentPassiveSubTab === 'launchdrop' ? 'active' : ''}" data-subtab="launchdrop" style="flex: 1; min-width: 140px; height: 38px; font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem; border-radius: 6px; transition: all 0.2s ease; border: none; ${currentPassiveSubTab === 'launchdrop' ? 'background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: #fff; box-shadow: 0 2px 8px rgba(139,92,246,0.3);' : 'background: transparent; color: var(--text-muted);'}">
           <span>🚀</span> Launchdrop Kripto
-          ${claimableLaunchdropsCount > 0 ? `<span style="font-size: 0.65rem; background: #10b981; color: #000; font-weight: 800; padding: 1px 5px; border-radius: 99px;">🎁 ${claimableLaunchdropsCount}</span>` : ''}
+          ${kpis.claimableLaunchdropsCount > 0 ? `<span style="font-size: 0.65rem; background: #10b981; color: #000; font-weight: 800; padding: 1px 5px; border-radius: 99px;">🎁 ${kpis.claimableLaunchdropsCount}</span>` : ''}
         </button>
       </div>
 
@@ -196,14 +386,13 @@ export function renderPassiveIncomePage(container = null) {
     </div>
   `;
 
-  // Bind sub-tab buttons
+  // Bind sub-tab buttons with in-place content replacement
   const subTabBtns = target.querySelectorAll('.passive-subtab-btn');
   subTabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const selectedTab = btn.dataset.subtab;
-      if (selectedTab && selectedTab !== currentPassiveSubTab) {
-        currentPassiveSubTab = selectedTab;
-        renderPassiveIncomePage(container);
+      if (selectedTab) {
+        switchPassiveSubTab(selectedTab, target);
       }
     });
   });
@@ -356,8 +545,8 @@ export function renderStakingMiningView_OnlyStaking() {
                 </div>
                 <div>
                   <div style="color: var(--text-muted); font-size: 0.68rem; text-transform: uppercase;">Pending Reward</div>
-                  <div style="font-weight: 800; color: #10b981;">+${cryptoMarket.formatAmount(pendingReward)} ${symbol}</div>
-                  <div style="font-size: 0.68rem; color: #10b981;">+$${rewardValueUSD.toFixed(3)}</div>
+                  <div class="staking-reward-amt" data-symbol="${symbol}" style="font-weight: 800; color: #10b981;">+${cryptoMarket.formatAmount(pendingReward)} ${symbol}</div>
+                  <div class="staking-reward-usd" data-symbol="${symbol}" style="font-size: 0.68rem; color: #10b981;">+$${rewardValueUSD.toFixed(3)}</div>
                 </div>
               </div>
 
@@ -494,7 +683,7 @@ export function renderLaunchdropView() {
             <div>Estimasi Cuan: <span style="color: #38bdf8; font-weight:700;">+$ ${Math.round(rewardUsd).toLocaleString()}</span></div>
             <div style="grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.06); padding-top:0.35rem; display:flex; justify-content:space-between; align-items:center;">
               <span style="font-size: 0.73rem;">${isUpcoming ? 'Buka dalam:' : isActive ? 'Sisa Waktu Pool:' : 'Durasi 3 Jam:'}</span>
-              <span style="color: ${isActive ? '#10b981' : isUpcoming ? '#f59e0b' : 'white'}; font-weight:800; font-family:monospace; font-size: 0.85rem;">
+              <span class="launchdrop-timer-val" data-ld-id="${ld.id}" style="color: ${isActive ? '#10b981' : isUpcoming ? '#f59e0b' : 'white'}; font-weight:800; font-family:monospace; font-size: 0.85rem;">
                 ${isEnded ? 'Selesai' : formatTimer(ld.timeRemaining)}
               </span>
             </div>
@@ -516,7 +705,7 @@ export function renderLaunchdropView() {
             <div>Status Trade: <span style="color: #eab308; font-weight:600;">Tradeable stlh 5 jam</span></div>
             <div style="grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.06); padding-top:0.35rem; display:flex; justify-content:space-between; align-items:center;">
               <span style="font-size: 0.73rem;">${isUpcoming ? 'Presale buka dalam:' : isActive ? 'Listing pasar dalam:' : 'Durasi 5 Jam:'}</span>
-              <span style="color: ${isActive ? '#a855f7' : isUpcoming ? '#f59e0b' : 'white'}; font-weight:800; font-family:monospace; font-size: 0.85rem;">
+              <span class="launchdrop-timer-val" data-ld-id="${ld.id}" style="color: ${isActive ? '#a855f7' : isUpcoming ? '#f59e0b' : 'white'}; font-weight:800; font-family:monospace; font-size: 0.85rem;">
                 ${isEnded ? 'Selesai & Listing' : formatTimer(ld.timeRemaining)}
               </span>
             </div>
@@ -545,7 +734,7 @@ export function renderLaunchdropView() {
                 </div>
                 <div style="font-size: 0.72rem; color: var(--accent-primary); margin-top: 0.2rem; font-weight: 600;">Sektor: ${ld.sector || 'Kripto'}</div>
               </div>
-              <span style="font-size: 0.72rem; background: ${statusBadgeBg}; color: ${statusTextColor}; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: 800; white-space: nowrap;">
+              <span class="launchdrop-status-badge" data-ld-id="${ld.id}" data-status="${ld.status}" style="font-size: 0.72rem; background: ${statusBadgeBg}; color: ${statusTextColor}; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: 800; white-space: nowrap;">
                 ${statusText}
               </span>
             </div>
@@ -623,7 +812,7 @@ export function renderLaunchdropView() {
             </div>
             <div class="launchdrop-countdown-box" style="text-align: right; background: rgba(0,0,0,0.35); padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.08);">
               <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Countdown Next Launchdrop</div>
-              <div style="font-size: 0.95rem; font-weight: 800; color: #38bdf8; font-family: monospace;">⏳ ${formatTimer(secondsToNext)}</div>
+              <div id="launchdrop-next-countdown-val" style="font-size: 0.95rem; font-weight: 800; color: #38bdf8; font-family: monospace;">⏳ ${formatTimer(secondsToNext)}</div>
             </div>
           </div>
         </div>
@@ -714,16 +903,16 @@ export function renderBotTradingView() {
                       <span>${bot.targetName}</span>
                     </div>
                   </div>
-                  <span style="font-size: 0.8rem; background: ${up ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'}; color: ${color}; border: 1px solid ${up ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: 800;">
+                  <span class="bot-change-badge" data-bot-id="${bot.id}" style="font-size: 0.8rem; background: ${up ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'}; color: ${color}; border: 1px solid ${up ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: 800;">
                     ${changeText}
                   </span>
                 </div>
                 
                 <div style="font-size: 0.8rem; color: var(--text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: rgba(0,0,0,0.2); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.04);">
                   <div>Modal Awal: <span style="color: white; font-weight:700;">$ ${bot.capital.toLocaleString()}</span></div>
-                  <div>P/L Bersih: <span style="color: ${color}; font-weight:800;">${up ? '+' : ''}$ ${Math.round(bot.profit).toLocaleString()}</span></div>
-                  <div>Nilai Sekarang: <span style="color: white; font-weight:700;">$ ${Math.round(Math.max(0, bot.capital + bot.profit)).toLocaleString()}</span></div>
-                  <div>Durasi Aktif: <span style="color: var(--text-muted);">${bot.runtimeTicks || 1} Siklus</span></div>
+                  <div>P/L Bersih: <span class="bot-profit-val" data-bot-id="${bot.id}" style="color: ${color}; font-weight:800;">${up ? '+' : ''}$ ${Math.round(bot.profit).toLocaleString()}</span></div>
+                  <div>Nilai Sekarang: <span class="bot-current-val" data-bot-id="${bot.id}" style="color: white; font-weight:700;">$ ${Math.round(Math.max(0, bot.capital + bot.profit)).toLocaleString()}</span></div>
+                  <div>Durasi Aktif: <span class="bot-cycles-val" data-bot-id="${bot.id}" style="color: var(--text-muted);">${bot.runtimeTicks || 1} Siklus</span></div>
                 </div>
               </div>
 
@@ -999,23 +1188,45 @@ if (typeof window !== 'undefined') {
     };
 
     window._refreshPassiveIncomeView = () => {
-      renderPassiveIncomePage();
+      const subContainer = document.getElementById('passive-subview-content');
+      if (subContainer) {
+        let subViewContent = '';
+        if (currentPassiveSubTab === 'staking') subViewContent = renderStakingMiningView_OnlyStaking();
+        else if (currentPassiveSubTab === 'bot') subViewContent = renderBotTradingView();
+        else if (currentPassiveSubTab === 'launchdrop') subViewContent = renderLaunchdropView();
+        subContainer.innerHTML = subViewContent;
+        bindPassiveIncomeButtons();
+        updatePassiveHeroKpis();
+      } else {
+        renderPassiveIncomePage();
+      }
     };
 
     window._setPassiveView = (tab) => {
-      currentPassiveSubTab = tab;
-      renderPassiveIncomePage();
+      switchPassiveSubTab(tab);
     };
 
     // Staking Filter & Search
     window.setStakingFilterTab = (tab) => {
       window._stakingFilterTab = tab;
-      notifyView();
+      const subContainer = document.getElementById('passive-subview-content');
+      if (subContainer && currentPassiveSubTab === 'staking') {
+        subContainer.innerHTML = renderStakingMiningView_OnlyStaking();
+        bindPassiveIncomeButtons();
+      } else {
+        notifyView();
+      }
     };
 
     window.setStakingSearch = (query) => {
       window._stakingSearchQuery = query;
-      notifyView();
+      const subContainer = document.getElementById('passive-subview-content');
+      if (subContainer && currentPassiveSubTab === 'staking') {
+        subContainer.innerHTML = renderStakingMiningView_OnlyStaking();
+        bindPassiveIncomeButtons();
+      } else {
+        notifyView();
+      }
       const input = document.getElementById('staking-search-input');
       if (input) {
         input.focus();

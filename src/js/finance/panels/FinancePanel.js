@@ -229,15 +229,19 @@ class FinancePanel {
                         font-size: 0.95rem;
                         font-weight: 800;
                         letter-spacing: -0.01em;
-                        transition: filter 0.16s cubic-bezier(0.4, 0, 0.2, 1),
-                                    opacity 0.16s cubic-bezier(0.4, 0, 0.2, 1),
-                                    transform 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+                        filter: blur(0px);
+                        opacity: 1;
+                        transform: scale(1);
+                        will-change: filter, opacity, transform;
+                        transition: filter 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                                    opacity 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                                    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
                     }
                     /* Transisi blur HANYA di elemen isi tombol saat di-switch */
                     .fp-switcher-content.is-blurring {
-                        filter: blur(8px);
-                        opacity: 0.2;
-                        transform: scale(0.94);
+                        filter: blur(5px);
+                        opacity: 0.25;
+                        transform: scale(0.95);
                     }
 
                     .fp-hero-stat {
@@ -673,13 +677,17 @@ class FinancePanel {
                 switcherContent.classList.add('is-blurring');
 
                 setTimeout(() => {
-                    // Step 2: Switch tab and update button text & icon
-                    this.switchTab(nextTab);
-
-                    // Step 3: Remove blur to focus in new content
-                    requestAnimationFrame(() => {
-                        switcherContent.classList.remove('is-blurring');
-                    });
+                    try {
+                        // Step 2: Switch tab and update button text & icon
+                        this.switchTab(nextTab);
+                    } catch (err) {
+                        console.error('[FinancePanel] Error in switchTab:', err);
+                    } finally {
+                        // Step 3: Always remove blur to focus in new content
+                        requestAnimationFrame(() => {
+                            switcherContent.classList.remove('is-blurring');
+                        });
+                    }
                 }, 160);
             });
         }
@@ -752,7 +760,11 @@ class FinancePanel {
         }
 
         // Sync main navigation Highlights (Sidebar & Mobile Bottom Nav)
-        viewManager.updateActiveNavigationHighlights();
+        if (typeof viewManager.updateNavState === 'function') {
+            viewManager.updateNavState();
+        } else if (typeof viewManager.updateActiveNavigationHighlights === 'function') {
+            viewManager.updateActiveNavigationHighlights();
+        }
     }
 
     renderPortfolioTabContent() {
