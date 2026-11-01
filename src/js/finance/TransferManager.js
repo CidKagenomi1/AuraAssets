@@ -23,7 +23,7 @@ class TransferManager {
     }
 
     /**
-     * Initialize Supabase Realtime Broadcast Channel for transfers & community grants
+     * Initialize Supabase Realtime Broadcast & Database Sync Channel for transfers & community grants
      */
     initRealtime() {
         if (this.isListening || !supabase) return;
@@ -45,6 +45,34 @@ class TransferManager {
                 .on('broadcast', { event: 'whale_trade' }, ({ payload }) => {
                     this.handleIncomingWhaleTrade(payload);
                 })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'player_transfers' }, (payload) => {
+                    if (payload?.new) {
+                        const data = payload.new;
+                        this.handleIncomingTransfer({
+                            id: data.id,
+                            from: data.from_user,
+                            to: data.to_user,
+                            amount: Number(data.amount),
+                            adminFee: Number(data.admin_fee || 0),
+                            totalDeduction: Number(data.total_deduction || data.amount),
+                            note: data.note || '',
+                            gameDate: data.game_date
+                        });
+                    }
+                })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'community_donations' }, (payload) => {
+                    if (payload?.new) {
+                        const data = payload.new;
+                        this.handleIncomingCommunityGrant({
+                            id: data.id,
+                            donor: data.donor,
+                            totalAmount: Number(data.total_amount),
+                            perPlayerGrant: Number(data.per_player_grant),
+                            note: data.note || '',
+                            gameDate: data.game_date
+                        });
+                    }
+                })
                 .subscribe((status) => {
                     if (status === 'SUBSCRIBED') {
                         console.log('🌐 [TransferManager] Connected to Community Transfers & Grants channel!');
@@ -58,7 +86,8 @@ class TransferManager {
     }
 
     getCurrentUsername() {
-        return (gameState.currentUser || gameState.get('player.name') || 'Pemain').trim();
+        const raw = (gameState.currentUser || gameState.get('player.name') || 'Pemain').trim();
+        return raw.replace(/^@+/, '');
     }
 
     /**
@@ -74,8 +103,12 @@ class TransferManager {
      * Send targeted P2P Transfer to a specific player
      */
     async sendTransfer({ toUsername, amount, note = '' }) {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            throw new Error('Anda sedang offline! Sambungkan koneksi internet untuk mengirim transfer ke pemain lain.');
+        }
+
         const sender = this.getCurrentUsername();
-        const target = (toUsername || '').trim();
+        const target = (toUsername || '').trim().replace(/^@+/, '');
         const numAmount = Math.round(Number(amount));
 
         if (!target) {
@@ -138,13 +171,31 @@ class TransferManager {
             }
         }
 
-        // 2. Persist in local storage for target player (supports local multi-character/sessions)
+        // 2. Persist in Supabase Cloud Database for persistent cross-device delivery
+        if (supabase) {
+            try {
+                await supabase.from('player_transfers').insert({
+                    id: transferId,
+                    from_user: sender,
+                    to_user: target,
+                    amount: numAmount,
+                    admin_fee: adminFee,
+                    total_deduction: totalDeduction,
+                    note: note.trim(),
+                    game_date: transferPayload.gameDate
+                });
+            } catch (dbErr) {
+                console.warn('[TransferManager] Cloud transfer insert failed:', dbErr);
+            }
+        }
+
+        // 3. Persist in local storage for target player (supports local multi-character/sessions)
         this.savePendingTransferForUser(target, transferPayload);
 
-        // 3. Save receipt locally for sender
+        // 4. Save receipt locally for sender
         this.saveTransferReceipt(transferPayload);
 
-        // 4. Add sent receipt to sender's notifications
+        // 5. Add sent receipt to sender's notifications
         if (typeof ui.addNotification === 'function') {
             ui.addNotification({
                 type: 'info',
@@ -163,6 +214,10 @@ class TransferManager {
      * Send donation to the Community Box (distributed to other players)
      */
     async sendCommunityDonation({ amount, note = '' }) {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            throw new Error('Anda sedang offline! Sambungkan koneksi internet untuk berdonasi ke Kotak Komunitas.');
+        }
+
         const donor = this.getCurrentUsername();
         const numAmount = Math.round(Number(amount));
 
@@ -212,7 +267,23 @@ class TransferManager {
             }
         }
 
-        // 2. Persist in global community box storage
+        // 2. Persist in Supabase Cloud Database for persistent cross-device delivery
+        if (supabase) {
+            try {
+                await supabase.from('community_donations').insert({
+                    id: grantId,
+                    donor,
+                    total_amount: numAmount,
+                    per_player_grant: perPlayerGrant,
+                    note: grantPayload.note,
+                    game_date: grantPayload.gameDate
+                });
+            } catch (dbErr) {
+                console.warn('[TransferManager] Cloud community donation insert failed:', dbErr);
+            }
+        }
+
+        // 3. Persist in global community box storage (local fallback)
         this.savePendingCommunityGrant(grantPayload);
 
         return grantPayload;
@@ -224,7 +295,8 @@ class TransferManager {
     handleIncomingTransfer(payload) {
         if (!payload || !payload.to) return;
         const current = this.getCurrentUsername().toLowerCase();
-        if (payload.to.toLowerCase() !== current) return;
+        const target = String(payload.to).trim().replace(/^@+/, '').toLowerCase();
+        if (target !== current) return;
 
         // Prevent duplicate processing
         const notifs = gameState.get('notifications') || [];
@@ -273,7 +345,8 @@ class TransferManager {
     handleIncomingCommunityGrant(payload) {
         if (!payload) return;
         const current = this.getCurrentUsername().toLowerCase();
-        if (payload.donor && payload.donor.toLowerCase() === current) return;
+        const donor = String(payload.donor || '').trim().replace(/^@+/, '').toLowerCase();
+        if (donor && donor === current) return;
 
         // Prevent duplicate processing
         const notifs = gameState.get('notifications') || [];
@@ -432,15 +505,16 @@ class TransferManager {
     }
 
     /**
-     * Check pending local inbox on user login / startup
+     * Check pending local inbox and Supabase Cloud transfers & community grants
      */
-    checkPendingInbox() {
+    async checkPendingInbox() {
         const username = this.getCurrentUsername();
         if (!username || username === 'Pemain') return;
 
         const lowerUser = username.toLowerCase();
         const storageKey = `aura_pending_transfers_${lowerUser}`;
 
+        // 1. Local fallback inbox check
         try {
             const raw = localStorage.getItem(storageKey);
             if (raw) {
@@ -454,7 +528,7 @@ class TransferManager {
             }
         } catch (e) {}
 
-        // Check community grants pool
+        // Check local community grants pool
         try {
             const poolRaw = localStorage.getItem('aura_community_grants_pool');
             if (poolRaw) {
@@ -466,6 +540,57 @@ class TransferManager {
                 }
             }
         } catch (e) {}
+
+        // 2. Fetch from Supabase Cloud Database (cross-device support HP <-> Laptop)
+        if (supabase) {
+            try {
+                // Fetch pending unclaimed transfers directed to this player
+                const { data: cloudTransfers, error: trfErr } = await supabase
+                    .from('player_transfers')
+                    .select('*')
+                    .ilike('to_user', username)
+                    .eq('claimed', false)
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+
+                if (!trfErr && Array.isArray(cloudTransfers)) {
+                    cloudTransfers.forEach(data => {
+                        this.handleIncomingTransfer({
+                            id: data.id,
+                            from: data.from_user,
+                            to: data.to_user,
+                            amount: Number(data.amount),
+                            adminFee: Number(data.admin_fee || 0),
+                            totalDeduction: Number(data.total_deduction || data.amount),
+                            note: data.note || '',
+                            gameDate: data.game_date
+                        });
+                    });
+                }
+
+                // Fetch recent community donations (last 10 grants)
+                const { data: cloudGrants, error: grantErr } = await supabase
+                    .from('community_donations')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                if (!grantErr && Array.isArray(cloudGrants)) {
+                    cloudGrants.forEach(data => {
+                        this.handleIncomingCommunityGrant({
+                            id: data.id,
+                            donor: data.donor,
+                            totalAmount: Number(data.total_amount),
+                            perPlayerGrant: Number(data.per_player_grant),
+                            note: data.note || '',
+                            gameDate: data.game_date
+                        });
+                    });
+                }
+            } catch (err) {
+                console.warn('[TransferManager] Cloud checkPendingInbox error:', err);
+            }
+        }
     }
 
     savePendingTransferForUser(username, payload) {
@@ -520,6 +645,16 @@ class TransferManager {
         notif.claimedAt = Date.now();
         gameState.set('notifications', [...notifs]);
 
+        // Sync claim status with Supabase Cloud
+        if (supabase && notif.subType === 'transfer') {
+            supabase
+                .from('player_transfers')
+                .update({ claimed: true, claimed_at: new Date().toISOString() })
+                .eq('id', notificationId)
+                .then()
+                .catch(() => {});
+        }
+
         // Feedback sound and visual
         try {
             import('../ui/AuraSound.js').then(m => m.default?.playClaimMoney?.());
@@ -562,6 +697,10 @@ class TransferManager {
                 totalClaimed += amt;
                 n.rewardClaimed = true;
                 n.claimedAt = Date.now();
+
+                if (supabase && n.subType === 'transfer') {
+                    supabase.from('player_transfers').update({ claimed: true, claimed_at: new Date().toISOString() }).eq('id', n.id).then().catch(() => {});
+                }
             }
         });
 

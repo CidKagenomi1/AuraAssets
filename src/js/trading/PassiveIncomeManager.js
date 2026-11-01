@@ -398,20 +398,20 @@ class PassiveIncomeManager {
         if (!ld) throw new Error('Pool Launchdrop tidak ditemukan');
         if (ld.status !== 'ACTIVE') throw new Error('Pool ini sedang tidak dalam masa aktif/open');
 
-        // Deduct player balance
-        gameState.update('player', p => ({
-            ...p,
-            balance: p.balance - amount
-        }));
-
         const isPool = ld.type === 'launchpool';
         const title = isPool ? 'Launchpool Stake' : 'Launchpad Presale';
         const desc = isPool 
             ? `Commit $${amount.toLocaleString()} kas di Launchpool ${ld.name} (Modal 100% aman & kembali saat klaim)`
             : `Beli presale diskon 50% $${amount.toLocaleString()} di Launchpad ${ld.name}`;
 
+        // Deduct player balance once via financeManager
         if (financeManager?.addExpense) {
             financeManager.addExpense(amount, title, desc);
+        } else {
+            gameState.update('player', p => ({
+                ...p,
+                balance: p.balance - amount
+            }));
         }
 
         ld.committed = (ld.committed || 0) + amount;
@@ -439,10 +439,14 @@ class PassiveIncomeManager {
             // Model A: Launchpool Staking
             // 1. Return 100% committed cash modal
             const refundCash = ld.committed;
-            gameState.update('player', p => ({
-                ...p,
-                balance: p.balance + refundCash
-            }));
+            if (financeManager?.addIncome) {
+                financeManager.addIncome(refundCash, 'Launchpool Modal', `Pengembalian modal kas Launchpool ${ld.name} kembali utuh`);
+            } else {
+                gameState.update('player', p => ({
+                    ...p,
+                    balance: p.balance + refundCash
+                }));
+            }
 
             // 2. Airdrop reward tokens (12% of committed cash value)
             const airdropValueUSD = ld.committed * (ld.yieldRate || 0.12);
@@ -454,8 +458,14 @@ class PassiveIncomeManager {
             // AuraEconomy: Expand circulating token supply dynamically from Launchpool reward
             auraEconomy.mintLaunchdropTokens(ld.symbol, tokenReward);
 
-            if (financeManager?.addIncome) {
-                financeManager.addIncome(airdropValueUSD, 'Launchpool Reward', `Airdrop gratis ${tokenReward.toFixed(4)} ${ld.symbol} + modal kas $${refundCash.toLocaleString()} kembali utuh`);
+            // Record transaction notice for reward tokens without modifying cash balance again
+            if (financeManager?.recordTransaction) {
+                financeManager.recordTransaction({
+                    type: 'income',
+                    category: 'Launchpool Reward',
+                    amount: 0,
+                    description: `Airdrop gratis ${tokenReward.toFixed(4)} ${ld.symbol} (senilai ~$${financeManager.formatCurrency(airdropValueUSD)})`
+                });
             }
 
             result = {
@@ -566,14 +576,14 @@ class PassiveIncomeManager {
             throw new Error(`Minimal modal untuk ${spec.name} adalah $ ${spec.minCapital.toLocaleString()}`);
         }
 
-        // Deduct capital
-        gameState.update('player', p => ({
-            ...p,
-            balance: p.balance - capital
-        }));
-
+        // Deduct capital once via financeManager
         if (financeManager?.addExpense) {
             financeManager.addExpense(capital, 'Alokasi Modal Bot', `Menjalankan ${config.targetName || 'Trading Bot'}`);
+        } else {
+            gameState.update('player', p => ({
+                ...p,
+                balance: p.balance - capital
+            }));
         }
 
         const bot = {
@@ -610,12 +620,7 @@ class PassiveIncomeManager {
         const bot = state.bots[botIndex];
         const returnAmount = Math.max(0, bot.capital + bot.profit);
 
-        // Refund capital + profit to player cash
-        gameState.update('player', p => ({
-            ...p,
-            balance: p.balance + returnAmount
-        }));
-
+        // Refund capital + profit to player cash once via financeManager
         if (bot.profit >= 0) {
             financeManager.addIncome(returnAmount, 'Klaim Bot Trading', `Menghentikan ${bot.targetName} dengan keuntungan $ ${Math.round(bot.profit).toLocaleString()} (${bot.profitPct.toFixed(1)}%)`);
         } else {

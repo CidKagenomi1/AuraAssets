@@ -26,6 +26,68 @@ class UIManager {
         backdrop?.addEventListener('click', () => this.closeModal());
 
         setTimeout(() => this.updateNotificationBadge(), 100);
+        this.initNetworkMonitor();
+    }
+
+    /**
+     * Monitor online/offline network status and display real-time warnings
+     */
+    initNetworkMonitor() {
+        if (typeof window === 'undefined') return;
+
+        const updateStatus = (isOnline) => {
+            let banner = document.getElementById('aura-offline-banner');
+            if (!isOnline) {
+                if (!banner) {
+                    banner = document.createElement('div');
+                    banner.id = 'aura-offline-banner';
+                    banner.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        z-index: 999999;
+                        background: linear-gradient(90deg, #991b1b, #dc2626);
+                        color: #ffffff;
+                        font-weight: 700;
+                        font-size: 0.8rem;
+                        padding: 8px 16px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 8px;
+                        box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+                        font-family: inherit;
+                        transition: all 0.3s ease;
+                    `;
+                    banner.innerHTML = `
+                        <span style="font-size: 1.1rem;">⚠️</span>
+                        <span><strong>Anda sedang offline:</strong> Koneksi internet terputus. Fitur Cloud Sync, P2P Transfer, dan Donasi Komunitas dijeda hingga tersambung kembali.</span>
+                    `;
+                    document.body.appendChild(banner);
+                }
+                banner.style.display = 'flex';
+                this.warning('Koneksi internet terputus. Fitur transfer & donasi online dijeda.', '⚠️ Anda Sedang Offline');
+            } else {
+                if (banner) {
+                    banner.style.display = 'none';
+                }
+                this.success('Koneksi internet pulih! Menghubungkan ke Cloud...', '🟢 Online Kembali');
+                // Auto sync pending transfers and cloud state
+                import('../finance/TransferManager.js').then(m => m.default?.checkPendingInbox?.()).catch(() => {});
+                import('../core/GameState.js').then(m => {
+                    const gs = m.default || m.gameState;
+                    if (gs?.currentUser) gs.syncCloudSave(gs.currentUser).catch(() => {});
+                }).catch(() => {});
+            }
+        };
+
+        window.addEventListener('offline', () => updateStatus(false));
+        window.addEventListener('online', () => updateStatus(true));
+
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            setTimeout(() => updateStatus(false), 500);
+        }
     }
 
     updateNotificationBadge() {
