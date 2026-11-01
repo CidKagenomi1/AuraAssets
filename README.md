@@ -410,6 +410,16 @@ Bagian ini menjadi penanda status terakhir pengerjaan agar sesi pengembangan ber
   - Fitur pencarian koin (`setStakingSearch`) dan pemilihan tab filter mempertahankan fokus dan posisi kursor pengguna secara mulus saat data diperbarui.
   - Tombol switcher pada Laporan Keuangan diperhalus dengan transisi blur terisolasi (`filter: blur(5px)`) dan sinkronisasi navigasi otomatis.
 
+#### 16. 🚀 Widget On-Going Launchdrop di Beranda (Direct Purchase & Claim - `HomeScreen.js`)
+- **Penempatan Ergonomis Tepat di Bawah Arus Kas:**
+  - Menghadirkan zona baru `#home-launchdrop-widget` di bawah baris Arus Kas & Karier Investor di layar Beranda.
+- **Partisipasi & Transaksi Langsung (Direct Purchase on Home Screen):**
+  - **Launchpool (Staking Kas Aman 100%):** Pemain dapat langsung menekan tombol **`🚀 Stake Kas`** untuk mengunci modal kas dan memanen reward airdrop token baru (+12% APY) tanpa perlu berpindah halaman.
+  - **Launchpad (Presale Diskon 50%):** Pemain dapat langsung menekan tombol **`💎 Beli Presale Diskon 50%`** untuk memesan alokasi token dengan setengah harga pasar.
+  - **Klaim Sekali Klik:** Tombol klaim interaktif **`🎁 Klaim Modal Pokok + Airdrop`** atau **`🚀 Klaim Token Presale`** saat pool selesai (*claimable*), yang secara instan mengkreditkan dana kembali ke kas dan token ke dompet kripto.
+- **Sinkronisasi Live Bebas Kedip (Zero-Flicker Countdown):**
+  - Mengintegrasikan listener `passiveIncomeTick` dengan pembaruan in-place target `.home-ld-timer-val` dan `.home-ld-status-badge`, menjaga countdown detik tetap akurat 100% tanpa re-render DOM atau mengganggu kenyamanan visual pemain di beranda.
+
 ---
 
 ### 🧠 Arsitektur Finansial & Pembelajaran Sistem Baru (Financial Engineering Insights)
