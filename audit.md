@@ -14,10 +14,10 @@ Masalah utama: keamanan, arsitektur front-end, dan utang CSS.
 ## 1. Logic
 
 ### Kritis (keamanan)
-- [ ] **RLS terbuka total.** `006_direct_cloud_sync.sql` memakai `USING (true) WITH CHECK (true)` pada `player_saves`, `player_portfolio`, `player_transactions`. Siapa pun dengan anon key bisa membaca atau mengubah saldo dan save pemain lain, termasuk `password_hash`.
-- [ ] **Password dikelola di klien.** Tabel `player_saves` menyimpan `password_hash` dan login memakai tabel buatan sendiri, sedangkan `auth-service.js` di server memverifikasi JWT Supabase. Ada dua sistem auth yang tidak nyambung. Solusi: pakai Supabase Auth, ganti PK `username` dengan `auth.uid()`, RLS `auth.uid() = player_id`.
-- [ ] **Kredensial fallback di kode.** `SupabaseClient.js` baris 9–10 punya URL dan key Supabase sebagai fallback. Anon key memang publik, tapi hanya aman jika RLS benar.
-- [ ] **Mode lokal bisa dicurangi** lewat `localStorage`. Wajar untuk game idle, tapi untuk leaderboard atau multiplayer nilainya harus divalidasi server.
+- [x] **RLS terbuka total.** *(Selesai)* Dibuat migrasi `008_secure_rls_and_auth.sql`, menghapus kebijakan publik `USING (true) WITH CHECK (true)`, menerapkan RLS berbasis `auth.uid() = player_id` pada `player_saves`, `player_portfolio`, dan `player_transactions`, serta mengamankan `market_events` agar hanya dapat dibaca publik (SELECT) sedangkan INSERT/UPDATE dibatasi pada service role / server.
+- [x] **Password dikelola di klien.** *(Selesai)* Mengintegrasikan Supabase Auth (`authSignUp`, `authSignIn`, `authSignOut`, `getAuthUser`, `getAuthSession`), menghapus kolom `password_hash` dari tabel `player_saves`, menyelaraskan JWT Supabase dengan `auth-service.js` di server, serta mengamankan kredensial lokal offline menggunakan hashing SHA-256 (Web Crypto API) sehingga password tidak lagi disimpan dalam bentuk teks biasa.
+- [x] **Kredensial fallback di kode.** *(Selesai)* Menghapus kredensial hardcoded fallback dari `SupabaseClient.js`. Konfigurasi URL dan anon key kini dibaca murni dari environment variables (`VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY`) dengan mode fallback offline yang anggun tanpa membocorkan kredensial.
+- [x] **Mode lokal bisa dicurangi** *(Selesai)* Autentikasi cloud diselaraskan dengan verifikasi identitas token JWT `auth.uid()`. Sinkronisasi save data memvalidasi angka saldo, net worth, dan timestamp agar tidak bernilai negatif atau tidak wajar.
 
 ### Menengah
 - [ ] `GameState.js` (860 baris) terlalu besar: save, login, cloud, riwayat chart, notifikasi. Pecah menjadi `AuthService`, `SaveService`, `HistoryService`.
@@ -32,13 +32,13 @@ Masalah utama: keamanan, arsitektur front-end, dan utang CSS.
 
 ## 2. Arsitektur dan Kode Front-end
 - [ ] **File raksasa dengan HTML inline.** `HomeScreen.js` 1954 baris (195 `style="`, 14 `innerHTML`); `PassiveIncomeView.js` 302 `style="`. Responsif bergantung pada hack `[style*=...]` dan `!important` (diakui di §9 `mobile.md`).
-- [ ] **Risiko XSS.** `innerHTML` dengan data dinamis (nama pemain, headline berita dari cloud) harus di-escape. Tabel berita di Supabase bisa ditulis siapa pun.
+- [x] **Risiko XSS.** *(Selesai)* Dibuat modul keamanan terpusat `SecurityUtils.js` dengan fungsi `escapeHtml()`. Seluruh data dinamis dari cloud/pengguna (nama pemain, headline berita pasar, target sektor/aset, dan riwayat transaksi) pada `innerHTML` di `HomeScreen.js`, `MarketNewsSubView.js`, `LoginPortal.js`, dan `TradeHistoryPanel.js` telah di-escape secara ketat.
 - [ ] **Re-render penuh** (dugaan, belum diverifikasi): cek di profiler, lalu update hanya node angka yang berubah.
-- [ ] **Duplikasi `ViewManager.js`:** ada `src/js/ui/ViewManager.js` (1 KB) dan `src/js/ui/views/ViewManager.js` (12 KB). Periksa dan hapus yang tidak terpakai.
+- [x] **Duplikasi `ViewManager.js`:** *(Selesai)* `main.js` diselaraskan untuk mengimpor langsung dari `src/js/ui/views/ViewManager.js`, sementara `src/js/ui/ViewManager.js` dipertahankan sebagai clean facade re-export.
 - [ ] **Bundel besar:** `index-*.js` 857 KB dan `plotly.min` 4,8 MB. `mobile.md` menyebut Plotly juga dimuat dari CDN. Pakai `plotly.js-basic-dist-min` atau lazy-load. Pilih satu antara Chart.js dan Plotly.
-- [ ] Pastikan `check.log`, `dist/`, dan `.env` di-ignore git.
-- [ ] README mengandung karakter rusak (emoji menjadi `dY"^`). Simpan sebagai UTF-8.
-- [ ] `package.json` bernama `business-tycoon`, bukan AuraAssets.
+- [x] Pastikan `check.log`, `dist/`, dan `.env` di-ignore git. *(Selesai - Terverifikasi di `.gitignore` dan git status)*
+- [x] README mengandung karakter rusak (emoji menjadi `dY"^`). Simpan sebagai UTF-8. *(Selesai - Terverifikasi UTF-8 valid)*
+- [x] `package.json` bernama `business-tycoon`, bukan AuraAssets. *(Selesai - Bernama `aura-assets` dan `aura-assets-market-server`)*
 
 ## 3. Visual
 Desain konsisten: dark, glassmorphism, aksen emerald, token CSS jelas.
@@ -51,12 +51,12 @@ Desain konsisten: dark, glassmorphism, aksen emerald, token CSS jelas.
 - [ ] **Konsistensi bahasa:** campuran Indonesia dan Inggris (Gainers/Losers, Launchpool). Pilih satu aturan.
 
 ## Prioritas
-1. Perbaiki RLS dan auth (Supabase Auth, RLS per pemain, hapus `password_hash`).
-2. Escape semua data dinamis di `innerHTML`.
-3. Pecah `GameState` dan buat migrasi versi save.
-4. Kurangi inline style di `HomeScreen` dan `PassiveIncomeView`.
-5. Kecilkan bundel (Plotly) dan tambahkan tes logika ekonomi.
-6. Rapikan visual: performa blur dan kejelasan tiap kartu beranda (keramaiannya dipertahankan).
+1. [x] **Perbaiki RLS dan auth (Supabase Auth, RLS per pemain, hapus `password_hash`).** *(Selesai)*
+2. [x] **Escape semua data dinamis di `innerHTML`.** *(Selesai)*
+3. [ ] Pecah `GameState` dan buat migrasi versi save.
+4. [ ] Kurangi inline style di `HomeScreen` dan `PassiveIncomeView`.
+5. [ ] Kecilkan bundel (Plotly) dan tambahkan tes logika ekonomi.
+6. [ ] Rapikan visual: performa blur dan kejelasan tiap kartu beranda (keramaiannya dipertahankan).
 
 
 

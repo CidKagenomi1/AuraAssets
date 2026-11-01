@@ -1,30 +1,152 @@
 /**
- * SupabaseClient.js - Global Cloud Synchronization & Realtime Engine
- * Connects frontend directly to Supabase Realtime (No separate server required for Vercel)
+ * SupabaseClient.js - Global Cloud Synchronization, Supabase Auth & Realtime Engine
+ * Connects frontend directly to Supabase Auth and Realtime with strict RLS enforcement.
  */
 
 import { createClient } from '@supabase/supabase-js';
 
-const env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : (typeof process !== 'undefined' && process.env ? process.env : {});
-const SUPABASE_URL = env.VITE_SUPABASE_URL || 'https://qdqifdomtwuqvvyzglog.supabase.co';
-const SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_JLILs9s6i0jckA6Vd34G7w_Nk5VTbUq';
+const env = (typeof import.meta !== 'undefined' && import.meta.env) 
+  ? import.meta.env 
+  : (typeof process !== 'undefined' && process.env ? process.env : {});
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  realtime: {
-    params: {
-      eventsPerSecond: 10
-    }
+const SUPABASE_URL = env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY || '';
+
+export const isCloudConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+if (!isCloudConfigured) {
+  console.info('[SupabaseClient] Running in pure Local / Offline Mode (No cloud environment variables provided).');
+}
+
+export const supabase = isCloudConfigured
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      realtime: {
+        params: {
+          eventsPerSecond: 10
+        }
+      },
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    })
+  : null;
+
+// ==========================================
+// SUPABASE AUTHENTICATION ENGINE
+// ==========================================
+
+/**
+ * Convert user-friendly game username to a valid deterministic email for Supabase Auth
+ * e.g. "Warren Buffett" -> "warren_buffett@auraassets.game"
+ */
+export function usernameToEmail(username) {
+  if (!username) return '';
+  const clean = String(username).trim().toLowerCase();
+  if (clean.includes('@')) return clean;
+  const safeSlug = clean.replace(/[^a-z0-9_.-]/g, '_');
+  return `${safeSlug}@auraassets.game`;
+}
+
+/**
+ * Register a new player account directly through Supabase Auth
+ */
+export async function authSignUp(username, password) {
+  if (!isCloudConfigured || !supabase) {
+    return { user: null, session: null, offline: true };
   }
-});
+  const cleanName = String(username).trim();
+  const email = usernameToEmail(cleanName);
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        username: cleanName,
+        display_name: cleanName
+      }
+    }
+  });
+
+  if (error) {
+    throw error;
+  }
+  return { user: data.user, session: data.session };
+}
+
+/**
+ * Sign in an existing player through Supabase Auth
+ */
+export async function authSignIn(username, password) {
+  if (!isCloudConfigured || !supabase) {
+    return { user: null, session: null, offline: true };
+  }
+  const cleanName = String(username).trim();
+  const email = usernameToEmail(cleanName);
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    throw error;
+  }
+  return { user: data.user, session: data.session };
+}
+
+/**
+ * Sign out current player from Supabase Auth
+ */
+export async function authSignOut() {
+  if (!isCloudConfigured || !supabase) return;
+  try {
+    await supabase.auth.signOut();
+  } catch (e) {
+    console.warn('[Supabase Auth] Sign out notice:', e.message);
+  }
+}
+
+/**
+ * Get current authenticated Supabase user
+ */
+export async function getAuthUser() {
+  if (!isCloudConfigured || !supabase) return null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    return data?.user || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Get current authenticated session (containing JWT access token)
+ */
+export async function getAuthSession() {
+  if (!isCloudConfigured || !supabase) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data?.session || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ==========================================
+// REALTIME MARKET EVENTS & NEWS
+// ==========================================
 
 let isRealtimeSubscribed = false;
 
 /**
  * Initialize global market news listener via Supabase Realtime
- * Listens for new events across ALL active players/devices
  */
 export function initGlobalNewsRealtime(newsManager) {
-  if (isRealtimeSubscribed) return;
+  if (!isCloudConfigured || !supabase) return null;
+  if (isRealtimeSubscribed) return null;
   isRealtimeSubscribed = true;
 
   // 1. Initial Fetch of active events from Supabase Cloud
@@ -59,7 +181,6 @@ export function initGlobalNewsRealtime(newsManager) {
           timestamp: new Date(row.created_at).getTime()
         };
 
-        // Inject into NewsManager if still valid
         if (incomingEvent.endTime > Date.now()) {
           newsManager.receiveCloudEvent(incomingEvent);
         }
@@ -67,7 +188,7 @@ export function initGlobalNewsRealtime(newsManager) {
     )
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
-        console.log('[Supabase Realtime] Connected to global market channel!');
+        console.log('🟢 [Supabase Realtime] Connected to global market channel!');
       }
     });
 
@@ -78,6 +199,7 @@ export function initGlobalNewsRealtime(newsManager) {
  * Fetch currently active events from Supabase Cloud
  */
 async function fetchActiveCloudEvents(newsManager) {
+  if (!isCloudConfigured || !supabase) return;
   try {
     const nowIso = new Date().toISOString();
     const { data, error } = await supabase
@@ -110,7 +232,7 @@ async function fetchActiveCloudEvents(newsManager) {
         };
 
         if (item.endTime > Date.now()) {
-          newsManager.receiveCloudEvent(item, false); // false = silent on initial sync
+          newsManager.receiveCloudEvent(item, false);
         }
       });
     }
@@ -120,9 +242,10 @@ async function fetchActiveCloudEvents(newsManager) {
 }
 
 /**
- * Publish newly triggered event to Supabase Cloud so all devices receive it
+ * Broadcast event to cloud (requires authenticated admin or service role)
  */
 export async function broadcastCloudEvent(eventItem) {
+  if (!isCloudConfigured || !supabase) return;
   try {
     const record = {
       id: eventItem.id,
@@ -143,7 +266,7 @@ export async function broadcastCloudEvent(eventItem) {
       .upsert(record, { onConflict: 'id' });
 
     if (error) {
-      console.warn('[Supabase Realtime] Could not publish event to cloud:', error.message);
+      console.warn('[Supabase Realtime] Notice: event broadcast skipped (admin policy enforced):', error.message);
     }
   } catch (err) {
     console.warn('[Supabase Realtime] Publish error:', err);
@@ -156,6 +279,7 @@ let isMarketStateSubscribed = false;
  * Initialize global live market quotes synchronization via Supabase Realtime
  */
 export function initMarketStateRealtime(onStockStateUpdate, onCryptoStateUpdate) {
+  if (!isCloudConfigured || !supabase) return null;
   if (isMarketStateSubscribed) return null;
   isMarketStateSubscribed = true;
 
@@ -194,24 +318,34 @@ export function initMarketStateRealtime(onStockStateUpdate, onCryptoStateUpdate)
 }
 
 // ==========================================
-// DIRECT FRONTEND CLOUD PERSISTENCE (SOLUTION 1)
+// DIRECT FRONTEND CLOUD PERSISTENCE (RLS SECURED)
 // ==========================================
 
 /**
- * Save player profile, full save game JSON, and active portfolio directly to Supabase Cloud
+ * Save player profile, full save game JSON, and active portfolio directly to Supabase Cloud.
+ * Enforces authenticated identity (auth.uid() = player_id). Never stores password_hash.
  */
 export async function savePlayerToCloud(username, state, netWorth = 0) {
-  if (!username || !state) return false;
+  if (!isCloudConfigured || !supabase || !username || !state) return false;
   const usernameLower = String(username).trim().toLowerCase();
   if (!usernameLower) return false;
 
   try {
-    // 1. Upsert full player save into player_saves table
+    const user = await getAuthUser();
+    if (!user) {
+      // In offline / unauthenticated mode, local save in localStorage is used
+      return false;
+    }
+
+    const playerId = user.id;
+
+    // 1. Upsert full player save into player_saves table (strictly bound to auth.uid())
     const payload = {
+      player_id: playerId,
       username: usernameLower,
       display_name: state.player?.name || username,
-      balance: Math.round(Number(state.player?.balance || 0)),
-      net_worth: Math.round(Number(netWorth || 0)),
+      balance: Math.max(0, Math.round(Number(state.player?.balance || 0))),
+      net_worth: Math.max(0, Math.round(Number(netWorth || 0))),
       role: state.player?.role || 'investor',
       credit_score: Math.round(Number(state.player?.creditScore || 700)),
       save_data: state,
@@ -220,14 +354,14 @@ export async function savePlayerToCloud(username, state, netWorth = 0) {
 
     const { error: saveErr } = await supabase
       .from('player_saves')
-      .upsert(payload, { onConflict: 'username' });
+      .upsert(payload, { onConflict: 'player_id' });
 
     if (saveErr) {
       console.warn('⚠️ [Supabase Cloud Save] Error saving player_saves:', saveErr.message);
       return false;
     }
 
-    // 2. Mirror active holdings to player_portfolio for direct Supabase Table Editor visibility
+    // 2. Mirror active holdings to player_portfolio with player_id for Table Editor
     const portfolioRows = [];
 
     // Stocks
@@ -237,7 +371,8 @@ export async function savePlayerToCloud(username, state, netWorth = 0) {
         if (amount > 0) {
           const avgPrice = Number(item.avgBuyPrice || 0);
           portfolioRows.push({
-            id: `${usernameLower}_stock_${sym}`,
+            id: `${playerId}_stock_${sym}`,
+            player_id: playerId,
             username: usernameLower,
             asset_type: 'stock',
             symbol: sym,
@@ -260,7 +395,8 @@ export async function savePlayerToCloud(username, state, netWorth = 0) {
         if (amount > 0) {
           const avgPrice = Number(item.avgBuyPrice || 0);
           portfolioRows.push({
-            id: `${usernameLower}_crypto_${sym}`,
+            id: `${playerId}_crypto_${sym}`,
+            player_id: playerId,
             username: usernameLower,
             asset_type: 'crypto',
             symbol: sym,
@@ -284,7 +420,8 @@ export async function savePlayerToCloud(username, state, netWorth = 0) {
         if (units > 0) {
           const avgNav = Number(item.avgNav || 0);
           portfolioRows.push({
-            id: `${usernameLower}_mutual_fund_${fundId}`,
+            id: `${playerId}_mutual_fund_${fundId}`,
+            player_id: playerId,
             username: usernameLower,
             asset_type: 'mutual_fund',
             symbol: fundId,
@@ -314,16 +451,18 @@ export async function savePlayerToCloud(username, state, netWorth = 0) {
 }
 
 /**
- * Load player save from Supabase Cloud
+ * Load player save from Supabase Cloud for the authenticated player
  */
 export async function loadPlayerFromCloud(username) {
-  if (!username) return null;
-  const usernameLower = String(username).trim().toLowerCase();
+  if (!isCloudConfigured || !supabase) return null;
   try {
+    const user = await getAuthUser();
+    if (!user) return null;
+
     const { data, error } = await supabase
       .from('player_saves')
       .select('*')
-      .eq('username', usernameLower)
+      .eq('player_id', user.id)
       .maybeSingle();
 
     if (error) {
@@ -341,10 +480,14 @@ export async function loadPlayerFromCloud(username) {
  * Record a transaction row directly into player_transactions table in Supabase
  */
 export async function recordCloudTransaction(username, tx) {
-  if (!username || !tx) return;
+  if (!isCloudConfigured || !supabase || !tx) return;
   const usernameLower = String(username).trim().toLowerCase();
   try {
+    const user = await getAuthUser();
+    if (!user) return;
+
     await supabase.from('player_transactions').insert({
+      player_id: user.id,
       username: usernameLower,
       type: String(tx.type || 'GENERAL'),
       description: String(tx.description || ''),
@@ -358,17 +501,18 @@ export async function recordCloudTransaction(username, tx) {
 }
 
 /**
- * Fetch all registered player accounts from Supabase Cloud
+ * Fetch public leaderboard from Supabase Cloud (safe public metrics only)
  */
 export async function getCloudAccounts() {
+  if (!isCloudConfigured || !supabase) return [];
   try {
     const { data, error } = await supabase
-      .from('player_saves')
+      .from('public_leaderboard')
       .select('username, display_name, balance, net_worth, role, updated_at')
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .limit(20);
 
     if (error) {
-      console.warn('⚠️ [Supabase Accounts] Error fetching cloud accounts:', error.message);
       return [];
     }
     return data || [];
@@ -378,4 +522,3 @@ export async function getCloudAccounts() {
 }
 
 export default supabase;
-

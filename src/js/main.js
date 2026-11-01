@@ -23,7 +23,7 @@ import transferManager from './finance/TransferManager.js';
 // UI
 import ui from './ui/UIManager.js';
 import homeScreen from './ui/HomeScreen.js';
-import viewManager from './ui/ViewManager.js';
+import viewManager from './ui/views/ViewManager.js';
 import { fadeIn, staggerFadeUp } from './ui/Animations.js';
 import loginPortal from './ui/LoginPortal.js';
 import keyboardNavigation from './ui/KeyboardNavigation.js';

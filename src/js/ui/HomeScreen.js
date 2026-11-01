@@ -19,6 +19,7 @@ import ui from './UIManager.js';
 import { Icons } from './Icons.js';
 import { countUp, pulseElement, staggerFadeUp, createFloatingText } from './Animations.js';
 import { initGlossary, GLOSSARY_TERMS } from './glossary.js';
+import { escapeHtml } from '../core/SecurityUtils.js';
 
 class HomeScreen {
     constructor() {
@@ -172,8 +173,8 @@ class HomeScreen {
                 <div style="display:flex; align-items:center; gap:0.6rem;">
                     <span style="font-size: 1.5rem;">👋</span>
                     <div>
-                        <h3 class="modal-title" style="font-size: 1.15rem; font-weight: 800;">Selamat Datang Kembali, ${playerName}!</h3>
-                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Terakhir aktif: ${awayText}</p>
+                        <h3 class="modal-title" style="font-size: 1.15rem; font-weight: 800;">Selamat Datang Kembali, ${escapeHtml(playerName)}!</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Terakhir aktif: ${escapeHtml(awayText)}</p>
                     </div>
                 </div>
             </div>
@@ -507,7 +508,7 @@ class HomeScreen {
                     <div style="flex:1;min-width:0;">
                         <div style="font-size:0.8rem;font-weight:600;color:var(--text-main);
                              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                            ${t.description || t.category}
+                            ${escapeHtml(t.description || t.category)}
                         </div>
                     </div>
                     <div style="font-size:0.8rem;font-weight:700;
@@ -675,14 +676,14 @@ class HomeScreen {
                                 🚨 ${isPos ? 'BULLISH SURGE' : 'BEARISH SHOCK'} [${sign}${latestActive.impact_percent}%]
                             </span>
                             <span style="font-size: 0.72rem; color: var(--text-dim);">
-                                ${isCrypto ? '🪙 Kripto' : '📈 Saham AS'} · Target: <strong style="color: #fff;">${target}</strong>
+                                ${isCrypto ? '🪙 Kripto' : '📈 Saham AS'} · Target: <strong style="color: #fff;">${escapeHtml(target)}</strong>
                             </span>
                             <span style="font-size: 0.72rem; color: #fbbf24; font-weight: 700;">
                                 ⏳ Sisa: ${countdown}
                             </span>
                         </div>
                         <div style="font-size: 0.95rem; font-weight: 800; color: #fff; line-height: 1.35;">
-                            ${latestActive.headline}
+                            ${escapeHtml(latestActive.headline)}
                         </div>
                     </div>
                     <button class="btn ${isPos ? 'btn-primary' : 'btn-danger'} btn-sm btn-snapshot-action" style="font-weight: 800; font-size: 0.78rem; padding: 7px 14px; white-space: nowrap;">
@@ -706,11 +707,11 @@ class HomeScreen {
                                         ${isPos ? '▲' : '▼'} ${sign}${item.impact_percent}%
                                     </span>
                                     <span style="font-size: 0.68rem; color: var(--text-dim);">
-                                        ${isCrypto ? '🪙 Kripto' : '📈 Saham'} · Target: ${item.ticker_target || item.target_asset || item.sector}
+                                        ${isCrypto ? '🪙 Kripto' : '📈 Saham'} · Target: ${escapeHtml(item.ticker_target || item.target_asset || item.sector)}
                                     </span>
                                 </div>
                                 <div style="font-size: 0.82rem; font-weight: 700; color: #fff; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                    ${item.headline}
+                                    ${escapeHtml(item.headline)}
                                 </div>
                             </div>
                         `;
@@ -826,15 +827,15 @@ class HomeScreen {
             const typePill = item.assetType === 'crypto' ? `${Icons.coins(12, '#f59e0b')} Kripto` : `${Icons.chart(12, 'var(--accent-primary)')} Saham`;
 
             return `
-                <div class="mover-card" onclick="${openFn}" title="Klik untuk trading ${item.name} (${item.symbol})">
+                <div class="mover-card" onclick="${openFn}" title="Klik untuk trading ${escapeHtml(item.name)} (${escapeHtml(item.symbol)})">
                     <div class="mover-card-left">
                         <span class="mover-icon">${item.icon || '📊'}</span>
                         <div class="mover-info">
                             <div class="mover-symbol-row">
-                                <span class="mover-symbol">${item.symbol}</span>
+                                <span class="mover-symbol">${escapeHtml(item.symbol)}</span>
                                 <span class="mover-type-pill">${typePill}</span>
                             </div>
-                            <div class="mover-sub">${item.tagLabel}</div>
+                            <div class="mover-sub">${escapeHtml(item.tagLabel)}</div>
                         </div>
                     </div>
                     <div class="mover-card-right">
@@ -1106,7 +1107,7 @@ class HomeScreen {
                     <span style="font-size:1.35rem;opacity:${done ? 1 : 0.45};">${m.icon}</span>
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:700;font-size:0.9rem;color:${canClaim ? '#fbbf24' : (done ? '#10b981' : 'var(--text-main)')}; display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
-                            <span>${m.label}</span>
+                            <span>${escapeHtml(m.label)}</span>
                             ${canClaim ? '<span style="font-size:0.62rem; padding:1px 6px; border-radius:4px; background:rgba(245,158,11,0.2); color:#fbbf24; font-weight:800;">SIAP KLAIM</span>' : ''}
                         </div>
                         <div style="font-size:0.74rem;color:var(--text-dim); display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:2px;">

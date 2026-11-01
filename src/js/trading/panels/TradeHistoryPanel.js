@@ -15,6 +15,7 @@ import cryptoMarket from '../CryptoMarket.js';
 import stockMarket from '../StockMarket.js';
 import ui from '../../ui/UIManager.js';
 import { Icons } from '../../ui/Icons.js';
+import { escapeHtml } from '../../core/SecurityUtils.js';
 
 class TradeHistoryPanel {
   formatPrice(price) {
@@ -459,7 +460,7 @@ class TradeHistoryPanel {
         <tr style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s;">
           <td style="padding: 0.75rem 0.25rem; font-weight: 700; color: white;">
             <span style="display: inline-flex; align-items: center; margin-right: 0.35rem;">${t.assetType === 'stock' ? Icons.barChart(14, 'var(--accent-primary)') : Icons.coins(14, '#f59e0b')}</span>
-            ${t.asset}
+            ${escapeHtml(t.asset)}
           </td>
           <td style="padding: 0.75rem 0.25rem; color: var(--text-muted);">${formattedAmount}</td>
           <td style="padding: 0.75rem 0.25rem; font-family: monospace;">

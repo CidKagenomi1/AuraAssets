@@ -27,18 +27,6 @@ BEGIN
   ) THEN
     CREATE POLICY "Allow public read on market_events" ON market_events FOR SELECT USING (true);
   END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'market_events' AND policyname = 'Allow public insert on market_events'
-  ) THEN
-    CREATE POLICY "Allow public insert on market_events" ON market_events FOR INSERT WITH CHECK (true);
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'market_events' AND policyname = 'Allow public update on market_events'
-  ) THEN
-    CREATE POLICY "Allow public update on market_events" ON market_events FOR UPDATE USING (true);
-  END IF;
 END $$;
 
 -- Add to Supabase Realtime publication

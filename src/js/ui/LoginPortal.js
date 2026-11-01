@@ -5,6 +5,7 @@
 
 import gameState from '../core/GameState.js';
 import { getCloudAccounts } from '../core/SupabaseClient.js';
+import { escapeHtml } from '../core/SecurityUtils.js';
 
 // ─── Inject global styles once ───────────────────────────────────────────────
 if (!document.getElementById('lp-global-style')) {
@@ -270,10 +271,10 @@ class LoginPortal {
                             } catch (e) {}
 
                             return `
-                            <button class="lp-account-btn${prefillUser.toLowerCase()===k?' selected':''}" data-username="${acc.username}">
+                            <button class="lp-account-btn${prefillUser.toLowerCase()===k?' selected':''}" data-username="${escapeHtml(acc.username)}">
                                 <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">${avatar}</div>
                                 <div style="min-width:0;flex:1;">
-                                    <div style="font-weight:800;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${acc.username}</div>
+                                    <div style="font-weight:800;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(acc.username)}</div>
                                     <div style="font-size:0.7rem;color:var(--accent-primary);font-weight:600;">${balanceText ? `${balanceText}` : 'Klik untuk login'}</div>
                                 </div>
                                 <div style="color:rgba(255,255,255,0.3);font-size:1rem;">›</div>
@@ -309,8 +310,8 @@ class LoginPortal {
                     : 'Pilih akun yang tersimpan atau masukkan username & sandi Anda.'}
             </p>
 
-            ${errorMsg   ? `<div class="lp-error-box">❌ <span>${errorMsg}</span></div>` : ''}
-            ${message    ? `<div class="lp-success-box">✅ <span>${message}</span></div>` : ''}
+            ${errorMsg   ? `<div class="lp-error-box">❌ <span>${escapeHtml(errorMsg)}</span></div>` : ''}
+            ${message    ? `<div class="lp-success-box">✅ <span>${escapeHtml(message)}</span></div>` : ''}
 
             ${savedAccountsHTML}
 
@@ -322,8 +323,8 @@ class LoginPortal {
                     <div style="position:relative;">
                         <span style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:1rem;opacity:0.4;pointer-events:none;">👤</span>
                         <input id="lp-username" class="lp-input" type="text"
-                            placeholder="${isRegister ? `Cth: ${this.suggestedName || 'Elon Smash'}` : 'Masukkan nama akun'}"
-                            value="${prefillUser}" autocomplete="username" required />
+                            placeholder="${isRegister ? `Cth: ${escapeHtml(this.suggestedName || 'Elon Smash')}` : 'Masukkan nama akun'}"
+                            value="${escapeHtml(prefillUser)}" autocomplete="username" required />
                     </div>
                 </div>
 
@@ -332,7 +333,7 @@ class LoginPortal {
                     <div style="position:relative;">
                         <span style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:1rem;opacity:0.4;pointer-events:none;">🔑</span>
                         <input id="lp-password" class="lp-input" type="password"
-                            placeholder="••••••••" autocomplete="${isRegister?'new-password':'current-password'}" required />
+                            placeholder="•••••••• (min. 6 karakter)" autocomplete="${isRegister?'new-password':'current-password'}" required />
                     </div>
                 </div>
 

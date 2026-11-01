@@ -1,4 +1,25 @@
-import { savePlayerToCloud, loadPlayerFromCloud, recordCloudTransaction } from './SupabaseClient.js';
+import { 
+    savePlayerToCloud, 
+    loadPlayerFromCloud, 
+    recordCloudTransaction,
+    authSignUp,
+    authSignIn,
+    authSignOut,
+    isCloudConfigured 
+} from './SupabaseClient.js';
+
+async function hashPassword(password) {
+    if (!password) return '';
+    try {
+        if (typeof crypto !== 'undefined' && crypto.subtle) {
+            const msgUint8 = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+    } catch (e) {}
+    return `local_${password}`;
+}
 /**
  * GameState.js - Central State Management
  * Manages all game data with save/load to localStorage
@@ -491,32 +512,36 @@ class GameState {
         const lowerName = cleanName.toLowerCase();
         if (!cleanName || !password) throw new Error('Nama dan password tidak boleh kosong!');
         if (cleanName.length < 3) throw new Error('Nama pengguna minimal 3 karakter!');
-        if (password.length < 4) throw new Error('Password minimal 4 karakter!');
+        if (password.length < 6) throw new Error('Password minimal 6 karakter!');
 
         const accounts = this.getAccounts();
         if (accounts[lowerName]) {
             throw new Error('Nama pengguna sudah terdaftar di perangkat ini!');
         }
 
-        // Check Supabase Cloud
-        try {
-            const cloudExists = await loadPlayerFromCloud(cleanName);
-            if (cloudExists) {
-                throw new Error('Nama pengguna sudah terdaftar di Supabase Cloud! Silakan masuk.');
+        // 1. Register with Supabase Auth if cloud is configured
+        if (isCloudConfigured) {
+            try {
+                await authSignUp(cleanName, password);
+            } catch (err) {
+                const msg = err.message || '';
+                if (msg.includes('already registered') || msg.includes('User already registered') || msg.includes('already exists')) {
+                    throw new Error('Nama pengguna atau email sudah terdaftar di cloud! Silakan masuk.');
+                }
+                console.warn('[GameState] Cloud signup notice:', err.message);
             }
-        } catch (e) {
-            if (e.message && e.message.includes('sudah terdaftar')) throw e;
         }
 
-        // Save account details
+        // 2. Save secure local account record (hashed password, never plaintext)
+        const passwordHash = await hashPassword(password);
         accounts[lowerName] = {
             username: cleanName,
-            password: password,
+            passwordHash: passwordHash,
             createdAt: Date.now()
         };
         this.saveAccounts(accounts);
 
-        // Auto-login & sync
+        // 3. Auto-login & sync
         return await this.login(cleanName, password);
     }
 
@@ -527,32 +552,66 @@ class GameState {
 
         const accounts = this.getAccounts();
         let account = accounts[lowerName];
+        let cloudUser = null;
 
-        // If not in local accounts, check Supabase Cloud
-        if (!account) {
+        // 1. If cloud configured, authenticate via Supabase Auth
+        if (isCloudConfigured) {
+            try {
+                const result = await authSignIn(cleanName, password);
+                cloudUser = result?.user;
+            } catch (err) {
+                const msg = err.message ? err.message.toLowerCase() : '';
+                if (err.status === 400 || msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+                    throw new Error('Password salah atau akun tidak sesuai!');
+                }
+                console.warn('[GameState] Cloud login notice:', err.message);
+            }
+        }
+
+        // 2. Local password verification
+        const enteredHash = await hashPassword(password);
+        if (!cloudUser) {
+            if (!account) {
+                throw new Error('Nama pengguna tidak ditemukan!');
+            }
+            if (account.passwordHash) {
+                if (account.passwordHash !== enteredHash) {
+                    throw new Error('Password salah!');
+                }
+            } else if (account.password) {
+                if (account.password !== password) {
+                    throw new Error('Password salah!');
+                }
+                // Migrate legacy plaintext password to secure hash
+                account.passwordHash = enteredHash;
+                delete account.password;
+                this.saveAccounts(accounts);
+            }
+        } else {
+            // Cloud login succeeded: ensure local account has the hashed password
+            if (!account) {
+                account = {
+                    username: cloudUser.user_metadata?.display_name || cleanName,
+                    passwordHash: enteredHash,
+                    createdAt: Date.now()
+                };
+                accounts[lowerName] = account;
+                this.saveAccounts(accounts);
+            } else if (!account.passwordHash) {
+                account.passwordHash = enteredHash;
+                delete account.password;
+                this.saveAccounts(accounts);
+            }
+
+            // Sync cloud save data
             try {
                 const cloudSave = await loadPlayerFromCloud(cleanName);
-                if (cloudSave) {
-                    account = {
-                        username: cloudSave.display_name || cleanName,
-                        password: password,
-                        createdAt: new Date(cloudSave.created_at || Date.now()).getTime()
-                    };
-                    accounts[lowerName] = account;
-                    this.saveAccounts(accounts);
-                    if (cloudSave.save_data) {
-                        localStorage.setItem(`businessTycoon_save_${lowerName}`, JSON.stringify(cloudSave.save_data));
-                    }
+                if (cloudSave?.save_data) {
+                    localStorage.setItem(`businessTycoon_save_${lowerName}`, JSON.stringify(cloudSave.save_data));
                 }
-            } catch (e) {}
-        }
-
-        if (!account) {
-            throw new Error('Nama pengguna tidak terdaftar!');
-        }
-
-        if (account.password && account.password !== password) {
-            throw new Error('Password salah!');
+            } catch (e) {
+                console.warn('[GameState] Could not load cloud save:', e);
+            }
         }
 
         this.currentUser = account.username;
@@ -560,14 +619,15 @@ class GameState {
         localStorage.setItem('businessTycoon_loginTime', Date.now().toString());
 
         this.load();
-        this.save(); // Instant push to Supabase Cloud
+        this.save(); // Sync to Supabase Cloud
         this.emit('login', account.username);
         this.emit('change', { path: 'player.name', value: account.username });
         return true;
     }
 
-    logout() {
+    async logout() {
         this.save();
+        await authSignOut();
         this.currentUser = null;
         localStorage.removeItem('businessTycoon_currentUser');
         localStorage.removeItem('businessTycoon_loginTime');

@@ -7,6 +7,7 @@ import newsManager from '../../../core/NewsManager.js';
 import stockMarket from '../../../trading/StockMarket.js';
 import cryptoMarket from '../../../trading/CryptoMarket.js';
 import ui from '../../UIManager.js';
+import { escapeHtml } from '../../../core/SecurityUtils.js';
 
 export class MarketNewsSubView {
   constructor() {
@@ -223,13 +224,13 @@ export class MarketNewsSubView {
             </div>
 
             <div class="news-card-headline">
-              ${event.headline}
+              ${escapeHtml(event.headline)}
             </div>
 
             <div class="news-card-meta">
               <div class="news-card-meta-item">
                 <span>🎯 Target Utama:</span>
-                <strong style="color: #fff;">${targetLabel}</strong>
+                <strong style="color: #fff;">${escapeHtml(targetLabel)}</strong>
               </div>
               <div class="news-card-meta-item">
                 <span>⚡ Estimasi Volatilitas:</span>
@@ -280,11 +281,11 @@ export class MarketNewsSubView {
             return `
               <div class="history-news-item">
                 <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                  <span class="history-news-headline">${marketIcon} ${item.headline}</span>
+                  <span class="history-news-headline">${marketIcon} ${escapeHtml(item.headline)}</span>
                   <div class="history-news-meta">
                     <span style="color: ${isPos ? '#34d399' : '#f87171'}; font-weight: 700;">${sign}${item.impact_percent}%</span>
                     <span>•</span>
-                    <span>Target: ${item.ticker_target || item.target_asset || item.sector}</span>
+                    <span>Target: ${escapeHtml(item.ticker_target || item.target_asset || item.sector)}</span>
                     <span>•</span>
                     <span>Waktu: ${timeStr}</span>
                   </div>
