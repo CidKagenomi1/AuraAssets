@@ -1,7 +1,7 @@
 /**
  * PassiveIncomeManager.js - Passive Income and Automation Systems
  * - Staking crypto assets for APY yields
- * - Mining crypto using ASIC, GPU, and CPU mining rigs
+ * - Launchdrop Ecosystem: Launchpool (Zero-Risk Staking) & Launchpad (50% Discount Presale)
  * - Automatic Bot Trading with AI Momentum strategy
  */
 
@@ -13,54 +13,104 @@ import ui from '../ui/UIManager.js';
 
 class PassiveIncomeManager {
     constructor() {
-        this.rigTypes = {
-            CPU: { name: 'CPU Miner', cost: 1000, yieldBTC: 0.00000005, powerCost: 0.1 },
-            GPU: { name: 'GPU Rig', cost: 5000, yieldBTC: 0.00000045, powerCost: 0.8 },
-            ASIC: { name: 'ASIC Miner', cost: 25000, yieldBTC: 0.0000035, powerCost: 5.0 },
-            Industrial: { name: 'Industrial Hashrate Center', cost: 150000, yieldBTC: 0.000028, powerCost: 35.0 }
-        };
-
+        // Core Staking Asset Specifications (PoS, Smart Contract, DeFi, and Infra)
         this.stakingAssets = {
-            ETH: { name: 'Ethereum', apy: 0.045 },
-            SOL: { name: 'Solana', apy: 0.065 },
-            ADA: { name: 'Cardano', apy: 0.05 },
-            DOT: { name: 'Polkadot', apy: 0.12 },
-            LDO: { name: 'Lido DAO', apy: 0.055 },
-            AVAX: { name: 'Avalanche', apy: 0.08 }
+            ETH: { name: 'Ethereum', apy: 0.048, sector: 'Layer 1 (L1)', minStake: 0.01, desc: 'Proof-of-Stake konsensus Ethereum validator reward' },
+            SOL: { name: 'Solana', apy: 0.072, sector: 'Layer 1 (L1)', minStake: 0.1, desc: 'Delegasi validator jaringan high-throughput Solana' },
+            ADA: { name: 'Cardano', apy: 0.055, sector: 'Layer 1 (L1)', minStake: 5.0, desc: 'Ouroboros PoS pool staking Cardano' },
+            DOT: { name: 'Polkadot', apy: 0.115, sector: 'Layer 2 & Interop', minStake: 1.0, desc: 'Nominated PoS relay chain Polkadot' },
+            AVAX: { name: 'Avalanche', apy: 0.085, sector: 'Layer 1 (L1)', minStake: 0.5, desc: 'Avalanche Primary Network subnet validator' },
+            NEAR: { name: 'NEAR Protocol', apy: 0.095, sector: 'Layer 1 (L1)', minStake: 1.0, desc: 'Sharded Doomslug PoS staking' },
+            SUI: { name: 'Sui', apy: 0.068, sector: 'Layer 1 (L1)', minStake: 1.0, desc: 'Delegated PoS validator Sui Network' },
+            TON: { name: 'Toncoin', apy: 0.058, sector: 'Layer 1 (L1)', minStake: 1.0, desc: 'Telegram Open Network PoS validator' },
+            TRX: { name: 'TRON', apy: 0.052, sector: 'DeFi & Staking', minStake: 10.0, desc: 'Super Representative freeze staking TRON' },
+            ALGO: { name: 'Algorand', apy: 0.065, sector: 'Layer 1 (L1)', minStake: 5.0, desc: 'Pure PoS konsensus Algorand' },
+            HYPE: { name: 'Hyperliquid', apy: 0.145, sector: 'DeFi & Staking', minStake: 0.1, desc: 'Perp DEX Liquidity & Validator Vault' },
+            AAVE: { name: 'Aave', apy: 0.082, sector: 'DeFi & Staking', minStake: 0.1, desc: 'Aave Safety Module staking' },
+            UNI: { name: 'Uniswap', apy: 0.075, sector: 'DeFi & Staking', minStake: 0.5, desc: 'Uniswap Liquidity & Fee-share Vault' },
+            LDO: { name: 'Lido DAO', apy: 0.060, sector: 'DeFi & Staking', minStake: 1.0, desc: 'Liquid staking governance vault' },
+            LINK: { name: 'Chainlink', apy: 0.068, sector: 'DePIN, Cloud & Infra', minStake: 0.5, desc: 'Chainlink Oracle Staking v0.2' },
+            TAO: { name: 'Bittensor', apy: 0.120, sector: 'AI & Big Data', minStake: 0.01, desc: 'Subnet Root Validator Staking' },
+            ASTER: { name: 'Aster', apy: 0.150, sector: 'DeFi & Staking', minStake: 1.0, desc: 'DeFi Yield Aggregator Vault' },
+            DEXE: { name: 'DeXe', apy: 0.180, sector: 'DeFi & Staking', minStake: 0.5, desc: 'DAO Treasury High-Yield Pool' },
+            WLFI: { name: 'World Liberty Financial', apy: 0.165, sector: 'DeFi & Staking', minStake: 10.0, desc: 'Institutional DeFi Protocol Yield' }
         };
 
-        this.botStrategies = {
-            ai: { name: 'AI Auto-Trading', desc: 'Robot secara otomatis mendeteksi momentum sinyal pasar (HOT/MOON) untuk menghasilkan profit.', minCapital: 5000 }
+        // Available Bot Trading Configurations
+        this.botModes = {
+            market: {
+                name: 'Bot Per Pasar (Broad Market)',
+                desc: 'Robot otomatis mendiversifikasikan trading di seluruh indeks pergerakan pasar secara luas.',
+                minCapital: 1000
+            },
+            sector: {
+                name: 'Bot Per Sektor Kripto (Sector Rotation)',
+                desc: 'Robot mengeksekusi strategi rotasi momentum pada koin-koin dalam satu sektor tertentu.',
+                minCapital: 2000
+            },
+            asset: {
+                name: 'Bot Per Token / Aset (Single Asset Precision)',
+                desc: 'Robot fokus bertransaksi pada satu aset spesifik memanfaatkan volatilitas dan sinyal teknikal.',
+                minCapital: 500
+            }
         };
+    }
+
+    getStakingPool(symbol) {
+        if (this.stakingAssets[symbol]) {
+            return this.stakingAssets[symbol];
+        }
+        // Fallback dynamic yield based on crypto market sector
+        const crypto = cryptoMarket ? cryptoMarket.getCrypto(symbol) : null;
+        if (!crypto) return null;
+
+        let apy = 0.06;
+        if (crypto.sector === 'DeFi & Staking') apy = 0.12;
+        else if (crypto.sector === 'Layer 1 (L1)') apy = 0.07;
+        else if (crypto.sector === 'AI & Big Data') apy = 0.11;
+        else if (crypto.sector === 'Meme Coin') apy = 0.20;
+
+        return {
+            name: crypto.name,
+            apy: apy,
+            sector: crypto.sector || 'Kripto',
+            minStake: 0.0001,
+            desc: `Vault staking resmi untuk aset ${crypto.name} (${symbol})`
+        };
+    }
+
+    getAllStakingPools() {
+        const pools = { ...this.stakingAssets };
+        // Enrich with any cryptos in wallet that are stakeable
+        const wallet = gameState.get('crypto') || {};
+        Object.keys(wallet).forEach(sym => {
+            if (!pools[sym] && cryptoMarket?.getCrypto(sym)) {
+                const p = this.getStakingPool(sym);
+                if (p) pools[sym] = p;
+            }
+        });
+        return pools;
     }
 
     getState() {
         let state = gameState.get('passiveIncome');
         if (!state) {
             state = {
-                rigs: { CPU: 0, GPU: 0, ASIC: 0, Industrial: 0 },
                 staked: {}, // { symbol: amount }
+                stakedLocks: {}, // { symbol: 'flexible' | 'locked' }
                 stakingRewards: {}, // symbol: amount
-                miningRewards: 0, // amount of BTC
-                launchdrops: [
-                    { id: 'AURA', name: 'Aura Network', symbol: 'AURA', desc: 'Cosmos-based Layer-1 blockchain for smart contracts.', timeRemaining: 60, committed: 0, status: 'ACTIVE', rate: 0.1 },
-                    { id: 'NEX', name: 'Nexus AI', symbol: 'NEX', desc: 'Enterprise decentralized Artificial Intelligence computation core.', timeRemaining: 120, committed: 0, status: 'ACTIVE', rate: 0.25 }
-                ],
-                bots: [],    // [ { id, type, asset, assetType, capital, profit, profitPct, status, runtimeDays, entryPrice } ]
-                botHistory: [] // [ { id, type, asset, assetType, capital, profit, profitPct, runtimeTicks, entryPrice, stopTime } ]
+                launchdrops: [],
+                bots: [],    // [ { id, mode, targetId, targetName, targetType, capital, profit, profitPct, status, runtimeTicks, entryPrice } ]
+                botHistory: [] // [ { id, mode, targetId, targetName, targetType, capital, profit, profitPct, runtimeTicks, entryPrice, stopTime } ]
             };
             gameState.set('passiveIncome', state);
         } else {
             let changed = false;
-            if (!state.rigs) { state.rigs = { CPU: 0, GPU: 0, ASIC: 0, Industrial: 0 }; changed = true; }
             if (!state.staked) { state.staked = {}; changed = true; }
+            if (!state.stakedLocks) { state.stakedLocks = {}; changed = true; }
             if (!state.stakingRewards) { state.stakingRewards = {}; changed = true; }
-            if (state.miningRewards === undefined) { state.miningRewards = 0; changed = true; }
-            if (!state.launchdrops) {
-                state.launchdrops = [
-                    { id: 'AURA', name: 'Aura Network', symbol: 'AURA', desc: 'Cosmos-based Layer-1 blockchain for smart contracts.', timeRemaining: 60, committed: 0, status: 'ACTIVE', rate: 0.1 },
-                    { id: 'NEX', name: 'Nexus AI', symbol: 'NEX', desc: 'Enterprise decentralized Artificial Intelligence computation core.', timeRemaining: 120, committed: 0, status: 'ACTIVE', rate: 0.25 }
-                ];
+            if (!state.launchdrops || !Array.isArray(state.launchdrops)) {
+                state.launchdrops = [];
                 changed = true;
             }
             if (!state.bots) { state.bots = []; changed = true; }
@@ -69,7 +119,176 @@ class PassiveIncomeManager {
                 gameState.set('passiveIncome', state);
             }
         }
+
+        // Synchronize dynamic daily pools (Launchpool & Launchpad)
+        this.syncDailyLaunchdrops(state);
         return state;
+    }
+
+    syncDailyLaunchdrops(state) {
+        if (!state.launchdrops) state.launchdrops = [];
+
+        const now = new Date();
+        const dateKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+        const daySeed = now.getUTCFullYear() * 10000 + (now.getUTCMonth() + 1) * 100 + now.getUTCDate();
+
+        const TOP_10 = ['BTC', 'ETH', 'USDT', 'BNB', 'XRP', 'USDC', 'SOL', 'TRX', 'DOGE', 'ADA'];
+        const STABLE_SECTORS = ['Stablecoin & RWA'];
+        const MEME_GAME_SECTORS = ['Meme Coin', 'Gaming, NFT & Metaverse'];
+
+        const allCryptos = cryptoMarket ? Object.values(cryptoMarket.cryptos || {}) : [];
+        if (allCryptos.length === 0) return;
+
+        // Categorize into Launchpad (Meme Coin & Gaming/NFT) vs Launchpool (All other non-top-10, non-stables)
+        const padCandidates = allCryptos.filter(c => MEME_GAME_SECTORS.includes(c.sector));
+        const poolCandidates = allCryptos.filter(c => !MEME_GAME_SECTORS.includes(c.sector) && !TOP_10.includes(c.symbol) && !STABLE_SECTORS.includes(c.sector));
+
+        if (padCandidates.length === 0 || poolCandidates.length === 0) return;
+
+        const todayPoolToken = poolCandidates[daySeed % poolCandidates.length];
+        const todayPadToken = padCandidates[daySeed % padCandidates.length];
+
+        const poolId = `pool_${todayPoolToken.symbol}_${dateKey}`;
+        const padId = `pad_${todayPadToken.symbol}_${dateKey}`;
+
+        let modified = false;
+
+        // 1. Check Launchpool entry for today (Staking Kas 100% Balik + Free Airdrop)
+        let poolEntry = state.launchdrops.find(l => l.id === poolId || (l.dateKey === dateKey && l.type === 'launchpool'));
+        if (!poolEntry) {
+            poolEntry = {
+                id: poolId,
+                type: 'launchpool',
+                symbol: todayPoolToken.symbol,
+                name: todayPoolToken.name,
+                icon: todayPoolToken.icon || '🪙',
+                sector: todayPoolToken.sector,
+                category: todayPoolToken.category,
+                desc: `Kunci modal kas Anda di Launchpool ${todayPoolToken.name} untuk memanen alokasi token utilitas secara gratis. Modal kas pokok 100% dikembalikan utuh saat klaim!`,
+                dateKey: dateKey,
+                startTimeUtc: 12, // 12:00 UTC (19:00 WIB)
+                durationHours: 3, // 3 Jam (12:00 - 15:00 UTC / 19:00 - 22:00 WIB)
+                durationSeconds: 3 * 3600,
+                yieldRate: 0.12, // 12% airdrop reward rate
+                committed: 0,
+                status: 'UPCOMING',
+                timeRemaining: 0,
+                claimed: false
+            };
+            state.launchdrops.push(poolEntry);
+            modified = true;
+        }
+
+        // 2. Check Launchpad entry for today (Presale IDO Diskon 50%, Tradeable setelah 5 jam)
+        let padEntry = state.launchdrops.find(l => l.id === padId || (l.dateKey === dateKey && l.type === 'launchpad'));
+        if (!padEntry) {
+            padEntry = {
+                id: padId,
+                type: 'launchpad',
+                symbol: todayPadToken.symbol,
+                name: todayPadToken.name,
+                icon: todayPadToken.icon || '💎',
+                sector: todayPadToken.sector,
+                category: todayPadToken.category,
+                desc: `Dapatkan alokasi presale perdana ${todayPadToken.name} dengan diskon 50% dari harga pasar. Token didistribusikan setelah masa presale 5 jam selesai dan langsung siap diperjualbelikan di pasar!`,
+                dateKey: dateKey,
+                startTimeUtc: 12, // 12:00 UTC (19:00 WIB)
+                durationHours: 5, // 5 Jam (12:00 - 17:00 UTC / 19:00 - 00:00 WIB)
+                durationSeconds: 5 * 3600,
+                discountRate: 0.50, // Diskon 50% dari harga listing
+                committed: 0,
+                status: 'UPCOMING',
+                timeRemaining: 0,
+                claimed: false
+            };
+            state.launchdrops.push(padEntry);
+            modified = true;
+        }
+
+        // Purge legacy hardcoded static entries if present
+        state.launchdrops = state.launchdrops.filter(l => l.type === 'launchpool' || l.type === 'launchpad');
+
+        // Clean up ancient ended entries if more than 6 exist
+        if (state.launchdrops.length > 6) {
+            state.launchdrops = state.launchdrops.filter((l, idx) => {
+                if (l.dateKey === dateKey) return true;
+                if (l.committed > 0 && !l.claimed) return true;
+                return idx >= state.launchdrops.length - 4;
+            });
+            modified = true;
+        }
+
+        if (modified) {
+            this.saveState(state);
+        }
+    }
+
+    updateLaunchdropTimers(state) {
+        if (!state.launchdrops || state.launchdrops.length === 0) return false;
+
+        const now = new Date();
+        const currentUtcSeconds = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
+        const startSeconds = 12 * 3600; // 12:00 UTC = 43,200 seconds
+
+        let changed = false;
+
+        state.launchdrops.forEach(ld => {
+            // Handle active test simulation
+            if (ld.isSimulatedActive) {
+                if (ld.timeRemaining > 0) {
+                    ld.timeRemaining = Math.max(0, ld.timeRemaining - 1);
+                    changed = true;
+                    if (ld.timeRemaining === 0) {
+                        ld.isSimulatedActive = false;
+                        if (ld.committed > 0 && !ld.claimed) {
+                            ld.status = 'CLAIMABLE';
+                        } else {
+                            ld.status = 'ENDED';
+                        }
+                        changed = true;
+                    }
+                }
+                return;
+            }
+
+            // Normal Real UTC Schedule
+            const endSeconds = startSeconds + (ld.durationSeconds || (ld.type === 'launchpool' ? 10800 : 18000));
+
+            // Case A: Before 12:00 UTC (Upcoming countdown)
+            if (currentUtcSeconds < startSeconds) {
+                if (ld.claimed) {
+                    if (ld.status !== 'ENDED') { ld.status = 'ENDED'; changed = true; }
+                } else if (ld.committed > 0 && ld.status === 'CLAIMABLE') {
+                    // Previous day's unclaimed pool remains claimable
+                } else {
+                    const diff = startSeconds - currentUtcSeconds;
+                    if (ld.status !== 'UPCOMING') { ld.status = 'UPCOMING'; changed = true; }
+                    if (ld.timeRemaining !== diff) { ld.timeRemaining = diff; changed = true; }
+                }
+            } 
+            // Case B: Between 12:00 UTC and Event End (Active Window)
+            else if (currentUtcSeconds >= startSeconds && currentUtcSeconds < endSeconds) {
+                if (ld.claimed) {
+                    if (ld.status !== 'ENDED') { ld.status = 'ENDED'; changed = true; }
+                } else {
+                    const diff = endSeconds - currentUtcSeconds;
+                    if (ld.status !== 'ACTIVE') { ld.status = 'ACTIVE'; changed = true; }
+                    if (ld.timeRemaining !== diff) { ld.timeRemaining = diff; changed = true; }
+                }
+            } 
+            // Case C: After Event End (15:00 UTC for Pool, 17:00 UTC for Pad)
+            else {
+                if (ld.committed > 0 && !ld.claimed) {
+                    if (ld.status !== 'CLAIMABLE') { ld.status = 'CLAIMABLE'; changed = true; }
+                    if (ld.timeRemaining !== 0) { ld.timeRemaining = 0; changed = true; }
+                } else {
+                    if (ld.status !== 'ENDED') { ld.status = 'ENDED'; changed = true; }
+                    if (ld.timeRemaining !== 0) { ld.timeRemaining = 0; changed = true; }
+                }
+            }
+        });
+
+        return changed;
     }
 
     saveState(state) {
@@ -79,7 +298,7 @@ class PassiveIncomeManager {
     /**
      * Staking Methods
      */
-    stake(symbol, amount) {
+    stake(symbol, amount, lockType = 'flexible') {
         const wallet = gameState.get('crypto') || {};
         const holding = wallet[symbol];
 
@@ -93,9 +312,12 @@ class PassiveIncomeManager {
         // Add to staked
         const state = this.getState();
         state.staked[symbol] = (state.staked[symbol] || 0) + amount;
+        if (!state.stakedLocks) state.stakedLocks = {};
+        state.stakedLocks[symbol] = lockType;
         this.saveState(state);
 
         gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
+        document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
         return true;
     }
 
@@ -111,6 +333,7 @@ class PassiveIncomeManager {
         state.staked[symbol] = stakedAmount - amount;
         if (state.staked[symbol] <= 1e-10) {
             delete state.staked[symbol];
+            if (state.stakedLocks) delete state.stakedLocks[symbol];
         }
         this.saveState(state);
 
@@ -119,6 +342,7 @@ class PassiveIncomeManager {
         cryptoMarket.addToWallet(symbol, amount, crypto ? crypto.price : 1.0);
 
         gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
+        document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
         return true;
     }
 
@@ -134,6 +358,7 @@ class PassiveIncomeManager {
         cryptoMarket.addToWallet(symbol, pending, crypto ? crypto.price : 1.0);
 
         gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
+        document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
         return true;
     }
 
@@ -152,132 +377,183 @@ class PassiveIncomeManager {
         if (claimedCount > 0) {
             this.saveState(state);
             gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
+            document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
             return true;
         }
         throw new Error('Tidak ada reward staking untuk diklaim');
     }
 
-    claimMining() {
-        const state = this.getState();
-        const pending = state.miningRewards || 0;
-        if (pending <= 0) throw new Error('Tidak ada hasil tambang untuk diklaim');
-
-        state.miningRewards = 0;
-        this.saveState(state);
-
-        const btc = cryptoMarket.getCrypto('BTC');
-        cryptoMarket.addToWallet('BTC', pending, btc ? btc.price : 60000);
-
-        gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
-        return true;
-    }
-
     commitLaunchdrop(id, amount) {
+        if (!amount || amount <= 0) throw new Error('Jumlah komitmen modal harus lebih dari $0');
         const balance = gameState.getBalance();
-        if (balance < amount) throw new Error('Saldo kas tidak mencukupi untuk commit');
+        if (balance < amount) throw new Error('Saldo kas tidak mencukupi untuk komitmen modal');
 
         const state = this.getState();
         const ld = state.launchdrops.find(l => l.id === id);
-        if (!ld) throw new Error('Launchdrop tidak ditemukan');
-        if (ld.status !== 'ACTIVE') throw new Error('Launchdrop sudah tidak aktif');
+        if (!ld) throw new Error('Pool Launchdrop tidak ditemukan');
+        if (ld.status !== 'ACTIVE') throw new Error('Pool ini sedang tidak dalam masa aktif/open');
 
+        // Deduct player balance
         gameState.update('player', p => ({
             ...p,
             balance: p.balance - amount
         }));
 
-        financeManager.addExpense ? financeManager.addExpense(amount, 'Launchdrop Commit', `Commit $${amount.toLocaleString()} ke ${ld.name}`) : null;
+        const isPool = ld.type === 'launchpool';
+        const title = isPool ? 'Launchpool Stake' : 'Launchpad Presale';
+        const desc = isPool 
+            ? `Commit $${amount.toLocaleString()} kas di Launchpool ${ld.name} (Modal 100% aman & kembali saat klaim)`
+            : `Beli presale diskon 50% $${amount.toLocaleString()} di Launchpad ${ld.name}`;
+
+        if (financeManager?.addExpense) {
+            financeManager.addExpense(amount, title, desc);
+        }
 
         ld.committed = (ld.committed || 0) + amount;
         this.saveState(state);
 
         gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
-        return true;
+        document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
+        return ld;
     }
 
     claimLaunchdrop(id) {
         const state = this.getState();
         const ld = state.launchdrops.find(l => l.id === id);
-        if (!ld) throw new Error('Launchdrop tidak ditemukan');
-        if (ld.status !== 'CLAIMABLE') throw new Error('Launchdrop belum siap diklaim atau sudah diklaim');
+        if (!ld) throw new Error('Pool Launchdrop tidak ditemukan');
+        if (ld.status !== 'CLAIMABLE') throw new Error('Alokasi belum siap diklaim atau event belum selesai');
+        if (ld.committed <= 0) throw new Error('Anda tidak memiliki alokasi modal untuk diklaim');
+        if (ld.claimed) throw new Error('Alokasi dari pool ini sudah pernah diklaim');
 
-        const rewardAmount = ld.committed * ld.rate;
-        if (rewardAmount <= 0) throw new Error('Anda tidak memiliki alokasi untuk diklaim');
+        const crypto = cryptoMarket.getCrypto(ld.symbol);
+        const currentPrice = crypto ? crypto.price : 1.0;
 
+        let result = {};
+
+        if (ld.type === 'launchpool') {
+            // Model A: Launchpool Staking
+            // 1. Return 100% committed cash modal
+            const refundCash = ld.committed;
+            gameState.update('player', p => ({
+                ...p,
+                balance: p.balance + refundCash
+            }));
+
+            // 2. Airdrop reward tokens (12% of committed cash value)
+            const airdropValueUSD = ld.committed * (ld.yieldRate || 0.12);
+            const tokenReward = airdropValueUSD / currentPrice;
+
+            // Add free tokens to crypto wallet
+            cryptoMarket.addToWallet(ld.symbol, tokenReward, currentPrice);
+
+            if (financeManager?.addIncome) {
+                financeManager.addIncome(airdropValueUSD, 'Launchpool Reward', `Airdrop gratis ${tokenReward.toFixed(4)} ${ld.symbol} + modal kas $${refundCash.toLocaleString()} kembali utuh`);
+            }
+
+            result = {
+                type: 'launchpool',
+                name: ld.name,
+                symbol: ld.symbol,
+                refundCash,
+                tokenReward,
+                airdropValueUSD
+            };
+        } else {
+            // Model B: Launchpad IDO Presale (Diskon 50%)
+            const discount = ld.discountRate || 0.50;
+            const presalePrice = currentPrice * (1 - discount);
+            const allocatedTokens = ld.committed / presalePrice;
+
+            // Add tokens to wallet with discounted presale price as avgBuyPrice!
+            cryptoMarket.addToWallet(ld.symbol, allocatedTokens, presalePrice);
+
+            const marketValueUSD = allocatedTokens * currentPrice;
+            const estimatedProfit = marketValueUSD - ld.committed;
+
+            result = {
+                type: 'launchpad',
+                name: ld.name,
+                symbol: ld.symbol,
+                allocatedTokens,
+                presalePrice,
+                currentPrice,
+                committed: ld.committed,
+                marketValueUSD,
+                estimatedProfit,
+                profitPct: ((currentPrice - presalePrice) / presalePrice) * 100
+            };
+        }
+
+        ld.claimed = true;
         ld.status = 'ENDED';
         this.saveState(state);
 
-        const crypto = cryptoMarket.getCrypto(ld.symbol);
-        cryptoMarket.addToWallet(ld.symbol, rewardAmount, crypto ? crypto.price : 1.0);
-
         gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
-        return true;
+        document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
+        return result;
     }
 
-    /**
-     * Mining Methods
-     */
-    buyRig(type) {
-        const rig = this.rigTypes[type];
-        if (!rig) throw new Error('Rig type not found');
+    simulateStartPoolNow(type = 'launchpool') {
+        const state = this.getState();
+        const ld = state.launchdrops.find(l => l.type === type);
+        if (!ld) throw new Error(`Tidak ada ${type} yang dapat disimulasikan`);
 
-        const balance = gameState.getBalance();
-        if (balance < rig.cost) {
-            throw new Error('Saldo kas tidak cukup untuk membeli mining rig');
+        ld.isSimulatedActive = true;
+        ld.status = 'ACTIVE';
+        ld.timeRemaining = ld.type === 'launchpool' ? 180 : 300; // 3 min / 5 min test timer
+        ld.claimed = false;
+        this.saveState(state);
+        document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
+        return ld;
+    }
+
+    simulateNextPhase(id) {
+        const state = this.getState();
+        const ld = state.launchdrops.find(l => l.id === id);
+        if (!ld) throw new Error('Pool tidak ditemukan');
+
+        if (ld.status === 'UPCOMING') {
+            ld.isSimulatedActive = true;
+            ld.status = 'ACTIVE';
+            ld.timeRemaining = ld.type === 'launchpool' ? 180 : 300;
+        } else if (ld.status === 'ACTIVE') {
+            ld.isSimulatedActive = false;
+            ld.timeRemaining = 0;
+            ld.status = 'CLAIMABLE';
         }
-
-        // Deduct balance
-        gameState.update('player', p => ({
-            ...p,
-            balance: p.balance - rig.cost
-        }));
-
-        // Add transaction
-        financeManager.addExpense ? financeManager.addExpense(rig.cost, 'Mining Purchase', `Membeli ${rig.name}`) : null;
-
-        // Add rig count
-        const state = this.getState();
-        state.rigs[type] = (state.rigs[type] || 0) + 1;
         this.saveState(state);
-
-        return true;
-    }
-
-    sellRig(type) {
-        const state = this.getState();
-        const currentCount = state.rigs[type] || 0;
-        if (currentCount <= 0) throw new Error('Tidak memiliki rig jenis ini');
-
-        const rig = this.rigTypes[type];
-        const refund = Math.round(rig.cost * 0.6); // 60% resale value
-
-        // Refund cash
-        gameState.update('player', p => ({
-            ...p,
-            balance: p.balance + refund
-        }));
-
-        financeManager.addIncome(refund, 'Mining Rig Sale', `Menjual ${rig.name} (Second)`);
-
-        state.rigs[type] = currentCount - 1;
-        this.saveState(state);
-
-        return true;
+        document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
+        return ld;
     }
 
     /**
      * Bot Methods
      */
-    startBot(strategy, asset, assetType, capital) {
+    startBot(options, legacyAsset, legacyType, legacyCapital) {
+        let config = {};
+        if (typeof options === 'object' && options !== null) {
+            config = options;
+        } else {
+            // Backwards compatibility for legacy calls: startBot(strategy, asset, assetType, capital)
+            config = {
+                mode: 'asset',
+                targetType: legacyType || 'crypto',
+                targetId: legacyAsset,
+                targetName: legacyAsset,
+                capital: legacyCapital
+            };
+        }
+
         const balance = gameState.getBalance();
-        if (balance < capital) throw new Error('Saldo kas tidak mencukupi modal bot');
+        const capital = Number(config.capital);
+        if (isNaN(capital) || capital <= 0) throw new Error('Nominal modal bot tidak valid');
+        if (balance < capital) throw new Error('Saldo kas tidak mencukupi untuk modal bot');
 
-        const spec = this.botStrategies[strategy];
-        if (!spec) throw new Error('Strategi bot tidak ditemukan');
-        if (capital < spec.minCapital) throw new Error(`Minimal modal untuk strategi ${spec.name} adalah $ ${spec.minCapital.toLocaleString()}`);
-
-        const assetData = assetType === 'stock' ? stockMarket.getStock(asset) : cryptoMarket.getCrypto(asset);
-        if (!assetData) throw new Error('Aset tidak valid');
+        const mode = config.mode || 'asset'; // 'market' | 'sector' | 'asset'
+        const spec = this.botModes[mode] || this.botModes.asset;
+        if (capital < spec.minCapital) {
+            throw new Error(`Minimal modal untuk ${spec.name} adalah $ ${spec.minCapital.toLocaleString()}`);
+        }
 
         // Deduct capital
         gameState.update('player', p => ({
@@ -285,28 +561,33 @@ class PassiveIncomeManager {
             balance: p.balance - capital
         }));
 
-        // Differentiate stock and crypto systems: Crypto bots have default 3x virtual leverage, stock bots have 1x.
-        const leverage = assetType === 'crypto' ? 3 : 1;
+        if (financeManager?.addExpense) {
+            financeManager.addExpense(capital, 'Alokasi Modal Bot', `Menjalankan ${config.targetName || 'Trading Bot'}`);
+        }
+
         const bot = {
             id: Date.now() + Math.random(),
-            type: strategy,
-            asset,
-            assetType,
-            capital,
+            mode: mode,
+            targetId: config.targetId,
+            targetName: config.targetName || config.targetId,
+            targetType: config.targetType || (config.targetId === 'stock' ? 'stock' : 'crypto'),
+            icon: config.icon || (mode === 'market' ? '🌐' : mode === 'sector' ? '🗂️' : '🤖'),
+            capital: capital,
             profit: 0,
             profitPct: 0,
             status: 'RUNNING',
             runtimeTicks: 0,
-            entryPrice: assetData.price,
-            leverage: leverage,
-            // Separate system params: Crypto bots run 24/7 (always active), Stock bots run only during market sessions
-            systemName: assetType === 'crypto' ? 'High-Frequency Crypto Engine (3x Leverage)' : 'Standard Equity Momentum Optimizer (1x Leverage)'
+            startTime: Date.now(),
+            entryPrice: config.entryPrice || 0,
+            leverage: config.targetType === 'stock' ? 1 : 2
         };
 
         const state = this.getState();
         state.bots.push(bot);
         this.saveState(state);
 
+        gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
+        document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
         return bot;
     }
 
@@ -316,7 +597,7 @@ class PassiveIncomeManager {
         if (botIndex === -1) throw new Error('Bot tidak ditemukan');
 
         const bot = state.bots[botIndex];
-        const returnAmount = bot.capital + bot.profit;
+        const returnAmount = Math.max(0, bot.capital + bot.profit);
 
         // Refund capital + profit to player cash
         gameState.update('player', p => ({
@@ -325,10 +606,9 @@ class PassiveIncomeManager {
         }));
 
         if (bot.profit >= 0) {
-            financeManager.addIncome(returnAmount, 'Bot Trading Claim', `Menghentikan Bot ${bot.asset} dengan keuntungan $ ${bot.profit.toLocaleString()}`);
+            financeManager.addIncome(returnAmount, 'Klaim Bot Trading', `Menghentikan ${bot.targetName} dengan keuntungan $ ${Math.round(bot.profit).toLocaleString()} (${bot.profitPct.toFixed(1)}%)`);
         } else {
-            // Deduct total as expense (capital was already deducted, refund whatever remains)
-            financeManager.addIncome(returnAmount, 'Bot Trading Claim', `Menghentikan Bot ${bot.asset} dengan kerugian $ ${Math.abs(bot.profit).toLocaleString()}`);
+            financeManager.addIncome(returnAmount, 'Klaim Bot Trading', `Menghentikan ${bot.targetName} dengan hasil $ ${Math.round(returnAmount).toLocaleString()} (Drawdown ${bot.profitPct.toFixed(1)}%)`);
         }
 
         // Save to history before removing
@@ -337,14 +617,15 @@ class PassiveIncomeManager {
         }
         state.botHistory.unshift({
             id: bot.id,
-            type: bot.type,
-            asset: bot.asset,
-            assetType: bot.assetType,
+            mode: bot.mode,
+            targetId: bot.targetId,
+            targetName: bot.targetName,
+            targetType: bot.targetType,
+            icon: bot.icon,
             capital: bot.capital,
             profit: bot.profit,
             profitPct: bot.profitPct,
             runtimeTicks: bot.runtimeTicks,
-            entryPrice: bot.entryPrice,
             stopTime: Date.now()
         });
         
@@ -357,6 +638,8 @@ class PassiveIncomeManager {
         state.bots.splice(botIndex, 1);
         this.saveState(state);
 
+        gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
+        document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
         return returnAmount;
     }
 
@@ -367,43 +650,18 @@ class PassiveIncomeManager {
         const state = this.getState();
         let stateChanged = false;
 
-        // 1. Process Mining Yields (Mines BTC)
-        let totalBTCYield = 0;
-        let totalPowerCost = 0;
-
-        Object.entries(state.rigs).forEach(([type, count]) => {
-            if (count > 0) {
-                const rig = this.rigTypes[type];
-                totalBTCYield += rig.yieldBTC * count;
-                totalPowerCost += rig.powerCost * count;
-            }
-        });
-
-        if (totalBTCYield > 0) {
-            // Add to pending mining rewards instead of wallet directly
-            state.miningRewards = (state.miningRewards || 0) + totalBTCYield;
-
-            // Deduct power consumption / maintenance fee
-            if (totalPowerCost > 0) {
-                const actualCost = Math.round(totalPowerCost);
-                gameState.update('player', p => ({
-                    ...p,
-                    balance: Math.max(0, p.balance - actualCost)
-                }));
-            }
-            stateChanged = true;
-        }
-
-        // 2. Process Staking Yields
+        // 1. Process Staking Yields
         Object.entries(state.staked).forEach(([symbol, amount]) => {
             if (amount > 0) {
-                const spec = this.stakingAssets[symbol];
+                const spec = this.getStakingPool(symbol);
                 if (spec) {
-                    // Boosted yield rate: APY / 15000 for faster interactive feedback
-                    const yieldRate = spec.apy / 15000;
+                    const isLocked = state.stakedLocks?.[symbol] === 'locked';
+                    const baseApy = spec.apy || 0.06;
+                    const effectiveApy = isLocked ? baseApy * 1.35 : baseApy;
+                    // Boosted interactive tick rate
+                    const yieldRate = effectiveApy / 12000;
                     const rewardAmount = amount * yieldRate;
 
-                    // Add to pending rewards instead of wallet directly
                     if (!state.stakingRewards) state.stakingRewards = {};
                     state.stakingRewards[symbol] = (state.stakingRewards[symbol] || 0) + rewardAmount;
                     stateChanged = true;
@@ -411,35 +669,64 @@ class PassiveIncomeManager {
             }
         });
 
-        // 3. Process Trading Bots
+        // 2. Process Trading Bots
         const activeSignals = gameState.get('tradingSignals') || [];
+        const allCryptos = cryptoMarket ? Object.values(cryptoMarket.cryptos || {}) : [];
+        const allStocks = stockMarket ? Object.values(stockMarket.stocks || {}) : [];
+
         state.bots.forEach(bot => {
             bot.runtimeTicks += 1;
-            const asset = bot.assetType === 'stock' ? stockMarket.getStock(bot.asset) : cryptoMarket.getCrypto(bot.asset);
-            if (!asset) return;
-
-            const changePct = asset.change / 100; // current tick change
-            const signal = activeSignals.find(s => s.id === bot.asset);
-            const signalLabel = signal ? signal.label : 'NEUTRAL 😐';
-
-            let bias = 0;
-            if (signalLabel.includes('MOON')) bias = 0.05; // parabolic momentum
-            else if (signalLabel.includes('HOT')) bias = 0.02;
-            else if (signalLabel.includes('HEAT')) bias = 0.008;
-            else if (signalLabel.includes('COOL')) bias = -0.018; // bad trend
-
-            // Simplistic yield based on asset growth and signal prediction
-            const leverage = bot.leverage || (bot.assetType === 'crypto' ? 3 : 1);
             let profitRate = 0;
 
-            if (bot.assetType === 'crypto') {
-                // Crypto: high volatility, leverage multiplier, runs continuously
-                const randomWalk = (Math.random() - 0.46 + bias) * (asset.volatility * 2.2);
-                profitRate = (changePct * 0.7 + randomWalk) * leverage;
+            if (bot.mode === 'market') {
+                // Mode A: Broad Market Index Bot
+                if (bot.targetId === 'stock') {
+                    const avgChange = allStocks.reduce((sum, s) => sum + (s.change || 0), 0) / (allStocks.length || 1);
+                    const alpha = (Math.random() - 0.46) * 0.008;
+                    profitRate = (avgChange / 100) * 0.4 + alpha;
+                } else {
+                    // Crypto Market (24/7, high vol, 2x leverage)
+                    const avgChange = allCryptos.reduce((sum, c) => sum + (c.change || 0), 0) / (allCryptos.length || 1);
+                    const alpha = (Math.random() - 0.45) * 0.018;
+                    profitRate = ((avgChange / 100) * 0.6 + alpha) * (bot.leverage || 2);
+                }
+            } else if (bot.mode === 'sector') {
+                // Mode B: Sector Rotation Bot
+                const sectorTokens = allCryptos.filter(c => c.sector === bot.targetId);
+                const avgChange = sectorTokens.length > 0 
+                    ? sectorTokens.reduce((sum, c) => sum + (c.change || 0), 0) / sectorTokens.length 
+                    : 0;
+                
+                // Sector signal boost
+                let sectorBias = 0;
+                sectorTokens.forEach(t => {
+                    const sig = activeSignals.find(s => s.id === t.symbol);
+                    if (sig?.label?.includes('MOON')) sectorBias += 0.008;
+                    else if (sig?.label?.includes('HOT')) sectorBias += 0.004;
+                });
+                sectorBias = Math.min(0.04, sectorBias);
+
+                const alpha = (Math.random() - 0.46 + sectorBias) * 0.022;
+                profitRate = ((avgChange / 100) * 0.7 + alpha) * (bot.leverage || 2);
             } else {
-                // Stocks: lower volatility, lower random drift, normal execution
-                const randomWalk = (Math.random() - 0.44 + bias) * (asset.volatility * 1.0);
-                profitRate = (changePct * 0.4 + randomWalk) * leverage;
+                // Mode C: Single Asset Precision Bot
+                const asset = bot.targetType === 'stock' ? stockMarket.getStock(bot.targetId) : cryptoMarket.getCrypto(bot.targetId);
+                if (asset) {
+                    const changePct = (asset.change || 0) / 100;
+                    const signal = activeSignals.find(s => s.id === bot.targetId);
+                    const signalLabel = signal ? signal.label : 'NEUTRAL 😐';
+
+                    let bias = 0;
+                    if (signalLabel.includes('MOON')) bias = 0.05;
+                    else if (signalLabel.includes('HOT')) bias = 0.02;
+                    else if (signalLabel.includes('HEAT')) bias = 0.008;
+                    else if (signalLabel.includes('COOL')) bias = -0.018;
+
+                    const leverage = bot.leverage || (bot.targetType === 'crypto' ? 2 : 1);
+                    const vol = asset.volatility || 0.05;
+                    const randomWalk = (Math.random() - 0.46 + bias) * (vol * 1.8);
+                    profitRate = (changePct * 0.6 + randomWalk) * leverage;
+                }
             }
 
             bot.profit += bot.capital * profitRate;
@@ -447,22 +734,17 @@ class PassiveIncomeManager {
             stateChanged = true;
         });
 
-        // 4. Process Launchdrops countdown
-        if (state.launchdrops) {
-            state.launchdrops.forEach(ld => {
-                if (ld.status === 'ACTIVE' && ld.committed > 0) {
-                    ld.timeRemaining = Math.max(0, ld.timeRemaining - 1);
-                    if (ld.timeRemaining === 0) {
-                        ld.status = 'CLAIMABLE';
-                    }
-                    stateChanged = true;
-                }
-            });
-        }
-
         if (stateChanged) {
             this.saveState(state);
-            // Request UI updates
+            document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
+        }
+    }
+
+    tickTime() {
+        const state = this.getState();
+        const changed = this.updateLaunchdropTimers(state);
+        if (changed) {
+            this.saveState(state);
             document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
         }
     }
@@ -470,9 +752,14 @@ class PassiveIncomeManager {
 
 export const passiveIncomeManager = new PassiveIncomeManager();
 
-// Automatically update passive income systems on price ticks
+// Automatically update passive income systems on price ticks (Mining, Staking, Trading Bots)
 gameState.on('cryptoUpdate', () => {
     passiveIncomeManager.tick();
+});
+
+// Real-Time UTC second clock synchronization for Launchpool & Launchpad countdowns
+gameState.on('utcTick', () => {
+    passiveIncomeManager.tickTime();
 });
 
 export default passiveIncomeManager;

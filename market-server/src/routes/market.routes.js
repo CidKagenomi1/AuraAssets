@@ -62,5 +62,24 @@ export default async function marketRoutes(fastify) {
     const trades = await fastify.marketService.getRecentTrades(parsed.data.symbol, limit);
     return reply.send({ data: trades });
   });
+
+  /**
+   * GET /api/market/:symbol/candles
+   * Riwayat OHLCV candle teragregasi untuk satu saham/kripto
+   */
+  fastify.get('/api/market/:symbol/candles', async (request, reply) => {
+    const parsed = symbolParamsSchema.safeParse(request.params);
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: 'INVALID_SYMBOL',
+        message: 'Invalid asset symbol'
+      });
+    }
+
+    const timeframe = request.query?.timeframe || '1m';
+    const limit = Math.min(300, Math.max(1, Number(request.query?.limit) || 120));
+    const candles = await fastify.candleService.getCandles(parsed.data.symbol, timeframe, limit);
+    return reply.send({ data: candles });
+  });
 }
 

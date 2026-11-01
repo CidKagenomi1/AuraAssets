@@ -22,13 +22,13 @@ export function updateMobileBottomNav(activeView, onViewSwitch) {
       home: { id: 'home', label: 'Beranda', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>` },
       market: { id: 'market', label: 'Pasar', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/></svg>` },
       portfolio: { id: 'portfolio', label: 'Portofolio', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>` },
-      news: { id: 'news', label: 'Berita', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>` }
+      bank: { id: 'bank', label: 'Bank', icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/></svg>` }
     };
 
-    // Bottom Row (Dominant) Candidates
-    const primaryIds = ['home', 'market', 'portfolio', 'news'];
+    // Bottom Row (Dominant) Candidates: Beranda, Pasar, Portofolio, Bank
+    const primaryIds = ['home', 'market', 'portfolio', 'bank'];
     let bottomItems = primaryIds
-      .filter(id => id === 'home' || !role.hiddenNav.includes(id))
+      .filter(id => id === 'home' || id === 'bank' || !role.hiddenNav.includes(id))
       .map(id => navItems[id]);
 
     // Check if activeView is not in primaryIds (so it's a secondary view like loan/savings/etc.)
@@ -57,7 +57,9 @@ export function updateMobileBottomNav(activeView, onViewSwitch) {
       ">
         ${bottomItems.map(item => {
           const isMenu = item.id === 'menu';
-          const isActive = isMenu ? isSecondaryActive : (item.id === activeView);
+          const isBank = item.id === 'bank';
+          const isBankActive = isBank && ['savings', 'loan', 'transfer'].includes(activeView);
+          const isActive = isMenu ? isSecondaryActive && !isBankActive : (isBank ? isBankActive : item.id === activeView);
           if (isActive) {
             return `
               <button class="bottom-nav-tier-btn nav-btn active prominent" data-view="${item.id}" style="
@@ -111,10 +113,64 @@ export function updateMobileBottomNav(activeView, onViewSwitch) {
         const view = btn.dataset.view;
         if (view === 'menu') {
           showMobileMenu(onViewSwitch);
+        } else if (view === 'bank') {
+          showBankMenu(onViewSwitch);
         } else if (typeof onViewSwitch === 'function') {
           onViewSwitch(view);
         }
       });
+    });
+}
+
+export function showBankMenu(onViewSwitch) {
+    const content = `
+      <div class="bank-selector-grid">
+        <div class="bank-tile" data-bank-action="savings">
+          <div class="bank-tile-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+          </div>
+          <div>
+            <div class="bank-tile-title">Deposito Aman</div>
+            <div class="bank-tile-desc">Simpan kas likuid, dapat bunga majemuk harian tanpa risiko pasar.</div>
+          </div>
+        </div>
+
+        <div class="bank-tile" data-bank-action="loan">
+          <div class="bank-tile-icon" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/></svg>
+          </div>
+          <div>
+            <div class="bank-tile-title">Pinjaman Bank</div>
+            <div class="bank-tile-desc">Akses modal pinjaman bank instan atau bayar cicilan berbunga terjangkau.</div>
+          </div>
+        </div>
+
+        <div class="bank-tile" data-bank-action="transfer">
+          <div class="bank-tile-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          </div>
+          <div>
+            <div class="bank-tile-title">Transfer Dana</div>
+            <div class="bank-tile-desc">Kirim uang langsung ke username pemain lain secara instan.</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    ui.showModal({
+      title: '🏛️ Layanan Perbankan',
+      content,
+      onShow: () => {
+        document.querySelectorAll('.bank-tile').forEach(tile => {
+          tile.addEventListener('click', () => {
+            const action = tile.dataset.bankAction;
+            ui.closeModal();
+            if (typeof onViewSwitch === 'function') {
+              onViewSwitch(action);
+            }
+          });
+        });
+      }
     });
 }
 
@@ -123,67 +179,67 @@ export function showMobileMenu(onViewSwitch) {
     if (!role) return;
 
     const navItems = {
-      commodity: {
-        id: 'commodity',
-        label: 'Pasar Komoditas',
+      passive: {
+        id: 'passive',
+        label: 'Pendapatan Pasif',
         group: 'finance',
-        tag: 'Emas & Energi',
-        desc: 'Perdagangan fisik digital: Emas (XAU), Minyak Mentah (WTI), Nikel, dan CPO.',
-        bg: 'rgba(245, 158, 11, 0.14)',
-        color: '#fbbf24',
-        borderColor: 'rgba(245, 158, 11, 0.28)',
-        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`
-      },
-      loan: {
-        id: 'loan',
-        label: 'Pinjaman Bank',
-        group: 'finance',
-        tag: 'Likuiditas',
-        desc: 'Akses modal pinjaman bank instan atau bayar cicilan berbunga terjangkau.',
-        bg: 'rgba(59, 130, 246, 0.14)',
-        color: '#60a5fa',
-        borderColor: 'rgba(59, 130, 246, 0.28)',
-        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/></svg>`
+        tag: 'Dapat Untung Tanpa Trading',
+        desc: 'Hasilkan cuan pasif melalui Vault Staking PoS, Robot Trading otomatis, dan Launchdrop Kripto.',
+        bg: 'rgba(16, 185, 129, 0.14)',
+        color: '#10b981',
+        borderColor: 'rgba(16, 185, 129, 0.28)',
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11 21h-1l1-7H7.5c-.88 0-.33-.75-.31-.78C8.48 10.94 10.42 7.54 13.01 3h1l-1 7h3.51c.4 0 .62.19.4.66C14.77 14.54 12.83 17.94 11 21z"/></svg>`
       },
       savings: {
         id: 'savings',
-        label: 'Deposito Aman',
+        label: 'Deposito',
         group: 'finance',
-        tag: 'Bunga Majemuk',
+        tag: 'Simpan Uang, Dapat Bunga',
         desc: 'Simpan dana kas likuid dengan akumulasi bunga harian tanpa risiko pasar.',
         bg: 'rgba(245, 158, 11, 0.14)',
         color: '#fbbf24',
         borderColor: 'rgba(245, 158, 11, 0.28)',
         icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>`
       },
-      history: {
-        id: 'history',
-        label: 'Riwayat Transaksi',
+      loan: {
+        id: 'loan',
+        label: 'Pinjaman Bank',
         group: 'finance',
-        tag: 'Audit Trail',
-        desc: 'Rekam jejak komprehensif transaksi bursa, dividen, dan seluruh mutasi kas.',
-        bg: 'rgba(6, 182, 212, 0.14)',
-        color: '#22d3ee',
-        borderColor: 'rgba(6, 182, 212, 0.28)',
-        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>`
+        tag: 'Modal Likuiditas',
+        desc: 'Akses modal pinjaman bank instan atau bayar cicilan berbunga terjangkau.',
+        bg: 'rgba(59, 130, 246, 0.14)',
+        color: '#60a5fa',
+        borderColor: 'rgba(59, 130, 246, 0.28)',
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/></svg>`
       },
       transfer: {
         id: 'transfer',
         label: 'Transfer Dana',
         group: 'finance',
-        tag: 'P2P Antar Player',
+        tag: 'Kirim Uang ke Teman',
         desc: 'Kirim dana tunai langsung ke username teman sesama investor secara instan.',
         bg: 'rgba(16, 185, 129, 0.14)',
         color: '#34d399',
         borderColor: 'rgba(16, 185, 129, 0.28)',
         icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`
       },
+      history: {
+        id: 'history',
+        label: 'Riwayat Transaksi',
+        group: 'finance',
+        tag: 'Lihat Semua Transaksi',
+        desc: 'Rekam jejak komprehensif transaksi bursa, dividen masuk, dan seluruh mutasi kas.',
+        bg: 'rgba(6, 182, 212, 0.14)',
+        color: '#22d3ee',
+        borderColor: 'rgba(6, 182, 212, 0.28)',
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>`
+      },
       donate: {
         id: 'donate',
-        label: 'Donasi & Amal',
+        label: 'Donasi Kemanusiaan',
         group: 'social',
-        tag: 'Filantropi',
-        desc: 'Salurkan bantuan kemanusiaan untuk mendongkrak reputasi dan relasi publik.',
+        tag: 'Bonus Keberuntungan',
+        desc: 'Salurkan donasi kemanusiaan untuk meningkatkan reputasi publik dan keberuntungan finansial.',
         bg: 'rgba(236, 72, 153, 0.14)',
         color: '#f472b6',
         borderColor: 'rgba(236, 72, 153, 0.28)',
@@ -193,7 +249,7 @@ export function showMobileMenu(onViewSwitch) {
         id: 'guide',
         label: 'Panduan Bermain',
         group: 'system',
-        tag: 'Edukasi',
+        tag: 'Trik & Strategi',
         desc: 'Pelajari taktik analisis bursa, strategi portofolio, dan rahasia sukses finansial.',
         bg: 'rgba(99, 102, 241, 0.14)',
         color: '#818cf8',
@@ -204,12 +260,12 @@ export function showMobileMenu(onViewSwitch) {
         id: 'settings',
         label: 'Pengaturan Sistem',
         group: 'system',
-        tag: 'Preferensi',
+        tag: 'Preferensi & Data',
         desc: 'Sesuaikan audio sfx, tema antarmuka, reset permainan, dan cadangan data akun.',
         bg: 'rgba(148, 163, 184, 0.14)',
         color: '#cbd5e1',
         borderColor: 'rgba(148, 163, 184, 0.28)',
-        icon: `⚙️`
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`
       },
       notifications: {
         id: 'notifications',
@@ -220,17 +276,17 @@ export function showMobileMenu(onViewSwitch) {
         bg: 'rgba(251, 191, 36, 0.14)',
         color: '#fde047',
         borderColor: 'rgba(251, 191, 36, 0.28)',
-        icon: `🔔`
+        icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`
       }
     };
 
-    const secondaryIds = ['commodity', 'transfer', 'loan', 'savings', 'history', 'donate', 'guide', 'settings', 'notifications'];
+    const secondaryIds = ['passive', 'savings', 'loan', 'transfer', 'history', 'donate', 'guide', 'settings', 'notifications'];
     const activeItems = secondaryIds
       .filter(id => !role.hiddenNav.includes(id))
       .map(id => navItems[id]);
 
     const groups = [
-      { key: 'finance', title: '💼 Keuangan & Perbankan', items: activeItems.filter(i => i.group === 'finance') },
+      { key: 'finance', title: '💼 Keuangan, Pasif & Perbankan', items: activeItems.filter(i => i.group === 'finance') },
       { key: 'social', title: '🤝 Sosial & Komunitas', items: activeItems.filter(i => i.group === 'social') },
       { key: 'system', title: '⚙️ Bantuan & Pengaturan', items: activeItems.filter(i => i.group === 'system') }
     ];

@@ -220,8 +220,11 @@ class PatternTrajectoryManager {
      * Mengambil atau membuat pola aktif untuk aset pada siklus 24 jam saat ini
      */
     getActivePattern(symbol, asset = null) {
-        this.cleanExpiredPatterns();
         const now = Date.now();
+        if (!this._lastCleanTime || (now - this._lastCleanTime) > 3600000) {
+            this._lastCleanTime = now;
+            this.cleanExpiredPatterns();
+        }
         const { cycleIndex, startTime, endTime, expiresAt } = this._getCycleWindow(now);
         const key = `${symbol}_${cycleIndex}`;
 
@@ -352,32 +355,7 @@ class PatternTrajectoryManager {
         
         // Hermite smoothstep cubic easing untuk transisi kontur kurva alami (menghilangkan garis patah linear)
         const ease = localT * localT * (3 - 2 * localT);
-        let baseMultiplier = wpA.relY + (wpB.relY - wpA.relY) * ease;
-
-        if (!includeHarmonics) {
-            return baseMultiplier;
-        }
-
-        // Jika pola Doji: pasar rata-rata -> micro-ripples sangat tipis di sekitar harga keseimbangan
-        if (pattern.isDoji) {
-            const dojiRipple = (Math.sin(clampedProgress * 37.7) * 0.0006) + (Math.sin(clampedProgress * 75.4) * 0.0003);
-            return baseMultiplier + dojiRipple;
-        }
-
-        // Untuk pola geometris (Head & Shoulders, Triangles, dsb.):
-        // Tambahkan secondary harmonic price waves (gerakan gelombang sub-siklus non-linear realistis)
-        const vol = pattern.volatility || 0.025;
-        const subWave1 = Math.sin(clampedProgress * Math.PI * 6.5) * (vol * 0.35);
-        const subWave2 = Math.sin(clampedProgress * Math.PI * 14.2) * (vol * 0.18);
-        
-        // Tapering lembut mendekati puncak/lembah utama agar titik waypoints tetap presisi
-        const distToWaypoint = Math.min(
-            Math.abs(clampedProgress - wpA.progress),
-            Math.abs(clampedProgress - wpB.progress)
-        );
-        const taper = Math.min(1, distToWaypoint * 16);
-
-        return baseMultiplier + (subWave1 + subWave2) * taper;
+        return wpA.relY + (wpB.relY - wpA.relY) * ease;
     }
 
     /**

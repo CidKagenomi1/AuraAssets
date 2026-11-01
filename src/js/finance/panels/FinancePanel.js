@@ -190,36 +190,54 @@ class FinancePanel {
             <div class="hybrid-page-container" style="padding: 1.5rem; max-width: 1280px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 1rem;">
                 
                 <style>
-                    .fp-tab-group {
-                        display: flex;
-                        gap: 0.75rem;
-                        border-bottom: 1px solid rgba(255,255,255,0.06);
-                        padding-bottom: 0.75rem;
-                        margin-bottom: 0.5rem;
-                    }
-                    .fp-tab-btn {
-                        background: none;
-                        border: 1px solid transparent;
-                        color: rgba(255,255,255,0.4);
-                        font-size: 0.95rem;
-                        font-weight: 800;
-                        padding: 8px 16px;
-                        border-radius: 8px;
-                        cursor: pointer;
-                        transition: all 0.2s ease;
+                    .fp-switcher-wrapper {
                         display: flex;
                         align-items: center;
-                        gap: 0.4rem;
+                        justify-content: flex-start;
+                        margin-bottom: 0.5rem;
                     }
-                    .fp-tab-btn:hover {
-                        color: #fff;
-                        background: rgba(255,255,255,0.02);
+                    .fp-single-switcher-btn {
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: rgba(16, 185, 129, 0.08);
+                        border: 1.5px solid var(--accent-primary, #10b981);
+                        border-radius: 12px;
+                        padding: 0.6rem 1.25rem;
+                        cursor: pointer;
+                        user-select: none;
+                        outline: none;
+                        position: relative;
+                        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                        box-shadow: 0 0 14px rgba(16, 185, 129, 0.15);
+                        -webkit-tap-highlight-color: transparent;
                     }
-                    .fp-tab-btn.active {
-                        color: var(--accent-primary);
-                        background: rgba(16, 185, 129, 0.1);
-                        border-color: rgba(16, 185, 129, 0.2);
-                        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.05);
+                    .fp-single-switcher-btn:hover {
+                        background: rgba(16, 185, 129, 0.15);
+                        border-color: #34d399;
+                        transform: translateY(-1px);
+                        box-shadow: 0 4px 18px rgba(16, 185, 129, 0.25);
+                    }
+                    .fp-single-switcher-btn:active {
+                        transform: scale(0.96);
+                    }
+                    .fp-switcher-content {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                        color: var(--accent-primary, #10b981);
+                        font-size: 0.95rem;
+                        font-weight: 800;
+                        letter-spacing: -0.01em;
+                        transition: filter 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+                                    opacity 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+                                    transform 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+                    }
+                    /* Transisi blur HANYA di elemen isi tombol saat di-switch */
+                    .fp-switcher-content.is-blurring {
+                        filter: blur(8px);
+                        opacity: 0.2;
+                        transform: scale(0.94);
                     }
 
                     .fp-hero-stat {
@@ -350,13 +368,13 @@ class FinancePanel {
                     }
                 </style>
 
-                <!-- Tab Header Group -->
-                <div class="fp-tab-group">
-                    <button class="fp-tab-btn" id="fp-tab-btn-cashflow" data-fp-tab="cashflow">
-                        <span>📈</span> Arus Kas & Karir
-                    </button>
-                    <button class="fp-tab-btn" id="fp-tab-btn-portfolio" data-fp-tab="portfolio">
-                        <span>💼</span> Portofolio & Aset
+                <!-- Unified Single Title Tab Button with Blur Transition -->
+                <div class="fp-switcher-wrapper">
+                    <button id="fp-single-switcher-btn" class="fp-single-switcher-btn" type="button" title="Ketuk untuk beralih">
+                        <div class="fp-switcher-content" id="fp-switcher-content">
+                            <span class="fp-switcher-icon" id="fp-switcher-icon">${initialTab === 'portfolio' ? '💼' : '📈'}</span>
+                            <span class="fp-switcher-text" id="fp-switcher-text">${initialTab === 'portfolio' ? 'Portofolio & Aset' : 'Arus Kas & Karir'}</span>
+                        </div>
                     </button>
                 </div>
 
@@ -643,9 +661,28 @@ class FinancePanel {
 
         viewManager.showDynamicView('Laporan Keuangan', 'Ringkasan pemasukan, pengeluaran, dan arus kas', content);
 
-        // Bind top-level tab buttons click listeners
-        document.getElementById('fp-tab-btn-cashflow')?.addEventListener('click', () => this.switchTab('cashflow'));
-        document.getElementById('fp-tab-btn-portfolio')?.addEventListener('click', () => this.switchTab('portfolio'));
+        // Bind single switcher button with blur transition
+        const switcherBtn = document.getElementById('fp-single-switcher-btn');
+        const switcherContent = document.getElementById('fp-switcher-content');
+
+        if (switcherBtn && switcherContent) {
+            switcherBtn.addEventListener('click', () => {
+                const nextTab = this.activeTab === 'cashflow' ? 'portfolio' : 'cashflow';
+
+                // Step 1: Blur out content inside the button only
+                switcherContent.classList.add('is-blurring');
+
+                setTimeout(() => {
+                    // Step 2: Switch tab and update button text & icon
+                    this.switchTab(nextTab);
+
+                    // Step 3: Remove blur to focus in new content
+                    requestAnimationFrame(() => {
+                        switcherContent.classList.remove('is-blurring');
+                    });
+                }, 160);
+            });
+        }
 
         // Bind portfolio asset sub-tab click listeners
         document.querySelectorAll('[data-portfolio-tab]').forEach(btn => {
@@ -674,11 +711,18 @@ class FinancePanel {
         this.activeTab = tabId;
         viewManager.activeDynamicTab = tabId;
 
-        // Toggle button states
-        const btnCashflow = document.getElementById('fp-tab-btn-cashflow');
-        const btnPortfolio = document.getElementById('fp-tab-btn-portfolio');
-        if (btnCashflow) btnCashflow.classList.toggle('active', tabId === 'cashflow');
-        if (btnPortfolio) btnPortfolio.classList.toggle('active', tabId === 'portfolio');
+        // Update single switcher button label & icon
+        const iconEl = document.getElementById('fp-switcher-icon');
+        const textEl = document.getElementById('fp-switcher-text');
+        if (iconEl && textEl) {
+            if (tabId === 'cashflow') {
+                iconEl.textContent = '📈';
+                textEl.textContent = 'Arus Kas & Karir';
+            } else {
+                iconEl.textContent = '💼';
+                textEl.textContent = 'Portofolio & Aset';
+            }
+        }
 
         // Toggle content containers
         const cashflowContent = document.getElementById('fp-tab-cashflow-content');

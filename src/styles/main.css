@@ -984,11 +984,12 @@ html, body {
 
 @media (max-width: 600px) {
   .hero-balance-card .balance-label {
-    padding-right: 125px;
+    padding-right: 0;
   }
   #btn-show-finance {
-    top: 0.85rem !important;
-    right: 0.85rem !important;
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
     padding: 0.35rem 0.6rem !important;
     font-size: 0.68rem !important;
   }
@@ -1919,8 +1920,9 @@ html, body {
     padding: 0.5rem 0.75rem !important;
   }
   #btn-show-finance {
-    top: 0.5rem !important;
-    right: 0.5rem !important;
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
     padding: 4px 8px !important;
     font-size: 0.65rem !important;
   }

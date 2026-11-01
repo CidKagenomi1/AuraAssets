@@ -977,7 +977,16 @@ body.trading-page-active .app-bottom-nav {
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.08);
   width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
   margin-bottom: 1.5rem;
+}
+
+.tab-group::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-btn {
@@ -991,6 +1000,7 @@ body.trading-page-active .app-bottom-nav {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  flex-shrink: 0;
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   background: transparent;
   color: rgba(255,255,255,0.45);

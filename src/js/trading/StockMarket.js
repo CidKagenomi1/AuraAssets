@@ -9,6 +9,7 @@ import marketClient from './MarketClient.js';
 import newsManager from '../core/NewsManager.js';
 import { initMarketStateRealtime } from '../core/SupabaseClient.js';
 import patternTrajectoryManager from './PatternTrajectoryManager.js';
+import priceHistoryStore from './PriceHistoryStore.js';
 
 
 class StockMarket {
@@ -335,10 +336,14 @@ class StockMarket {
             // Real 24h Change based on basePrice
             stock.change = parseFloat((((stock.price - stock.basePrice) / (stock.basePrice || 1)) * 100).toFixed(2));
 
-            // Track history
+            // Track history and true tick store
             if (!stock.priceHistory) stock.priceHistory = [stock.price];
             stock.priceHistory.push(stock.price);
             if (stock.priceHistory.length > 300) stock.priceHistory.shift();
+
+            // Record tick to true price history aggregator
+            const tickVolume = Math.round(Math.abs(totalChange) * (stock.volume24h || 1000000) * 0.08);
+            priceHistoryStore.recordTick(symbol, stock.price, tickVolume, Date.now());
 
             // Track high/low
             if (!stock.high24h || stock.price > stock.high24h) stock.high24h = stock.price;
@@ -360,15 +365,15 @@ class StockMarket {
     }
 
     /**
-     * Daily rollover reset (resets 24h High, Low, and anchors basePrice to today's open)
+     * Daily rollover (smooth rolling transition without jarring discontinuity)
      */
     onDayPass() {
         Object.keys(this.stocks).forEach(sym => {
             const s = this.stocks[sym];
-            s.basePrice = s.price;
-            s.high24h = s.price;
-            s.low24h = s.price;
-            s.change = 0;
+            // Smooth EMA update for basePrice to maintain continuous chart lines
+            s.basePrice = Number((s.basePrice * 0.85 + s.price * 0.15).toFixed(2));
+            s.high24h = Math.max(s.price, Number((s.high24h * 0.95 + s.price * 0.05).toFixed(2)));
+            s.low24h = Math.min(s.price, Number((s.low24h * 0.95 + s.price * 0.05).toFixed(2)));
             s.volume24h = Math.round((s.sharesOutstanding || 10000000) * 0.015 * (0.8 + Math.random() * 0.4));
         });
     }
@@ -413,6 +418,7 @@ class StockMarket {
         // Accumulate 24h volume & buy order pressure
         stock.volume24h = (stock.volume24h || 100000) + shares;
         stock.recentBuyVolume = (stock.recentBuyVolume || 0) + totalCost;
+        priceHistoryStore.recordTick(actualSymbol, stock.price, shares, Date.now());
 
         gameState.emit('stockBuy', {
             symbol: actualSymbol,
@@ -465,6 +471,7 @@ class StockMarket {
         // Accumulate 24h volume & sell order pressure
         stock.volume24h = (stock.volume24h || 100000) + shares;
         stock.recentSellVolume = (stock.recentSellVolume || 0) + totalValue;
+        priceHistoryStore.recordTick(actualSymbol, stock.price, shares, Date.now());
 
         // Record to trade history
         const tradeLog = {
@@ -1062,6 +1069,8 @@ class StockMarket {
         stock.priceHistory.push(newPrice);
         if (stock.priceHistory.length > 300) stock.priceHistory.shift();
 
+        priceHistoryStore.recordTick(symbol, newPrice, Number(ticker.volume_24h ?? 0) * 0.05);
+
         this.stocks[symbol] = stock;
         gameState.emit('stocksUpdate', this.stocks);
     }
@@ -1099,6 +1108,7 @@ class StockMarket {
             stock.price = mappedTrade.price;
             if (!stock.priceHistory) stock.priceHistory = [];
             stock.priceHistory.push(mappedTrade.price);
+            priceHistoryStore.recordTick(trade.symbol, mappedTrade.price, mappedTrade.quantity);
             gameState.emit('stocksUpdate', this.stocks);
         }
 

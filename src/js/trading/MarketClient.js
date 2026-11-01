@@ -36,8 +36,35 @@ export class MarketClient {
       onBookUpdate: null,
       onTicker: null,
       onOrderUpdated: null,
-      onConnectChange: null
+      onConnectChange: null,
+      onCandleUpdate: null
     };
+    this._listeners = new Map();
+  }
+
+  on(event, callback) {
+    if (!this._listeners.has(event)) {
+      this._listeners.set(event, new Set());
+    }
+    this._listeners.get(event).add(callback);
+    return () => this.off(event, callback);
+  }
+
+  off(event, callback) {
+    this._listeners.get(event)?.delete(callback);
+  }
+
+  emit(event, data) {
+    const set = this._listeners.get(event);
+    if (set) {
+      for (const cb of set) {
+        try {
+          cb(data);
+        } catch (e) {
+          console.warn(`[MarketClient] Error in listener for ${event}:`, e);
+        }
+      }
+    }
   }
 
   /**
@@ -159,26 +186,37 @@ export class MarketClient {
     this.socket.on('disconnect', () => {
       this.isConnected = false;
       this.handlers.onConnectChange?.(false);
+      this.emit('connect_change', false);
     });
 
     this.socket.on('market:snapshot', (snapshot) => {
       this.handlers.onSnapshot?.(snapshot);
+      this.emit('snapshot', snapshot);
     });
 
     this.socket.on('market:trade', (trade) => {
       this.handlers.onTrade?.(trade);
+      this.emit('trade', trade);
     });
 
     this.socket.on('market:book_update', (book) => {
       this.handlers.onBookUpdate?.(book);
+      this.emit('book_update', book);
     });
 
     this.socket.on('market:ticker', (ticker) => {
       this.handlers.onTicker?.(ticker);
+      this.emit('ticker', ticker);
     });
 
     this.socket.on('order:updated', (order) => {
       this.handlers.onOrderUpdated?.(order);
+      this.emit('order_updated', order);
+    });
+
+    this.socket.on('candle:update', (candle) => {
+      this.handlers.onCandleUpdate?.(candle);
+      this.emit('candle:update', candle);
     });
 
     return this.socket;
@@ -229,6 +267,11 @@ export class MarketClient {
 
   async fetchTrades(symbol, limit = 50) {
     const res = await this.request(`/api/market/${encodeURIComponent(symbol)}/trades?limit=${limit}`);
+    return res.data || [];
+  }
+
+  async fetchCandles(symbol, timeframe = '1m', limit = 120) {
+    const res = await this.request(`/api/market/${encodeURIComponent(symbol)}/candles?timeframe=${timeframe}&limit=${limit}`);
     return res.data || [];
   }
 

@@ -6,6 +6,7 @@ export class OutboxWorker {
     db = null,
     io = null,
     marketService = null,
+    candleService = null,
     pollIntervalMs = env.OUTBOX_POLL_INTERVAL_MS,
     batchSize = env.OUTBOX_BATCH_SIZE,
     maxAttempts = 5,
@@ -14,6 +15,7 @@ export class OutboxWorker {
     this.db = db;
     this.io = io;
     this.marketService = marketService;
+    this.candleService = candleService;
     this.pollIntervalMs = pollIntervalMs;
     this.batchSize = batchSize;
     this.maxAttempts = maxAttempts;
@@ -26,6 +28,10 @@ export class OutboxWorker {
 
   setIo(io) {
     this.io = io;
+  }
+
+  setCandleService(candleService) {
+    this.candleService = candleService;
   }
 
   /**
@@ -182,6 +188,16 @@ export class OutboxWorker {
       case 'market:trade': {
         const symbol = String(payload.symbol).toUpperCase();
         this.io.to(`market:${symbol}`).emit('market:trade', payload);
+        if (this.candleService) {
+          const rawPrice = Number(payload.price);
+          const price = rawPrice > 10000 ? rawPrice / 100 : rawPrice;
+          this.candleService.onTrade(
+            symbol,
+            price,
+            payload.quantity,
+            payload.executed_at ? new Date(payload.executed_at).getTime() : Date.now()
+          );
+        }
         break;
       }
 

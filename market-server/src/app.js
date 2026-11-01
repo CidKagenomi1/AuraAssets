@@ -8,6 +8,7 @@ import authPlugin from './modules/auth/index.js';
 import { AccountsService } from './modules/accounts/accounts-service.js';
 import { MatchingEngine } from './modules/market/matching-engine.js';
 import { MarketService } from './modules/market/market-service.js';
+import { CandleService } from './modules/market/candle-service.js';
 import { TradingService } from './modules/trading/trading-service.js';
 import { PortfolioService } from './modules/portfolio/portfolio-service.js';
 import { OutboxWorker } from './modules/events/outbox-worker.js';
@@ -67,6 +68,16 @@ export async function buildApp(options = {}) {
   // 3. Socket.IO Real-Time Server
   await fastify.register(socketPlugin);
 
+  // 3b. Candle Accumulator & Rollup Service
+  const candleService =
+    options.candleService ||
+    new CandleService({
+      db: fastify.db,
+      io: fastify.io,
+      logger: fastify.log
+    });
+  fastify.decorate('candleService', candleService);
+
   // 4. Transactional Outbox Worker & Trading / Portfolio Services
   const outboxWorker =
     options.outboxWorker ||
@@ -74,9 +85,11 @@ export async function buildApp(options = {}) {
       db: fastify.db,
       io: fastify.io,
       marketService,
+      candleService,
       logger: fastify.log
     });
   outboxWorker.setIo(fastify.io);
+  outboxWorker.setCandleService(candleService);
 
   const tradingService =
     options.tradingService ||

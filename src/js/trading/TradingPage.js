@@ -628,6 +628,19 @@ class TradingPage {
     // Bind Trade History Panel events
     tradeHistoryPanel.bindEvents(this.currentAsset);
 
+    // Listen for live candle refresh from authoritative server
+    if (this._onCandlesRefreshed) {
+      window.removeEventListener('marketCandlesRefreshed', this._onCandlesRefreshed);
+    }
+    this._onCandlesRefreshed = (e) => {
+      const sym = e.detail?.symbol;
+      const currentSym = this.currentAsset?.toUpperCase();
+      if (sym && currentSym && sym === currentSym) {
+        this.updateChartData();
+      }
+    };
+    window.addEventListener('marketCandlesRefreshed', this._onCandlesRefreshed);
+
     // Listen for live server order book updates
     this._orderBookHandler = (book) => {
       if (book && book.symbol === this.currentAsset) {
@@ -704,6 +717,10 @@ class TradingPage {
     if (this._orderBookHandler) {
       gameState.off('orderBookUpdate', this._orderBookHandler);
       this._orderBookHandler = null;
+    }
+    if (this._onCandlesRefreshed) {
+      window.removeEventListener('marketCandlesRefreshed', this._onCandlesRefreshed);
+      this._onCandlesRefreshed = null;
     }
     this.stopRealTimeUpdates();
 

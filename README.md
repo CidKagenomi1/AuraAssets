@@ -269,6 +269,60 @@ Bagian ini menjadi penanda status terakhir pengerjaan agar sesi pengembangan ber
   - Beroperasi independen dan bersinergi dengan filter arah pergerakan (**Gainers / Losers**), memungkinkan pemain melihat Top Gainers Saham, Top Losers Saham, Top Gainers Kripto, atau Top Losers Kripto secara instan.
   - Reaktif dan terikat langsung ke siklus pembaruan harga real-time tanpa perlu reload, serta responsif di desktop maupun layar mobile.
 
+#### 12. 📱 Peningkatan UX Mobile & Desktop Komprehensif (`audit.md` - Tahap 2)
+- **Sidebar Desktop dengan Pengelompokan Logis (Visual Grouping):**
+  - Menata ulang navigasi desktop menjadi 3 kelompok menu dengan header label tematik:
+    - **Utama:** Beranda (`home`)
+    - **Portofolio & Keuangan:** Laporan Keuangan (`finance`), Reksa Dana & ETF (`mutual_funds`), Deposito (`savings`), dan Pinjaman (`loans`)
+    - **Pasar & Analisis:** Bursa Pasar (`market`), Komoditas (`commodities`), dan Berita Makro (`news`)
+  - Meningkatkan keterbacaan navigasi dan menghilangkan kesan menu yang berserakan.
+- **Modernisasi Bottom Navigation Bar Mobile & Sheet Modal "Lainnya" (`MobileNav.js`):**
+  - Membatasi bilah navigasi bawah ponsel menjadi **4 item inti**: `home` (Beranda), `market` (Bursa), `portfolio` (Portofolio), dan `news` (Berita).
+  - Menambahkan tombol menu **"Lainnya"** yang memunculkan Bottom Sheet interaktif berdesain glassmorphic dengan backdrop blur dan animasi slide-up untuk mengakses menu sekunder (Reksa Dana & ETF, Komoditas, Deposito, Pinjaman, dan Pengaturan).
+- **Toolbar Pasar Mobile Cerdas (Filter Drawer & Horizontal Sector Chips):**
+  - Mengeliminasi deretan dropdown filter yang sebelumnya memadati layar mobile menjadi tombol ringkas **"Filter & Urutkan"** yang membuka lembar laci (*filter drawer sheet*).
+  - Chip sektor pasar dapat digeser secara horizontal (*smooth touch-scroll*) dengan indikator jumlah aset aktif yang dinamis.
+- **Kartu Onboarding Interaktif & Popover Glosarium Edukatif (`glossary.js`):**
+  - Kartu panduan ringkas 3 langkah bagi pemain baru di beranda (bisa ditutup permanen dengan status tersimpan di state).
+  - Popover penjelasan istilah finansial (NAV/NAB, Dividen, Volatilitas, Sinyal Pasar, PnL) saat pemain mengetuk ikon tanda tanya edukatif `(?)`.
+- **Modal Selamat Datang Kembali & Pendapatan Pasif AFK (Welcome Back Modal):**
+  - Mendeteksi selisih waktu saat pemain meninggalkan game (AFK) dan menampilkan ringkasan akumulasi bunga simpanan/deposito serta dividen yang diperoleh selama pemain offline.
+- **Optimalisasi Tata Letak Hero Saldo Mobile (`main.css` & `mobile.css`):**
+  - Menggabungkan elemen saldo bersih, tombol sensor mata (`toggle-balance`), dan tombol "Laporan Keuangan" ke dalam wrapper fleksibel `.hero-balance-header`.
+  - Mengeliminasi `position: absolute` legacy yang sebelumnya menyebabkan tombol laporan keuangan dan tombol beli aset bertumpuk (*overlap*) di viewport layar HP.
+- **Tombol Judul Tab Dinamis dengan Transisi Blur Terisolasi (`FinancePanel.js`):**
+  - Menggantikan tombol tab ganda pada Laporan Keuangan dengan tombol judul tunggal elegan: `[ 💼 Portofolio & Aset ]` dan `[ 📈 Arus Kas & Karir ]`.
+  - Mengeliminasi ornamen berlebih (kata "MODE:" dan badge "BERALIH").
+  - Menambahkan efek transisi blur (`filter: blur(8px)`) yang terisolasi khusus di dalam konten tombol saat berpindah tampilan tanpa memengaruhi bagian layar lainnya.
+
+#### 13. 📊 Perombakan Arsitektur Chart Finansial & Real-Time Tick Aggregation (`chart_isue.md`)
+- **Pencatat Tick Nyata & Agregator OHLCV (`PriceHistoryStore.js`):**
+  - Menghentikan pembuatan ulang grafik dari kurva pola fiktif. Seluruh pergerakan chart kini mencerminkan **tick transaksi nyata** (`t`, `price`, `volume`) dari mesin simulasi bursa lokal, transaksi beli/jual pemain, maupun streaming authoritative market server.
+  - Mengelompokkan tick ke dalam bucket waktu murni (*time-bucket aggregation*) untuk membentuk data lilin OHLC yang konsisten: `open` = tick awal, `close` = tick akhir, `high`/`low` = nilai ekstrem nyata, dan `volume` = total volume akumulasi.
+  - Mendukung 4 horizon timeframe terstandarisasi:
+    - **1h:** interval 1 menit (60 candle)
+    - **1d:** interval 5 menit (120 candle)
+    - **1w:** interval 1 jam (168 candle)
+    - **1m:** interval 1 hari (30 candle)
+  - Penyimpanan persisten ke `localStorage` (`aura_candles_v1_...`) dengan mekanisme auto-pruning agar riwayat chart tidak hilang saat reload halaman.
+- **Penghapusan Total Rumus Sinus & Backfill Deterministik:**
+  - Menghapus gelombang sinus buatan `sin(progress·π·6.5)` dan `sin(progress·π·14.2)` dari [`PatternTrajectoryManager.js`](file:///d:/Data%20Project/Personal%20Project/AuraAssets/src/js/trading/PatternTrajectoryManager.js) dan [`CandleGenerator.js`](file:///d:/Data%20Project/Personal%20Project/AuraAssets/src/js/trading/CandleGenerator.js).
+  - Mengganti interpolasi waypoint pola dengan *Hermite smoothstep cubic easing* alami.
+  - Untuk inisialisasi riwayat sebelum gameplay, sistem menerapkan **random walk mundur** (*backward walk*) deterministik dengan *volatility clustering* berbasis seed PRNG unik per simbol aset, menyatu mulus ke harga live saat ini tanpa lonjakan kurva.
+- **Modernisasi Engine Grafik Plotly (`ChartEngine.js`):**
+  - **Sumbu Waktu Riil:** Mengubah `xaxis.type` menjadi `'date'` berbasis ISO timestamp nyata (`new Date(t).toISOString()`).
+  - **Linear Rendering:** Mengganti kurva `spline` dengan `shape: 'linear'` untuk mengeliminasi anomali overshoot harga.
+  - **Interaktivitas Penuh:** Mengaktifkan `dragmode: 'pan'`, `scrollZoom: true`, dan `fixedrange: false` pada sumbu X agar pemain dapat menggeser serta memperbesar/memperkecil grafik secara leluasa, dengan sumbu Y yang auto-fit stabil terhadap rentang harga aktif.
+  - Penanda harga interaktif (*crosshair spike line* dan *hover marker*) menampilkan waktu, harga presisi, dan volume bar.
+- **Kontinuitas Harian Tanpa Garis Patah (Rolling 24h Rollover):**
+  - Menghentikan pemotongan grafik di tengah malam UTC. Di [`StockMarket.js`](file:///d:/Data%20Project/Personal%20Project/AuraAssets/src/js/trading/StockMarket.js) dan [`CryptoMarket.js`](file:///d:/Data%20Project/Personal%20Project/AuraAssets/src/js/trading/CryptoMarket.js), `basePrice` diperbarui secara bertahap menggunakan *Exponential Moving Average* (EMA 85% : 15%) pada `onDayPass()`.
+  - Metrik 24h High, 24h Low, dan Volume bergulir dinamis (*rolling 24h*), menjaga kontinuitas visual chart antar-hari.
+- **Arsitektur Mode Server & In-Memory Candle Rollup (`market-server/`):**
+  - **Skema Database & Pruning (`007_market_candles.sql`):** Tabel `market_candles` terindeks untuk penyimpanan candle OHLCV teragregasi beserta fungsi pembersihan otomatis `prune_expired_market_candles()` (1m disimpan 7 hari, 1h disimpan 60 hari).
+  - **In-Memory Accumulator (`CandleService.js`):** Mengolah tick perdagangan di memori RAM server untuk mencegah beban berlebih (*thrashing*) pada database Supabase, lalu melakukan *batch insert* candle 1-menit yang telah ditutup ke PostgreSQL.
+  - **Koneksi Live WebSocket & REST API:** Endpoint REST `GET /api/market/:symbol/candles` untuk inisialisasi pembukaan chart, serta siaran real-time event WebSocket `candle:update` ke subscriber room `market:<SYMBOL>`.
+  - **Pub-Sub Event Emitter Tangguh (`MarketClient.js`):** Dilengkapi arsitektur pub-sub (`on`/`off`/`emit`) sehingga feed tick, candle, dan order terdistribusi ke `PriceHistoryStore` dan `StockMarket` secara simultan tanpa risiko *race condition*.
+
 #### 8. 📦 Pasar Komoditas Global Mandiri & Brankas Kustodian Fisik Digital 1:1 (`CommodityManager.js` & `CommodityPanel.js`)
 - **Mesin Pasar Komoditas Dedikasi Penuh (`CommodityManager.js`):**
   - Mengimplementasikan perdagangan komoditas spot global yang mencakup 13 instrumen nyata dengan satuan fisik standar, terbagi dalam 4 sektor berbatas tegas:
@@ -382,6 +436,18 @@ Dokumentasi prinsip matematika keuangan dan rekayasa perangkat lunak yang diimpl
 #### 11. Deterministik Candlestick Generator untuk Komoditas Spot
 * **Konsep:** Grafik komoditas memerlukan kontinuitas historis yang logis dan konsisten ketika dibuka berulang kali oleh pemain tanpa membuat data server bengkak.
 * **Solusi:** Memanfaatkan generator pseudo-random deterministik berbasis seed unik instrumen dan timestamp hari kalender untuk merender 30 lilin candlestick harian (Open, High, Low, Close) dengan batas volatilitas realistis, candle terakhir tertaut presisi ke harga spot saat ini (*live market anchor*).
+
+#### 12. In-Memory Candle Rollup & Pencegahan Database Thrashing (Anti-DB Thrashing)
+* **Konsep Rekayasa Backend:** Menyimpan setiap transaksi mikro-tick (3–5 detik) dari ±220 instrumen pasar langsung ke database akan menghasilkan ~4,4 juta baris/hari (~300 MB/hari). Pola ini akan menghabiskan kuota database PostgreSQL Supabase (500 MB) hanya dalam 2 hari (*database thrashing*).
+* **Solusi Arsitektur:** Menampung dan mengagregasi tick di memori RAM Node.js (`activeCandleBucket`). Hanya bar 1-menit yang telah final ditutup yang di-*flush* dalam bentuk batch insert ke PostgreSQL. Ditambah fungsi retensi otomatis (`prune_expired_market_candles`) yang membersihkan candle 1m di atas 7 hari dan candle 1h di atas 60 hari, kapasitas database PostgreSQL stabil terkendali di bawah 150 MB selamanya tanpa mengorbankan performa bursa real-time.
+
+#### 13. Cermin Harga Nyata (True Tick Mirroring) & Immutability Candle
+* **Konsep Grafik Finansial:** Grafik pasar harus menjadi cermin jujur dari harga yang benar-benar terjadi, bukan simulasi ulang visual dari kurva pola fiktif.
+* **Solusi Sistem:** Memisahkan pencatatan tick murni ke `PriceHistoryStore.js` dan mengelompokkannya ke bucket waktu ISO nyata. Lilin-lilin lampau bersifat **immutable** (tidak digambar ulang), dan hanya lilin paling kanan yang aktif berjalan yang terus diperbarui seiring tibanya tick harga baru.
+
+#### 14. Pola Grafik Geometris Sebagai Bias Gaya Tarik Halus (Weak Drift Waypoints)
+* **Konsep Pasar Organik:** Pola teknikal seperti Head & Shoulders, Double Bottom, atau Triangle di bursa nyata adalah fenomena probabilistik alami akibat akumulasi/distribusi modal, bukan kurva matematis statis yang dipaksakan.
+* **Solusi Permainan:** Pola geometris dipindahkan perannya menjadi vektor tarikan halus (*weak directional drift* ~0.006 per tick) di dalam mesin harga acak Brownian motion. Chart tidak pernah menggambar pola ideal secara paksa, melainkan membiarkan pola muncul secara berkala dan alami dari dinamika pasar.
 
 ---
 

@@ -335,14 +335,13 @@ class ChartEngine {
                     mode: 'lines',
                     line: {
                         color: themeColor,
-                        width: 2.8,
-                        shape: 'spline',
-                        smoothing: 0.85
+                        width: 2.5,
+                        shape: 'linear'
                     },
                     fill: 'tonexty',
                     fillcolor: fillColor,
                     name: 'Harga',
-                    hovertemplate: '<b>%{x}</b><br>Harga: <b>$%{y:,.2f}</b><extra></extra>',
+                    hovertemplate: '<b>%{x|%d %b, %H:%M}</b><br>Harga: <b>$%{y:,.2f}</b><extra></extra>',
                     hoverlabel: {
                         bgcolor: '#18181b',
                         bordercolor: themeColor,
@@ -368,7 +367,7 @@ class ChartEngine {
                     },
                     name: 'Candlestick',
                     hovertemplate:
-                        '<b>%{x}</b><br>' +
+                        '<b>%{x|%d %b, %H:%M}</b><br>' +
                         'Open:  <b>$%{open:,.2f}</b><br>' +
                         'High:  <b>$%{high:,.2f}</b><br>' +
                         'Low:   <b>$%{low:,.2f}</b><br>' +
@@ -396,14 +395,14 @@ class ChartEngine {
                 paper_bgcolor: 'transparent',
                 plot_bgcolor: 'transparent',
                 showlegend: false,
-                dragmode: false, // Completely disable dragmode to eliminate accidental box zoom on mobile touch
+                dragmode: 'pan',
                 hovermode: 'x unified',
                 hoverdistance: 100,
                 spikedistance: -1,
                 xaxis: {
-                    type: 'category',
+                    type: 'date',
                     autorange: true,
-                    fixedrange: true, // Prevents horizontal drag and zoom displacement
+                    fixedrange: false,
                     showgrid: true,
                     gridcolor: 'rgba(255, 255, 255, 0.04)',
                     gridwidth: 1,
@@ -422,7 +421,7 @@ class ChartEngine {
                 yaxis: {
                     autorange: false,
                     range: [yMin, yMax],
-                    fixedrange: true, // Prevents vertical drag and zoom displacement
+                    fixedrange: true, // Prevents vertical distortion while allowing clean horizontal pan
                     side: 'right',
                     showgrid: true,
                     gridcolor: 'rgba(255, 255, 255, 0.04)',
@@ -458,8 +457,8 @@ class ChartEngine {
             const config = {
                 responsive: true,
                 displayModeBar: false,
-                scrollZoom: false,
-                doubleClick: false, // Disables accidental double-click reset
+                scrollZoom: true,
+                doubleClick: 'reset',
                 showAxisDragHandles: false,
                 showAxisRangeEntryBoxes: false
             };

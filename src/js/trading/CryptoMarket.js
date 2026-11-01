@@ -8,6 +8,7 @@ import financeManager from '../finance/FinanceManager.js';
 import newsManager from '../core/NewsManager.js';
 import { initMarketStateRealtime } from '../core/SupabaseClient.js';
 import patternTrajectoryManager from './PatternTrajectoryManager.js';
+import priceHistoryStore from './PriceHistoryStore.js';
 
 class CryptoMarket {
     constructor() {
@@ -278,10 +279,14 @@ class CryptoMarket {
                 crypto.volume24h = Math.round(crypto.price * multiplier * (0.8 + Math.random() * 0.4));
             }
 
-            // Track history
+            // Track history and true tick store
             if (!crypto.priceHistory) crypto.priceHistory = [crypto.price];
             crypto.priceHistory.push(crypto.price);
             if (crypto.priceHistory.length > 300) crypto.priceHistory.shift();
+
+            // Record tick to true price history aggregator
+            const tickVol = Math.round(Math.abs(totalChange) * (crypto.volume24h || 1000000) * 0.08);
+            priceHistoryStore.recordTick(symbol, crypto.price, tickVol, Date.now());
         });
 
         // Check orders and TP/SL
@@ -292,15 +297,14 @@ class CryptoMarket {
     }
 
     /**
-     * Daily rollover reset (resets 24h High, Low, and anchors basePrice to today's open)
+     * Daily rollover (smooth rolling transition without jarring discontinuity)
      */
     onDayPass() {
         Object.keys(this.cryptos).forEach(sym => {
             const c = this.cryptos[sym];
-            c.basePrice = c.price;
-            c.high24h = c.price;
-            c.low24h = c.price;
-            c.change = 0;
+            c.basePrice = Number((c.basePrice * 0.85 + c.price * 0.15).toFixed(2));
+            c.high24h = Math.max(c.price, Number((c.high24h * 0.95 + c.price * 0.05).toFixed(2)));
+            c.low24h = Math.min(c.price, Number((c.low24h * 0.95 + c.price * 0.05).toFixed(2)));
             const multiplier = c.price > 1000 ? 500000 : 2500000;
             c.volume24h = Math.round(c.price * multiplier * (0.8 + Math.random() * 0.4));
         });
@@ -316,6 +320,15 @@ class CryptoMarket {
         const crypto = this.cryptos[cKey] || this.cryptos[symbol];
         if (!crypto) throw new Error('Crypto not found');
         if (amountUSD <= 0) throw new Error('Invalid amount');
+
+        const actualSymbol = crypto.symbol || cKey;
+
+        // Check if token is currently locked in active Launchpad Presale (cannot buy in open market until listing after 5h)
+        const piDrops = gameState.get('passiveIncome.launchdrops') || [];
+        const activePad = piDrops.find(l => l.symbol === actualSymbol && l.type === 'launchpad' && (l.status === 'ACTIVE' || l.status === 'UPCOMING'));
+        if (activePad) {
+            throw new Error(`Token ${actualSymbol} sedang dalam masa Presale Launchpad! Dapatkan alokasi dengan diskon 50% di menu Launchdrop sebelum resmi listing di pasar pada jam 17:00 UTC.`);
+        }
 
         const balance = gameState.getBalance();
         if (amountUSD > balance) throw new Error('Saldo tidak cukup');
@@ -340,12 +353,12 @@ class CryptoMarket {
             balance: p.balance - amountUSD
         }));
 
-        const actualSymbol = crypto.symbol || cKey;
         this.addToWallet(actualSymbol, cryptoAmount, crypto.price);
 
         // Accumulate 24h volume & buy order pressure
         crypto.volume24h = (crypto.volume24h || (crypto.price * 50000)) + amountUSD;
         crypto.recentBuyVolume = (crypto.recentBuyVolume || 0) + amountUSD;
+        priceHistoryStore.recordTick(actualSymbol, crypto.price, amountUSD / (crypto.price || 1), Date.now());
 
         gameState.emit('cryptoBuy', {
             symbol: actualSymbol,
@@ -398,6 +411,7 @@ class CryptoMarket {
         // Accumulate 24h volume & sell order pressure
         crypto.volume24h = (crypto.volume24h || (crypto.price * 50000)) + totalValueUSD;
         crypto.recentSellVolume = (crypto.recentSellVolume || 0) + totalValueUSD;
+        priceHistoryStore.recordTick(actualSymbol, crypto.price, cryptoAmount, Date.now());
 
         // Record to trade history
         const tradeLog = {
@@ -439,6 +453,15 @@ class CryptoMarket {
         if (!crypto) throw new Error('Crypto not found');
         if (amountUSD <= 0) throw new Error('Invalid amount');
 
+        const actualSymbol = crypto.symbol || cKey;
+
+        // Check if token is currently locked in active Launchpad Presale
+        const piDrops = gameState.get('passiveIncome.launchdrops') || [];
+        const activePad = piDrops.find(l => l.symbol === actualSymbol && l.type === 'launchpad' && (l.status === 'ACTIVE' || l.status === 'UPCOMING'));
+        if (activePad) {
+            throw new Error(`Token ${actualSymbol} sedang dalam masa Presale Launchpad! Dapatkan alokasi dengan diskon 50% di menu Launchdrop sebelum resmi listing.`);
+        }
+
         const balance = gameState.getBalance();
         if (amountUSD > balance) throw new Error('Saldo tidak cukup');
 
@@ -448,7 +471,6 @@ class CryptoMarket {
             balance: p.balance - amountUSD
         }));
 
-        const actualSymbol = crypto.symbol || cKey;
         const order = {
             id: Date.now() + Math.random(),
             type: 'LIMIT_BUY',

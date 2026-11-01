@@ -13,13 +13,15 @@ class CommodityPanel {
     constructor() {
         this.activeSector = 'ALL';
         this.selectedCommodity = null;
+        this.targetContainer = null;
+        this.onUpdate = null;
     }
 
     show() {
         this.render();
     }
 
-    render() {
+    getContentHTML() {
         const totalVault = commodityManager.getTotalVaultValue();
         const totalInvested = commodityManager.getTotalInvested();
         const totalPnl = +(totalVault - totalInvested).toFixed(2);
@@ -30,7 +32,7 @@ class CommodityPanel {
         const commodities = commodityManager.getCommodities(this.activeSector);
         const sectorKeys = Object.keys(COMMODITY_SECTORS);
 
-        const content = `
+        return `
             <div class="commodity-page-container" style="padding: 1.25rem 1.5rem; max-width: 1400px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 1.5rem;">
                 
                 <!-- 1. Header Vault & Cash Summary -->
@@ -121,9 +123,7 @@ class CommodityPanel {
                                     background: ${isActive ? sec.bg : 'rgba(255,255,255,0.02)'};
                                     color: ${isActive ? sec.color : 'var(--text-muted)'};
                                     transition: all 0.2s ease;
-                                ">
-                                    ${sec.icon} ${sec.name} (${count})
-                                </button>
+                                </a>
                             `;
                         }).join('')}
                     </div>
@@ -163,12 +163,63 @@ class CommodityPanel {
 
             </div>
         `;
+    }
+
+    render(targetContainer = null) {
+        if (targetContainer) {
+            this.targetContainer = targetContainer;
+        }
+
+        const content = this.getContentHTML();
+
+        if (this.targetContainer) {
+            this.targetContainer.innerHTML = content;
+            this.bindEvents(this.targetContainer);
+            return;
+        }
 
         import('../../ui/ViewManager.js').then(m => {
             const viewManager = m.default;
             viewManager.activeDynamicTab = 'commodity';
             viewManager.showDynamicView('Pasar Komoditas Global', 'Perdagangan komoditas fisik digital: Logam Mulia, Energi, Industri & Pangan', content);
-            this.bindEvents();
+            this.bindEvents(document.getElementById('dynamic-view-content'));
+        });
+    }
+
+    bindEvents(containerRoot = null) {
+        const container = containerRoot || this.targetContainer || document.getElementById('dynamic-view-content');
+        if (!container) return;
+
+        // Sector filter buttons
+        container.querySelectorAll('.commodity-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.activeSector = btn.dataset.sector;
+                this.render();
+            });
+        });
+
+        // Open Plotly Chart Modal
+        container.querySelectorAll('.btn-commodity-chart').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                this.showChartModal(id);
+            });
+        });
+
+        // Open Buy Modal
+        container.querySelectorAll('.btn-commodity-buy').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                this.showBuyModal(id);
+            });
+        });
+
+        // Open Sell Modal
+        container.querySelectorAll('.btn-commodity-sell').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                this.showSellModal(id);
+            });
         });
     }
 

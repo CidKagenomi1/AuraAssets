@@ -417,18 +417,20 @@ class OrderPanel {
     if (isBuy) {
       if (isLimit) {
         stockMarket.limitBuy(symbol, amount, limitPrice);
-        ui.success(`Limit Buy: ${amount} lot @ $ ${financeManager.formatCurrency(limitPrice)}`);
+        ui.success(`Limit Beli: ${amount} lot ${symbol} @ $ ${financeManager.formatCurrency(limitPrice)}`);
       } else {
         const r = stockMarket.marketBuy(symbol, amount);
-        ui.success(`Buy: ${amount} lot @ $ ${financeManager.formatCurrency(r.price)}`);
+        const remBal = gameState.getBalance();
+        ui.success(`Beli: ${amount} lot ${symbol} @ $ ${financeManager.formatCurrency(r.price)}. Sisa saldo kas: $ ${financeManager.formatCurrency(remBal)}`);
       }
     } else {
       if (isLimit) {
         stockMarket.limitSell(symbol, amount, limitPrice);
-        ui.success(`Limit Sell: ${amount} lot`);
+        ui.success(`Limit Jual: ${amount} lot ${symbol} @ $ ${financeManager.formatCurrency(limitPrice)}`);
       } else {
         const r = stockMarket.marketSell(symbol, amount);
-        ui.success(`Sell: ${amount} lot. P/L: ${r.profit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(r.profit)}`);
+        const remBal = gameState.getBalance();
+        ui.success(`Jual: ${amount} lot ${symbol}. P/L: ${r.profit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(r.profit)}. Saldo kas: $ ${financeManager.formatCurrency(remBal)}`);
       }
     }
   }
@@ -444,14 +446,15 @@ class OrderPanel {
     if (isBuy) {
       if (isLimit) {
         cryptoMarket.limitBuy(symbol, amountIDR, limitPrice);
-        ui.success(`Limit Buy @ ${cryptoMarket.formatPrice(limitPrice)}`);
+        ui.success(`Limit Beli ${symbol} @ ${cryptoMarket.formatPrice(limitPrice)}`);
       } else {
         const r = cryptoMarket.marketBuy(symbol, amountIDR);
-        ui.success(`Buy: ${cryptoMarket.formatAmount(r.cryptoAmount)} ${symbol}`);
+        const remBal = gameState.getBalance();
+        ui.success(`Beli: ${cryptoMarket.formatAmount(r.cryptoAmount)} ${symbol}. Sisa saldo kas: $ ${financeManager.formatCurrency(remBal)}`);
       }
     } else {
       if (!holding || holding.amount <= 0) {
-        ui.error('Tidak punya crypto untuk dijual');
+        ui.error('Tidak punya saldo kripto untuk dijual');
         return;
       }
       const targetPrice = isLimit ? limitPrice : asset.price;
@@ -459,10 +462,11 @@ class OrderPanel {
 
       if (isLimit) {
         cryptoMarket.limitSell(symbol, cryptoAmountToSell, limitPrice);
-        ui.success(`Limit Sell: ${cryptoMarket.formatAmount(cryptoAmountToSell)} ${symbol} @ ${cryptoMarket.formatPrice(limitPrice)}`);
+        ui.success(`Limit Jual: ${cryptoMarket.formatAmount(cryptoAmountToSell)} ${symbol} @ ${cryptoMarket.formatPrice(limitPrice)}`);
       } else {
         const r = cryptoMarket.marketSell(symbol, cryptoAmountToSell);
-        ui.success(`Sell: ${cryptoMarket.formatAmount(cryptoAmountToSell)} ${symbol}. P/L: ${r.profit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(r.profit)}`);
+        const remBal = gameState.getBalance();
+        ui.success(`Jual: ${cryptoMarket.formatAmount(cryptoAmountToSell)} ${symbol}. P/L: ${r.profit >= 0 ? '+' : ''}$ ${financeManager.formatCurrency(r.profit)}. Saldo kas: $ ${financeManager.formatCurrency(remBal)}`);
       }
     }
   }

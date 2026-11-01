@@ -677,6 +677,39 @@ class GameState {
             netWorth += (prop.price || 0);
         }
 
+        // Add passive income assets: Staked Crypto, Trading Bots, and Launchpool/Launchpad committed funds
+        const piState = this.state.passiveIncome;
+        if (piState) {
+            // Staked crypto assets
+            if (piState.staked) {
+                for (const symbol in piState.staked) {
+                    const stakedAmt = piState.staked[symbol] || 0;
+                    if (stakedAmt > 0) {
+                        let price = 1.0;
+                        try {
+                            const c = window.game?.crypto?.getCrypto(symbol);
+                            if (c?.price) price = c.price;
+                        } catch(e) {}
+                        netWorth += stakedAmt * price;
+                    }
+                }
+            }
+            // Active trading bots (capital + profit)
+            if (piState.bots && Array.isArray(piState.bots)) {
+                for (const bot of piState.bots) {
+                    netWorth += (bot.capital || 0) + (bot.profit || 0);
+                }
+            }
+            // Committed Launchpool & Launchpad funds
+            if (piState.launchdrops && Array.isArray(piState.launchdrops)) {
+                for (const ld of piState.launchdrops) {
+                    if (ld.committed > 0 && !ld.claimed) {
+                        netWorth += ld.committed;
+                    }
+                }
+            }
+        }
+
         // Subtract active loan balances
         for (const loan of (this.state.loans || [])) {
             if (!loan.paid) {

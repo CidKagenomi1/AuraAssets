@@ -18,6 +18,7 @@ import careerManager from '../career/CareerManager.js';
 import ui from './UIManager.js';
 import { Icons } from './Icons.js';
 import { countUp, pulseElement, staggerFadeUp, createFloatingText } from './Animations.js';
+import { initGlossary, GLOSSARY_TERMS } from './glossary.js';
 
 class HomeScreen {
     constructor() {
@@ -29,6 +30,7 @@ class HomeScreen {
 
     init() {
         this.bindEvents();
+        initGlossary();
         this.updateOverview();
 
         // Initialize dashboard main chart
@@ -42,6 +44,7 @@ class HomeScreen {
             this.renderMilestones();
             this.renderHomeCashflow();
             this.updateDashboardChart();
+            this.renderOnboardingCard();
         });
         gameState.on('economyUpdate', () => {
             this.renderMarketPulse();
@@ -83,16 +86,19 @@ class HomeScreen {
             this.renderMilestones();
             this.updateRecentTransactions();
             this.updateDashboardChart();
+            this.renderOnboardingCard();
         });
         gameState.on('roleChange', () => {
             roleManager.applyVisibility();
             this.updateOverview();
+            this.renderOnboardingCard();
         });
         gameState.on('transaction', () => {
             this.renderMilestones();
             this.renderHomeCashflow();
             this.updateRecentTransactions();
             this.updateDashboardChart();
+            this.renderOnboardingCard();
         });
         gameState.on('tickBalanceUpdate', () => {
             if (this.activeTimeframe === '1D') {
@@ -109,11 +115,119 @@ class HomeScreen {
         setTimeout(() => {
             staggerFadeUp(document.querySelectorAll('.menu-card:not(.hidden)'), 50);
         }, 100);
+
+        // Check for returning player welcome back summary
+        setTimeout(() => {
+            this.checkWelcomeBack();
+        }, 1200);
+    }
+
+    checkWelcomeBack() {
+        if (!gameState.get('player.createdAt') || !gameState.get('player.role')) return;
+        if (sessionStorage.getItem('aura_welcome_back_shown')) return;
+
+        const lastActiveStr = localStorage.getItem('aura_last_active_time');
+        const now = Date.now();
+        localStorage.setItem('aura_last_active_time', now.toString());
+
+        setInterval(() => {
+            localStorage.setItem('aura_last_active_time', Date.now().toString());
+        }, 15000);
+
+        if (!lastActiveStr) return;
+
+        const lastActive = parseInt(lastActiveStr, 10);
+        const diffMs = now - lastActive;
+
+        // If away for more than 5 minutes (300,000 ms)
+        if (diffMs < 300000) return;
+
+        sessionStorage.setItem('aura_welcome_back_shown', 'true');
+
+        let awayText = '';
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffDays > 0) {
+            awayText = `${diffDays} hari yang lalu`;
+        } else if (diffHours > 0) {
+            awayText = `${diffHours} jam yang lalu`;
+        } else {
+            awayText = `${diffMins} menit yang lalu`;
+        }
+
+        const netWorth = gameState.getNetWorth ? gameState.getNetWorth() : gameState.getBalance();
+        const balance = gameState.getBalance();
+        const economyPhase = gameState.get('economy.phase') || 'RECOVERY';
+        const phaseName = globalEconomy?.getPhaseName ? globalEconomy.getPhaseName(economyPhase) : economyPhase;
+        const playerName = gameState.get('player.name') || 'Investor';
+
+        const stocks = Object.keys(gameState.get('stocks') || {}).length;
+        const crypto = Object.keys(gameState.get('crypto') || {}).length;
+        const totalAssets = stocks + crypto;
+
+        const modalHTML = `
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 1.25rem 1.5rem;">
+                <div style="display:flex; align-items:center; gap:0.6rem;">
+                    <span style="font-size: 1.5rem;">👋</span>
+                    <div>
+                        <h3 class="modal-title" style="font-size: 1.15rem; font-weight: 800;">Selamat Datang Kembali, ${playerName}!</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Terakhir aktif: ${awayText}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <p style="font-size: 0.85rem; color: var(--text-main); margin-bottom: 1.25rem; line-height: 1.5;">
+                    Selama Anda tidak membuka terminal bursa, pergerakan pasar simulasi terus berjalan dan portofolio Anda telah diperbarui.
+                </p>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem;">
+                        <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Total Kekayaan</div>
+                        <div style="font-size: 1.1rem; font-weight: 800; color: var(--accent-primary); margin-top: 4px;">$ ${Number(netWorth).toLocaleString('id-ID')}</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem;">
+                        <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Kas Likuid</div>
+                        <div style="font-size: 1.1rem; font-weight: 800; color: #ffffff; margin-top: 4px;">$ ${Number(balance).toLocaleString('id-ID')}</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem;">
+                        <div style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Instrumen Aktif</div>
+                        <div style="font-size: 1.1rem; font-weight: 800; color: #ffffff; margin-top: 4px;">${totalAssets} Aset</div>
+                    </div>
+                </div>
+
+                <div style="background: var(--bg-surface-hover); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.85rem 1rem;">
+                    <div style="display:flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Siklus Makro Ekonomi Saat Ini</span>
+                        <span style="font-size: 0.75rem; font-weight: 800; color: var(--accent-primary);">${phaseName}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid var(--border-color); padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-wb-dismiss">Lanjut ke Dashboard</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-wb-market">Pantau Pasar ↗</button>
+            </div>
+        `;
+
+        ui.openModal(modalHTML);
+
+        document.getElementById('btn-wb-dismiss')?.addEventListener('click', () => {
+            ui.closeModal();
+        });
+
+        document.getElementById('btn-wb-market')?.addEventListener('click', () => {
+            ui.closeModal();
+            if (window.viewManager) {
+                window.viewManager.switchView('market');
+            }
+        });
     }
 
     updateOverview() {
         this.updateBalanceCard();
         this.updateStatusBar();
+        this.renderOnboardingCard();
         this.renderMarketPulse();
         this.renderNewsSnapshot();
         this.renderTopMovers();
@@ -122,6 +236,147 @@ class HomeScreen {
         this.renderMilestones();
         this.updateRecentTransactions();
         this.updateDashboardChart();
+    }
+
+    renderOnboardingCard() {
+        const container = document.getElementById('home-onboarding-container');
+        if (!container) return;
+
+        if (localStorage.getItem('auraAssets_onboardingDismissed') === 'true') {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+
+        const role = roleManager.getRoleData();
+        const hasRole = Boolean(role);
+        const hasStocks = (stockMarket.getPortfolio?.() || []).length > 0;
+        const hasCrypto = (cryptoMarket.getWallet?.() || []).length > 0;
+        const hasMutualFunds = (gameState.get('mutualFunds') || []).length > 0;
+        const hasBoughtAsset = hasStocks || hasCrypto || hasMutualFunds;
+
+        let completedCount = 0;
+        if (hasRole) completedCount++;
+        completedCount++; // Step 2 is educational simulation fund context
+        if (hasBoughtAsset) completedCount++;
+
+        const isAllDone = completedCount >= 3;
+
+        container.innerHTML = `
+            <div class="onboarding-card">
+                <div class="onboarding-header">
+                    <div class="onboarding-title-group">
+                        <div class="onboarding-badge">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="12 6 12 12 16 14"/></svg>
+                            Mulai di Sini
+                        </div>
+                        <h3 class="onboarding-title">Langkah Awal Investor Pemula</h3>
+                        <p class="onboarding-desc">Tiga langkah praktis untuk mulai menyusun portofolio dan memahami pasar.</p>
+                    </div>
+                    <button type="button" id="btn-dismiss-onboarding" class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:4px 8px; cursor:pointer;" title="Sembunyikan panduan ini">
+                        Lewati Panduan ×
+                    </button>
+                </div>
+
+                <div class="onboarding-steps">
+                    <!-- Step 1: Profil Risiko -->
+                    <div class="onboarding-step-item ${hasRole ? 'completed' : ''}">
+                        <div class="onboarding-step-top">
+                            <span class="step-number-bubble">${hasRole ? '✓' : '1'}</span>
+                            <span class="step-label">Tentukan Gaya Investasi</span>
+                        </div>
+                        <div class="step-info">
+                            ${hasRole ? `Profil aktif: <strong style="color:var(--accent-primary);">${role.label}</strong>` : 'Pilih profil risiko (Konservatif, Moderat, Agresif) untuk menyesuaikan strategi pasar Anda.'}
+                        </div>
+                        <div>
+                            <button type="button" id="btn-onboarding-role" class="btn ${hasRole ? 'btn-secondary' : 'btn-primary'} btn-sm" style="width:100%; font-size:0.75rem; padding:5px 8px;">
+                                ${hasRole ? 'Ubah Profil' : 'Pilih Profil'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Modal Simulasi -->
+                    <div class="onboarding-step-item completed">
+                        <div class="onboarding-step-top">
+                            <span class="step-number-bubble">✓</span>
+                            <span class="step-label">Pahami Modal Simulasi</span>
+                        </div>
+                        <div class="step-info">
+                            Uang awalmu adalah modal simulasi tanpa risiko uang nyata. Bebas menguji analisis dan strategi sebelum terjun ke pasar nyata.
+                        </div>
+                        <div>
+                            <span style="font-size:0.72rem; color:#10b981; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
+                                Kas: $ ${financeManager.formatCurrency(gameState.getBalance(), true)}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Beli Aset Pertama -->
+                    <div class="onboarding-step-item ${hasBoughtAsset ? 'completed' : ''}">
+                        <div class="onboarding-step-top">
+                            <span class="step-number-bubble">${hasBoughtAsset ? '✓' : '3'}</span>
+                            <span class="step-label">Beli Aset Pertama</span>
+                        </div>
+                        <div class="step-info">
+                            ${hasBoughtAsset ? 'Selamat! Portofoliomu sudah memiliki aset aktif.' : 'Kunjungi halaman Pasar dan beli lot saham AS atau koin kripto pertamamu.'}
+                        </div>
+                        <div>
+                            <button type="button" id="btn-onboarding-market" class="btn ${hasBoughtAsset ? 'btn-secondary' : 'btn-primary'} btn-sm" style="width:100%; font-size:0.75rem; padding:5px 8px;">
+                                ${hasBoughtAsset ? 'Cek Portofolio ↗' : 'Buka Pasar Sekarang ↗'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="onboarding-footer">
+                    <span style="color:var(--text-muted);">
+                        Progres: <strong style="color:${isAllDone ? '#10b981' : '#fff'};">${completedCount} / 3 Selesai</strong>
+                    </span>
+                    ${isAllDone ? `
+                        <button type="button" id="btn-complete-onboarding" class="btn btn-primary btn-sm" style="font-size:0.75rem; padding:4px 12px; font-weight:800;">
+                            Siap Investasi! Selesai
+                        </button>
+                    ` : `
+                        <span style="color:var(--text-dim); font-size:0.7rem;">Dapat dibuka kembali kapan saja via tombol Bantuan (?)</span>
+                    `}
+                </div>
+            </div>
+        `;
+
+        container.querySelector('#btn-dismiss-onboarding')?.addEventListener('click', () => {
+            localStorage.setItem('auraAssets_onboardingDismissed', 'true');
+            container.style.display = 'none';
+        });
+
+        container.querySelector('#btn-complete-onboarding')?.addEventListener('click', () => {
+            localStorage.setItem('auraAssets_onboardingDismissed', 'true');
+            container.style.display = 'none';
+            ui.success('Selamat! Kamu telah menyelesaikan langkah awal.');
+        });
+
+        container.querySelector('#btn-onboarding-role')?.addEventListener('click', () => {
+            import('./LoginPortal.js').then(m => {
+                if (typeof m.default?.showRoleModal === 'function') {
+                    m.default.showRoleModal();
+                } else if (typeof m.default?.showQuestionnaireModal === 'function') {
+                    m.default.showQuestionnaireModal();
+                } else {
+                    this.showGuide();
+                }
+            });
+        });
+
+        container.querySelector('#btn-onboarding-market')?.addEventListener('click', () => {
+            import('./ViewManager.js').then(m => {
+                if (hasBoughtAsset) {
+                    m.default.switchView('portfolio');
+                } else {
+                    m.default.switchView('market');
+                }
+            });
+        });
     }
 
     // ==========================================
@@ -981,9 +1236,25 @@ class HomeScreen {
             import('../finance/panels/FinancePanel.js').then(m => m.default.show());
         });
 
+        // Beli Aset CTA button on balance card
+        document.getElementById('btn-hero-buy')?.addEventListener('click', () => {
+            import('./ViewManager.js').then(m => m.default.switchView('market'));
+        });
+
+        // Topbar Quick Guide / Bantuan button
+        document.getElementById('btn-quick-guide')?.addEventListener('click', () => this.showGuide());
+
         // Settings & Notifications
         document.getElementById('btn-settings')?.addEventListener('click', () => this.showSettings());
         document.getElementById('btn-notifications')?.addEventListener('click', () => this.showNotifications());
+
+        // Global openMarketNewsTab function
+        window.openMarketNewsTab = () => {
+            import('./ViewManager.js').then(m => {
+                m.default.switchView('market');
+                import('./views/market/MarketCoordinator.js').then(mc => mc.default.switchTab('news'));
+            });
+        };
 
         // Fear & Greed widget breaking news click
         const newsText = document.getElementById('market-pulse-news-text');
@@ -991,14 +1262,26 @@ class HomeScreen {
             newsText.style.cursor = 'pointer';
             newsText.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (typeof window.openMarketNewsTab === 'function') {
-                    window.openMarketNewsTab();
-                } else {
-                    import('./ViewManager.js').then(m => {
-                        m.default.switchView('market');
-                        window.openMarketNewsTab?.();
-                    });
-                }
+                window.openMarketNewsTab();
+            });
+        }
+
+        // Fear & Greed widget whole card click
+        const pulseWidget = document.getElementById('market-pulse-widget');
+        if (pulseWidget) {
+            pulseWidget.style.cursor = 'pointer';
+            pulseWidget.addEventListener('click', (e) => {
+                if (e.target.closest('button') || e.target.closest('.glossary-trigger')) return;
+                window.openMarketNewsTab();
+            });
+        }
+
+        // Top Movers header click
+        const moversTitle = document.querySelector('.top-movers-title');
+        if (moversTitle) {
+            moversTitle.style.cursor = 'pointer';
+            moversTitle.addEventListener('click', () => {
+                import('./ViewManager.js').then(m => m.default.switchView('market'));
             });
         }
 
@@ -1639,7 +1922,7 @@ class HomeScreen {
                     <h4 style="margin-bottom:0.5rem;display:flex;align-items:center;gap:6px;"><span>🏢</span> Panduan Bisnis & Arus Kas Pasif</h4>
                     <ul style="color:var(--text-muted);font-size:0.875rem;padding-left:1.25rem;line-height:1.8;">
                         <li><strong>Empire Real Estate</strong>: Miliki aset properti fisik (apartemen, ruko, residensial, villa) untuk menghasilkan pendapatan sewa pasif (rental yield) bulanan yang langsung masuk ke rekening.</li>
-                        <li><strong>Mining Rig & Staking Kripto</strong>: Rakit rig penambangan kripto dan staking aset kripto Anda di tab Passive Income untuk memanen imbal hasil periodik tanpa intervensi manual harian.</li>
+                        <li><strong>Vault Staking & Launchdrop Kripto</strong>: Kunci aset kripto di Vault Staking dan ikuti event Launchdrop (Launchpool & Launchpad) di tab Passive Income untuk memanen imbal hasil periodik tanpa intervensi manual harian.</li>
                         <li><strong>Trading Bot Otomatis</strong>: Jalankan algoritma bot trading untuk mengeksekusi peluang selisih harga secara konsisten sepanjang waktu.</li>
                     </ul>
                 </div>
@@ -1674,9 +1957,42 @@ class HomeScreen {
                         <li>Evaluasi atau sesuaikan kembali profil risiko dan preferensi Anda kapan saja melalui menu <strong>⚙️ Pengaturan</strong>.</li>
                     </ul>
                 </div>
+
+                <div class="planning-card" style="margin-bottom:1rem;">
+                    <h4 style="margin-bottom:0.5rem;display:flex;align-items:center;gap:6px;"><span>📚</span> Kamus Istilah Finansial Penting</h4>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.65rem; margin-top: 0.6rem;">
+                        ${Object.values(GLOSSARY_TERMS).map(term => `
+                            <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:0.6rem 0.75rem;">
+                                <div style="font-weight:700; color:var(--accent-primary); font-size:0.8rem; margin-bottom:2px;">${term.title}</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted); line-height:1.4;">${term.shortDesc}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="planning-card" style="margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; background:rgba(16,185,129,0.06); border-color:rgba(16,185,129,0.25);">
+                    <div>
+                        <h4 style="margin:0 0 2px 0; color:#fff; font-size:0.85rem;">Buka Kembali Langkah Awal Investor</h4>
+                        <p style="margin:0; font-size:0.75rem; color:var(--text-muted);">Tampilkan kembali kartu 3 langkah panduan pemula di halaman Beranda.</p>
+                    </div>
+                    <button type="button" id="btn-restart-onboarding-modal" class="btn btn-primary btn-sm" style="font-size:0.75rem; font-weight:700; padding:5px 12px;">
+                        Tampilkan di Beranda ↺
+                    </button>
+                </div>
             </div>
         `;
-        ui.showModal({ title: '📖 Panduan Trading & Bisnis Investor', content });
+        ui.showModal({
+            title: '📖 Bantuan & Panduan Investasi',
+            content,
+            onShow: () => {
+                document.getElementById('btn-restart-onboarding-modal')?.addEventListener('click', () => {
+                    localStorage.removeItem('auraAssets_onboardingDismissed');
+                    this.renderOnboardingCard();
+                    ui.closeModal();
+                    ui.success('Kartu panduan awal telah ditampilkan di Beranda.');
+                });
+            }
+        });
     }
 
     loadECharts() {
