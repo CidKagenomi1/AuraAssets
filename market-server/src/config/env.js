@@ -10,6 +10,10 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   CORS_ORIGIN: z.string().default('*'),
 
+  // Global per-IP limit (requests/minute). Public market reads use RATE_LIMIT_MARKET_MAX.
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
+  RATE_LIMIT_MARKET_MAX: z.coerce.number().int().positive().default(600),
+
   DATABASE_URL: z.string().optional().default(''),
   DATABASE_SSL: z
     .string()

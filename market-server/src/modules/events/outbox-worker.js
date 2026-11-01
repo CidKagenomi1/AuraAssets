@@ -189,8 +189,8 @@ export class OutboxWorker {
         const symbol = String(payload.symbol).toUpperCase();
         this.io.to(`market:${symbol}`).emit('market:trade', payload);
         if (this.candleService) {
-          const rawPrice = Number(payload.price);
-          const price = rawPrice > 10000 ? rawPrice / 100 : rawPrice;
+          // Trade prices are integers in minor units; candles are stored in display units.
+          const price = Number(payload.price) / env.PRICE_SCALE;
           this.candleService.onTrade(
             symbol,
             price,

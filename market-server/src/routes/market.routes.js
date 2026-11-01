@@ -1,11 +1,16 @@
 import { symbolParamsSchema } from '../modules/trading/trading-schema.js';
+import { env } from '../config/env.js';
+
+// Public, read-only market data is polled frequently by the UI; give it a higher ceiling
+// than the global limit (order placement keeps the stricter global limit).
+const marketReadLimit = { config: { rateLimit: { max: env.RATE_LIMIT_MARKET_MAX, timeWindow: '1 minute' } } };
 
 export default async function marketRoutes(fastify) {
   /**
    * GET /api/market/stocks
    * Daftar seluruh saham aktif beserta harga terakhir dan bid/ask terbaik
    */
-  fastify.get('/api/market/stocks', async (request, reply) => {
+  fastify.get('/api/market/stocks', marketReadLimit, async (request, reply) => {
     const stocks = await fastify.marketService.getAllStocks();
     return reply.send({ data: stocks });
   });
@@ -14,7 +19,7 @@ export default async function marketRoutes(fastify) {
    * GET /api/market/:symbol
    * Harga dan statistik pasar untuk satu saham
    */
-  fastify.get('/api/market/:symbol', async (request, reply) => {
+  fastify.get('/api/market/:symbol', marketReadLimit, async (request, reply) => {
     const parsed = symbolParamsSchema.safeParse(request.params);
     if (!parsed.success) {
       return reply.code(400).send({
@@ -31,7 +36,7 @@ export default async function marketRoutes(fastify) {
    * GET /api/market/:symbol/orderbook
    * Antrean bid dan ask berdasarkan prioritas harga-waktu
    */
-  fastify.get('/api/market/:symbol/orderbook', async (request, reply) => {
+  fastify.get('/api/market/:symbol/orderbook', marketReadLimit, async (request, reply) => {
     const parsed = symbolParamsSchema.safeParse(request.params);
     if (!parsed.success) {
       return reply.code(400).send({
@@ -49,7 +54,7 @@ export default async function marketRoutes(fastify) {
    * GET /api/market/:symbol/trades
    * Riwayat transaksi terakhir untuk satu saham
    */
-  fastify.get('/api/market/:symbol/trades', async (request, reply) => {
+  fastify.get('/api/market/:symbol/trades', marketReadLimit, async (request, reply) => {
     const parsed = symbolParamsSchema.safeParse(request.params);
     if (!parsed.success) {
       return reply.code(400).send({
@@ -67,7 +72,7 @@ export default async function marketRoutes(fastify) {
    * GET /api/market/:symbol/candles
    * Riwayat OHLCV candle teragregasi untuk satu saham/kripto
    */
-  fastify.get('/api/market/:symbol/candles', async (request, reply) => {
+  fastify.get('/api/market/:symbol/candles', marketReadLimit, async (request, reply) => {
     const parsed = symbolParamsSchema.safeParse(request.params);
     if (!parsed.success) {
       return reply.code(400).send({

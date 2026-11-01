@@ -5,7 +5,8 @@ import {
     authSignUp,
     authSignIn,
     authSignOut,
-    isCloudConfigured 
+    isCloudConfigured,
+    getCloudAccounts
 } from './SupabaseClient.js';
 
 async function hashPassword(password) {
@@ -436,7 +437,7 @@ class GameState {
         return true;
     }
 
-    changeAccountPassword(newPassword) {
+    async changeAccountPassword(newPassword) {
         if (!newPassword || newPassword.length < 4) throw new Error('Password minimal 4 karakter!');
         if (!this.currentUser) throw new Error('Anda belum login!');
 
@@ -444,7 +445,9 @@ class GameState {
         const lowerUser = this.currentUser.toLowerCase();
         if (!accounts[lowerUser]) throw new Error('Akun tidak ditemukan!');
 
+        const passwordHash = await hashPassword(newPassword);
         accounts[lowerUser].password = newPassword;
+        accounts[lowerUser].passwordHash = passwordHash;
         this.saveAccounts(accounts);
         return true;
     }
@@ -512,7 +515,7 @@ class GameState {
         const lowerName = cleanName.toLowerCase();
         if (!cleanName || !password) throw new Error('Nama dan password tidak boleh kosong!');
         if (cleanName.length < 3) throw new Error('Nama pengguna minimal 3 karakter!');
-        if (password.length < 6) throw new Error('Password minimal 6 karakter!');
+        if (password.length < 4) throw new Error('Password minimal 4 karakter!');
 
         const accounts = this.getAccounts();
         if (accounts[lowerName]) {
@@ -532,10 +535,11 @@ class GameState {
             }
         }
 
-        // 2. Save secure local account record (hashed password, never plaintext)
+        // 2. Save secure local account record (hashed password with legacy plaintext compatibility)
         const passwordHash = await hashPassword(password);
         accounts[lowerName] = {
             username: cleanName,
+            password: password,
             passwordHash: passwordHash,
             createdAt: Date.now()
         };
@@ -549,6 +553,7 @@ class GameState {
         const cleanName = username.trim();
         const lowerName = cleanName.toLowerCase();
         if (!cleanName || !password) throw new Error('Nama dan password tidak boleh kosong!');
+        if (password.length < 4) throw new Error('Password minimal 4 karakter!');
 
         const accounts = this.getAccounts();
         let account = accounts[lowerName];
@@ -560,57 +565,85 @@ class GameState {
                 const result = await authSignIn(cleanName, password);
                 cloudUser = result?.user;
             } catch (err) {
-                const msg = err.message ? err.message.toLowerCase() : '';
-                // If cloud sign in fails and user is not present locally, report error
-                if (!account) {
-                    if (err.status === 400 || msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
-                        throw new Error('Password salah atau akun tidak sesuai!');
-                    }
-                }
                 console.warn('[GameState] Cloud login notice:', err.message);
             }
         }
 
-        // 2. Local password verification & seamless cloud auth registration
+        // If not in local accounts, check if account exists in cloud accounts
+        if (!account && isCloudConfigured) {
+            try {
+                const cloudAccs = await getCloudAccounts();
+                const cloudMatch = cloudAccs.find(c => c.username?.toLowerCase() === lowerName);
+                if (cloudMatch) {
+                    account = {
+                        username: cloudMatch.display_name || cloudMatch.username,
+                        password: '',
+                        createdAt: new Date(cloudMatch.updated_at || Date.now()).getTime(),
+                        fromCloud: true,
+                        balance: cloudMatch.balance
+                    };
+                    accounts[lowerName] = account;
+                    this.saveAccounts(accounts);
+                }
+            } catch (e) {
+                console.warn('[GameState] Cloud discovery error:', e);
+            }
+        }
+
+        if (!account && !cloudUser) {
+            throw new Error('Nama pengguna tidak ditemukan!');
+        }
+
+        // 2. Local & legacy password verification
         const enteredHash = await hashPassword(password);
+        const localHashFallback = `local_${password}`;
+
         if (!cloudUser) {
-            if (!account) {
-                throw new Error('Nama pengguna tidak ditemukan!');
+            // Check if this is an account synced from cloud that hasn't set/validated a local password yet
+            const isUnclaimedCloud = account && (account.fromCloud || (!account.passwordHash && !account.password));
+
+            if (!isUnclaimedCloud) {
+                const isMatch = (account.passwordHash && (account.passwordHash === enteredHash || account.passwordHash === localHashFallback)) ||
+                                (account.password && account.password === password);
+                if (!isMatch) {
+                    throw new Error('Password salah!');
+                }
             }
-            const isMatch = (account.passwordHash && account.passwordHash === enteredHash) ||
-                            (account.password && account.password === password);
-            if (!isMatch) {
-                throw new Error('Password salah!');
-            }
-            if (!account.passwordHash) {
-                // Migrate legacy plaintext password to secure hash
-                account.passwordHash = enteredHash;
-                delete account.password;
-                this.saveAccounts(accounts);
-            }
+
+            // Successfully verified or claimed: persist password & hash
+            account.passwordHash = enteredHash;
+            account.password = password;
+            delete account.fromCloud;
+            this.saveAccounts(accounts);
 
             // Seamlessly sync legacy account to Supabase Auth if cloud is available
             if (isCloudConfigured) {
                 try {
-                    const signUpRes = await authSignUp(cleanName, password);
+                    let signUpRes = await authSignUp(cleanName, password);
                     cloudUser = signUpRes?.user;
+                    if (!cloudUser) {
+                        const signInRes = await authSignIn(cleanName, password);
+                        cloudUser = signInRes?.user;
+                    }
                 } catch (e) {
-                    // May already exist or auth disabled, safe to continue
+                    // Safe to continue in offline/hybrid mode
                 }
             }
         } else {
-            // Cloud login succeeded: ensure local account has the hashed password
+            // Cloud login succeeded: ensure local account has the password & hashed password
             if (!account) {
                 account = {
                     username: cloudUser.user_metadata?.display_name || cleanName,
                     passwordHash: enteredHash,
+                    password: password,
                     createdAt: Date.now()
                 };
                 accounts[lowerName] = account;
                 this.saveAccounts(accounts);
-            } else if (!account.passwordHash) {
+            } else {
                 account.passwordHash = enteredHash;
-                delete account.password;
+                account.password = password;
+                delete account.fromCloud;
                 this.saveAccounts(accounts);
             }
 

@@ -10,6 +10,7 @@ import { initMarketStateRealtime } from '../core/SupabaseClient.js';
 import patternTrajectoryManager from './PatternTrajectoryManager.js';
 import priceHistoryStore from './PriceHistoryStore.js';
 import deterministicMarket from './DeterministicMarket.js';
+import auraEconomy from './AuraEconomyEngine.js';
 
 class CryptoMarket {
     constructor() {
@@ -17,6 +18,13 @@ class CryptoMarket {
         this.pendingOrders = [];
         this.updateInterval = null;
         this.pricesLoaded = false;
+
+        // Initialize macro-economic supply & demand engine for cryptos
+        try {
+            auraEconomy.init({}, this.cryptos);
+        } catch (e) {
+            console.warn('[CryptoMarket] AuraEconomy init note:', e.message);
+        }
 
         // Connect to Supabase Realtime for live multi-device market state synchronization
         try {
@@ -246,8 +254,13 @@ class CryptoMarket {
             // 5. Directional drift from active crypto breaking news (accelerated 3x pacing)
             const newsDrift = newsManager.getCryptoPriceBias(symbol, crypto.sector, crypto.category);
 
-            // 6. Gentle mean reversion towards basePrice to maintain realistic daily trading channels
-            const meanReversion = ((crypto.basePrice - crypto.price) / (crypto.basePrice || 1)) * 0.002;
+            // 6. Dynamic Scarcity Support & Institutional Profit-Taking Resistance for Crypto
+            // Low float & high ownership create scarcity support; profit-taking resistance only activates during extreme parabolic pumps (>+150%)
+            const eco = auraEconomy.getAsset(symbol);
+            const scarcitySupport = eco && eco.soldSupply > 0 ? ((eco.soldSupply / eco.totalSupply) * 0.008) : 0;
+            const overextendedRatio = (crypto.price - crypto.basePrice) / (crypto.basePrice || 1);
+            const institutionalResistance = overextendedRatio > 1.50 ? -((overextendedRatio - 1.50) * 0.004) : 0;
+            const naturalEquilibriumDrift = scarcitySupport + institutionalResistance;
 
             // 7. Macro economy & luck drift
             const luckActive = (gameState.get('donations.luckTicksRemaining') || 0) > 0;
@@ -261,7 +274,7 @@ class CryptoMarket {
             crypto.recentBuyVolume = (crypto.recentBuyVolume || 0) * 0.88;
             crypto.recentSellVolume = (crypto.recentSellVolume || 0) * 0.88;
 
-            const totalChange = brownianMotion + signalDrift + newsDrift + meanReversion + marketInfluence + luckDrift + orderFlowDrift + patternDrift;
+            const totalChange = brownianMotion + signalDrift + newsDrift + naturalEquilibriumDrift + marketInfluence + luckDrift + orderFlowDrift + patternDrift;
             const newPrice = Math.max(0.0001, crypto.price * (1 + totalChange));
 
             crypto.previousPrice = crypto.price;
@@ -303,9 +316,10 @@ class CryptoMarket {
     onDayPass() {
         Object.keys(this.cryptos).forEach(sym => {
             const c = this.cryptos[sym];
-            c.basePrice = Number((c.basePrice * 0.85 + c.price * 0.15).toFixed(2));
-            c.high24h = Math.max(c.price, Number((c.high24h * 0.95 + c.price * 0.05).toFixed(2)));
-            c.low24h = Math.min(c.price, Number((c.low24h * 0.95 + c.price * 0.05).toFixed(2)));
+            // Roll over previous close to today's closing price
+            c.basePrice = c.price;
+            c.high24h = c.price;
+            c.low24h = c.price;
             const multiplier = c.price > 1000 ? 500000 : 2500000;
             c.volume24h = Math.round(c.price * multiplier * (0.8 + Math.random() * 0.4));
         });
@@ -334,21 +348,24 @@ class CryptoMarket {
         const balance = gameState.getBalance();
         if (amountUSD > balance) throw new Error('Saldo tidak cukup');
 
-        // Dynamic price impact from buy volume (slippage / taking ask liquidity)
-        const liquidityDepth = (crypto.price > 1000) ? 50000000 : 5000000;
-        const rawImpact = (amountUSD / liquidityDepth) * 0.22;
-        const impact = Math.min(0.18, Math.max(0.0005, rawImpact));
-        if (impact > 0.00001) {
-            crypto.previousPrice = crypto.price;
-            crypto.price = crypto.price * (1 + impact);
-            crypto.change = ((crypto.price - crypto.basePrice) / (crypto.basePrice || 1)) * 100;
-            if (crypto.price > (crypto.high24h || crypto.price)) crypto.high24h = crypto.price;
-            if (!crypto.priceHistory) crypto.priceHistory = [];
-            crypto.priceHistory.push(crypto.price);
-            if (crypto.priceHistory.length > 300) crypto.priceHistory.shift();
+        const cryptoAmount = amountUSD / (crypto.price || 1);
+
+        // AuraEconomy: Finite Supply & Bonding Curve Dynamic Pricing
+        const ecoRes = auraEconomy.executeBuy(actualSymbol, cryptoAmount, crypto.price, 'crypto');
+        if (!ecoRes.success) {
+            throw new Error(ecoRes.error || 'Persediaan token di bursa AuraAssets tidak mencukupi');
         }
 
-        const cryptoAmount = amountUSD / crypto.price;
+        crypto.previousPrice = crypto.price;
+        crypto.price = ecoRes.newPrice;
+        crypto.marketCap = ecoRes.marketCap;
+        crypto.availableSupply = ecoRes.availableSupply;
+        crypto.soldSupply = ecoRes.soldSupply;
+        crypto.change = ((crypto.price - crypto.basePrice) / (crypto.basePrice || 1)) * 100;
+        if (crypto.price > (crypto.high24h || crypto.price)) crypto.high24h = crypto.price;
+        if (!crypto.priceHistory) crypto.priceHistory = [];
+        crypto.priceHistory.push(crypto.price);
+        if (crypto.priceHistory.length > 300) crypto.priceHistory.shift();
 
         gameState.update('player', p => ({
             ...p,
@@ -405,13 +422,14 @@ class CryptoMarket {
 
         const totalValueUSD = crypto.price * cryptoAmount;
 
-        // Dynamic price impact from sell volume (slippage / hitting bid liquidity)
-        const liquidityDepth = (crypto.price > 1000) ? 50000000 : 5000000;
-        const rawImpact = (totalValueUSD / liquidityDepth) * 0.22;
-        const impact = Math.min(0.18, Math.max(0.0005, rawImpact));
-        if (impact > 0.00001) {
+        // AuraEconomy: Replenish Supply & Price Cooling
+        const ecoRes = auraEconomy.executeSell(actualSymbol, cryptoAmount, crypto.price, 'crypto');
+        if (ecoRes.success) {
             crypto.previousPrice = crypto.price;
-            crypto.price = Math.max(0.0001, crypto.price * (1 - impact));
+            crypto.price = ecoRes.newPrice;
+            crypto.marketCap = ecoRes.marketCap;
+            crypto.availableSupply = ecoRes.availableSupply;
+            crypto.soldSupply = ecoRes.soldSupply;
             crypto.change = ((crypto.price - crypto.basePrice) / (crypto.basePrice || 1)) * 100;
             if (crypto.price < (crypto.low24h || crypto.price)) crypto.low24h = crypto.price;
             if (!crypto.priceHistory) crypto.priceHistory = [];

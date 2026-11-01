@@ -186,8 +186,12 @@ export class MarketCoordinator {
         btn.addEventListener('click', () => {
           const id = btn.dataset.orderId;
           const type = btn.dataset.type;
-          if (type === 'stock') stockMarket.cancelOrder(id);
-          else cryptoMarket.cancelOrder(id);
+          try {
+            if (type === 'stock') stockMarket.cancelLimitOrder(id);
+            else cryptoMarket.cancelLimitOrder(id);
+          } catch (err) {
+            console.warn('Cancel order failed:', err.message);
+          }
           this.updateOrdersList();
         });
       });

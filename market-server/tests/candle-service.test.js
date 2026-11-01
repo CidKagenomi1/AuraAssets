@@ -50,3 +50,37 @@ describe('CandleService - In-Memory Accumulator & Aggregation', () => {
   });
 });
 
+describe('CandleService - Timeframe aggregation', () => {
+  it('aggregates 1m candles into 5m buckets (OHLCV)', async () => {
+    const svc = new CandleService();
+    const base = Math.floor(1700000000000 / 300000) * 300000; // aligned 5m boundary
+
+    // Minute 0..4 in the first 5m bucket, minute 5 starts the next one
+    svc.onTrade('AAPL', 100, 1, base + 1000);
+    svc.onTrade('AAPL', 110, 2, base + 61000);
+    svc.onTrade('AAPL', 90, 3, base + 121000);
+    svc.onTrade('AAPL', 105, 4, base + 181000);
+    svc.onTrade('AAPL', 120, 5, base + 301000);
+
+    const candles = await svc.getCandles('AAPL', '5m', 10);
+    expect(candles.length).toBe(2);
+
+    expect(candles[0].open).toBe(100);
+    expect(candles[0].high).toBe(110);
+    expect(candles[0].low).toBe(90);
+    expect(candles[0].close).toBe(105);
+    expect(candles[0].volume).toBe(10);
+    expect(candles[0].isLive).toBe(false);
+
+    expect(candles[1].close).toBe(120);
+    expect(candles[1].isLive).toBe(true);
+  });
+
+  it('rejects unsupported timeframes with INVALID_TIMEFRAME (400)', async () => {
+    const svc = new CandleService();
+    await expect(svc.getCandles('AAPL', '7m', 10)).rejects.toMatchObject({
+      code: 'INVALID_TIMEFRAME',
+      statusCode: 400
+    });
+  });
+});

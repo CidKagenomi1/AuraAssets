@@ -375,24 +375,11 @@ const priceHistoryStore = new PriceHistoryStore();
 
 // Wire authoritative server client events to PriceHistoryStore
 try {
-    marketClient.on('candle:update', (candle) => {
-        if (candle?.symbol && candle?.close) {
-            priceHistoryStore.recordTick(candle.symbol, candle.close, candle.volume);
-        }
-    });
-    marketClient.on('trade', (trade) => {
-        if (trade?.symbol && trade?.price) {
-            const p = trade.price > 10000 ? trade.price / 100 : trade.price;
-            priceHistoryStore.recordTick(trade.symbol, p, trade.quantity);
-        }
-    });
-    marketClient.on('ticker', (ticker) => {
-        if (ticker?.symbol && (ticker.last_price || ticker.lastPrice)) {
-            const raw = ticker.last_price ?? ticker.lastPrice;
-            const p = raw > 10000 ? raw / 100 : raw;
-            priceHistoryStore.recordTick(ticker.symbol, p, Number(ticker.volume_24h ?? 0) * 0.05);
-        }
-    });
+    // Ticks from server trades/tickers are already recorded (with correct minor-unit
+    // conversion) by StockMarket.applyServerTrade / applyServerTicker. Recording them
+    // again here duplicated ticks and used a fragile ">10000" price heuristic that
+    // mis-scaled stocks priced below $100. Candle history comes from fetchServerCandles.
+    void marketClient;
 } catch {
     // Non-blocking in standalone environment
 }

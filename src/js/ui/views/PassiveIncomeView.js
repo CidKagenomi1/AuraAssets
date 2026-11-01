@@ -411,7 +411,8 @@ export function renderPassiveIncomeView(activeView = 'staking') {
   if (activeView === 'staking') {
     subViewHTML = renderStakingMiningView_OnlyStaking();
   } else if (activeView === 'mining') {
-    subViewHTML = renderStakingMiningView_OnlyMining();
+    // Mining view was removed; fall back to staking to avoid a ReferenceError
+    subViewHTML = renderStakingMiningView_OnlyStaking();
   } else if (activeView === 'bot') {
     subViewHTML = renderBotTradingView();
   } else if (activeView === 'launchdrop') {

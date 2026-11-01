@@ -325,43 +325,6 @@ class CommodityPanel {
         `;
     }
 
-    bindEvents() {
-        const container = document.getElementById('dynamic-view-content');
-        if (!container) return;
-
-        // Sector filter buttons
-        container.querySelectorAll('.commodity-filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.activeSector = btn.dataset.sector;
-                this.render();
-            });
-        });
-
-        // Open Plotly Chart Modal
-        container.querySelectorAll('.btn-commodity-chart').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.dataset.id;
-                this.showChartModal(id);
-            });
-        });
-
-        // Open Buy Modal
-        container.querySelectorAll('.btn-commodity-buy').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.dataset.id;
-                this.showBuyModal(id);
-            });
-        });
-
-        // Open Sell Modal
-        container.querySelectorAll('.btn-commodity-sell').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.dataset.id;
-                this.showSellModal(id);
-            });
-        });
-    }
-
     /**
      * Interactive Plotly Chart Modal for Commodity
      */

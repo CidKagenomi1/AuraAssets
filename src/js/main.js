@@ -357,12 +357,9 @@ class BusinessTycoonGame {
     startGameSystems() {
         timeManager.start();
 
-        // Market updates — Continuous micro-tick price engine
+        // Market updates — Continuous micro-tick price engine (AuraEconomy Serverless)
         stockMarket.startUpdates(5000);
         cryptoMarket.startUpdates(3500);
-
-        // Attempt connection to authoritative multi-player server if online
-        stockMarket.connectAuthoritativeServer?.().catch(() => {});
 
         // Daily economy fluctuation, breaking news events & Donasi/Luck tick
         timeManager.onDay(() => {

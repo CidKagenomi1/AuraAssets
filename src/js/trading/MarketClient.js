@@ -23,12 +23,22 @@ export class MarketClient {
     this.isConnected = false;
     this.subscribedSymbols = new Set();
     this.authToken = null;
-    this.devPlayerId = localStorage.getItem('auraAssets_devPlayerId') || null;
+    this.devPlayerId = this._ensureDevPlayerId();
 
     this.supabase =
       SUPABASE_URL && SUPABASE_ANON_KEY
         ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
         : null;
+
+    if (this.supabase) {
+      this.supabase.auth.onAuthStateChange(async (event, session) => {
+        this.authToken = session?.access_token || null;
+        if (this.socket && this.isConnected) {
+          const authPayload = await this.getFreshAuthPayload();
+          this.socket.emit('auth:authenticate', authPayload);
+        }
+      });
+    }
 
     this.handlers = {
       onSnapshot: null,
@@ -95,6 +105,59 @@ export class MarketClient {
   }
 
   /**
+   * Ensure a persistent, valid UUID devPlayerId exists in localStorage for local testing
+   */
+  _ensureDevPlayerId() {
+    let id = null;
+    try {
+      id = localStorage.getItem('auraAssets_devPlayerId');
+      if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+        id = typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : 'a0000000-0000-4000-8000-' + Math.random().toString(16).substring(2, 14).padEnd(12, '0');
+        localStorage.setItem('auraAssets_devPlayerId', id);
+      }
+    } catch (e) {
+      id = 'a0000000-0000-4000-8000-000000000001';
+    }
+    return id;
+  }
+
+  /**
+   * Fetch fresh authentication payload dynamically on initial connect and every reconnect.
+   * Supabase automatically refreshes expired JWT tokens when getSession() is invoked.
+   */
+  async getFreshAuthPayload() {
+    if (this.supabase) {
+      try {
+        const { data } = await this.supabase.auth.getSession();
+        if (data?.session?.access_token) {
+          this.authToken = data.session.access_token;
+        } else {
+          this.authToken = null;
+        }
+      } catch (e) {
+        console.warn('[MarketClient] Could not refresh Supabase session for socket auth:', e.message);
+      }
+    }
+
+    const payload = {
+      devUsername: gameState.currentUser || 'Player'
+    };
+
+    if (this.authToken) {
+      payload.token = `Bearer ${this.authToken}`;
+    } else {
+      if (!this.devPlayerId) {
+        this.devPlayerId = this._ensureDevPlayerId();
+      }
+      payload.devPlayerId = this.devPlayerId;
+    }
+
+    return payload;
+  }
+
+  /**
    * Resolve Bearer JWT from Supabase session or fallback dev headers
    */
   async getAuthHeaders() {
@@ -102,18 +165,12 @@ export class MarketClient {
       'Content-Type': 'application/json'
     };
 
-    if (this.supabase) {
-      const { data } = await this.supabase.auth.getSession();
-      if (data?.session?.access_token) {
-        this.authToken = data.session.access_token;
-      }
-    }
-
-    if (this.authToken) {
-      headers.Authorization = `Bearer ${this.authToken}`;
-    } else if (this.devPlayerId) {
-      headers['x-dev-player-id'] = this.devPlayerId;
-      headers['x-dev-username'] = gameState.currentUser || 'Player';
+    const authPayload = await this.getFreshAuthPayload();
+    if (authPayload.token) {
+      headers.Authorization = authPayload.token;
+    } else if (authPayload.devPlayerId) {
+      headers['x-dev-player-id'] = authPayload.devPlayerId;
+      headers['x-dev-username'] = authPayload.devUsername || 'Player';
     }
 
     return headers;
@@ -145,17 +202,11 @@ export class MarketClient {
   }
 
   /**
-   * Initialize Socket.IO real-time connection and bind market events
+   * Initialize Socket.IO real-time connection and bind market events.
+   * Uses dynamic auth callback so tokens are refreshed on every reconnect attempt.
    */
   async connect(callbacks = {}) {
     this.handlers = { ...this.handlers, ...callbacks };
-
-    if (this.supabase) {
-      const { data } = await this.supabase.auth.getSession();
-      if (data?.session?.access_token) {
-        this.authToken = data.session.access_token;
-      }
-    }
 
     if (this.socket) {
       this.socket.disconnect();
@@ -166,10 +217,10 @@ export class MarketClient {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      auth: {
-        token: this.authToken ? `Bearer ${this.authToken}` : undefined,
-        devPlayerId: !this.authToken ? this.devPlayerId : undefined,
-        devUsername: gameState.currentUser || 'Player'
+      auth: (cb) => {
+        this.getFreshAuthPayload()
+          .then((payload) => cb(payload))
+          .catch(() => cb({ devUsername: gameState.currentUser || 'Player' }));
       }
     });
 

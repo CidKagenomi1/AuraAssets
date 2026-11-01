@@ -40,7 +40,7 @@ export async function buildApp(options = {}) {
   });
 
   await fastify.register(rateLimit, {
-    max: options.rateLimitMax || 120,
+    max: options.rateLimitMax || env.RATE_LIMIT_MAX,
     timeWindow: '1 minute'
   });
 

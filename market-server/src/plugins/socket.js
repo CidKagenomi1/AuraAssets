@@ -12,19 +12,28 @@ async function socketPlugin(fastify, options = {}) {
     transports: ['websocket', 'polling']
   });
 
-  // Authenticate every Socket.IO connection before allowing room subscriptions
+  // Authenticate Socket.IO connection; allow unauthenticated/guest connections for public market data
   io.use(async (socket, next) => {
     try {
-      const player = await fastify.authService.authenticateSocket(socket);
+      let player = null;
+      try {
+        player = await fastify.authService.authenticateSocket(socket);
+      } catch (authErr) {
+        // Do not reject connection: allow public market data streaming as guest
+        fastify.log.debug(`[Socket.IO] Public connection (unauthenticated/guest): ${authErr.message}`);
+      }
+
       socket.data.player = player;
 
-      if (fastify.accountsService) {
-        await fastify.accountsService.ensureAccount(player.id, player.username);
+      if (player?.id && fastify.accountsService) {
+        await fastify.accountsService.ensureAccount(player.id, player.username).catch((err) => {
+          fastify.log.warn(`[Socket.IO] ensureAccount failed: ${err.message}`);
+        });
       }
 
       next();
     } catch (err) {
-      next(new Error(err.message || 'UNAUTHORIZED'));
+      next();
     }
   });
 
@@ -36,8 +45,40 @@ async function socketPlugin(fastify, options = {}) {
       socket.join(`player:${player.id}`);
     }
 
-    // Join global ticker room
+    // Join global ticker room (public for all clients)
     socket.join('market:all');
+
+    /**
+     * Client -> Server: `auth:authenticate`
+     * Allows upgrading an existing connection with fresh JWT or dev credentials
+     */
+    socket.on('auth:authenticate', async (authPayload, ack) => {
+      try {
+        const dummySocket = {
+          handshake: {
+            auth: authPayload || {},
+            headers: socket.handshake?.headers || {}
+          }
+        };
+        const authenticatedPlayer = await fastify.authService.authenticateSocket(dummySocket);
+        socket.data.player = authenticatedPlayer;
+
+        if (authenticatedPlayer?.id) {
+          socket.join(`player:${authenticatedPlayer.id}`);
+          if (fastify.accountsService) {
+            await fastify.accountsService.ensureAccount(authenticatedPlayer.id, authenticatedPlayer.username).catch(() => {});
+          }
+        }
+
+        if (typeof ack === 'function') {
+          ack({ ok: true, player: authenticatedPlayer });
+        }
+      } catch (err) {
+        if (typeof ack === 'function') {
+          ack({ ok: false, error: err.message });
+        }
+      }
+    });
 
     /**
      * Client -> Server: `market:subscribe`

@@ -333,7 +333,7 @@ class LoginPortal {
                     <div style="position:relative;">
                         <span style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:1rem;opacity:0.4;pointer-events:none;">🔑</span>
                         <input id="lp-password" class="lp-input" type="password"
-                            placeholder="•••••••• (min. 6 karakter)" autocomplete="${isRegister?'new-password':'current-password'}" required />
+                            placeholder="•••••••• (min. 4 karakter)" autocomplete="${isRegister?'new-password':'current-password'}" required />
                     </div>
                 </div>
 

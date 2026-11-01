@@ -20,6 +20,7 @@ import orderPanel from './panels/OrderPanel.js';
 import tradeHistoryPanel from './panels/TradeHistoryPanel.js';
 import assetSearchModal from './panels/AssetSearchModal.js';
 import { Icons } from '../ui/Icons.js';
+import auraEconomy from './AuraEconomyEngine.js';
 
 class TradingPage {
   constructor() {
@@ -247,6 +248,26 @@ class TradingPage {
                   </span>
                   <span id="stat-volatility" class="trading-param-value" style="color: #10b981;">
                     LOW
+                  </span>
+                </div>
+
+                <!-- Market Cap (AuraEconomy) -->
+                <div class="trading-param-tile">
+                  <span class="trading-param-label">
+                    <span style="display: inline-flex; align-items: center;">${Icons.coins(13, 'var(--accent-primary)')}</span> Market Cap
+                  </span>
+                  <span id="strip-market-cap" class="trading-param-value" style="color: #60a5fa; font-weight: 600;">
+                    -
+                  </span>
+                </div>
+
+                <!-- Available Supply Float (AuraEconomy) -->
+                <div class="trading-param-tile">
+                  <span class="trading-param-label">
+                    <span style="display: inline-flex; align-items: center;">${Icons.layers(13, 'var(--accent-primary)')}</span> Suplai Beredar
+                  </span>
+                  <span id="strip-available-supply" class="trading-param-value" style="font-weight: 600;">
+                    -
                   </span>
                 </div>
               </div>
@@ -514,6 +535,22 @@ class TradingPage {
       stripVolumeEl.textContent = this.formatVolume(vol);
     }
 
+    // Update Market Cap & Available Supply (AuraEconomy)
+    const ecoAsset = auraEconomy.getAsset(this.currentAsset);
+    const stripMarketCapEl = document.getElementById('strip-market-cap');
+    const stripSupplyEl = document.getElementById('strip-available-supply');
+
+    if (stripMarketCapEl && ecoAsset) {
+      stripMarketCapEl.textContent = this.formatMarketCap(ecoAsset.marketCap);
+    }
+    if (stripSupplyEl && ecoAsset) {
+      const avail = this.formatSupply(ecoAsset.availableSupply);
+      const total = this.formatSupply(ecoAsset.totalSupply);
+      const pct = ((ecoAsset.availableSupply / (ecoAsset.totalSupply || 1)) * 100).toFixed(1);
+      stripSupplyEl.textContent = `${avail} (${pct}%)`;
+      stripSupplyEl.title = `Tersedia di AuraAssets: ${avail} dari total ${total} unit`;
+    }
+
     // Update Order Book Buy vs Sell Ratio
     this.updateOrderBookRatioUI(asset);
 
@@ -762,6 +799,23 @@ class TradingPage {
     if (vol >= 1e9) return (vol / 1e9).toFixed(2) + 'B';
     if (vol >= 1e6) return (vol / 1e6).toFixed(2) + 'M';
     return (vol / 1e3).toFixed(2) + 'K';
+  }
+
+  formatMarketCap(cap) {
+    if (!cap || isNaN(cap)) return '$ 0';
+    if (cap >= 1e12) return '$ ' + (cap / 1e12).toFixed(2) + ' T';
+    if (cap >= 1e9) return '$ ' + (cap / 1e9).toFixed(2) + ' B';
+    if (cap >= 1e6) return '$ ' + (cap / 1e6).toFixed(2) + ' M';
+    return '$ ' + new Intl.NumberFormat('en-US').format(Math.round(cap));
+  }
+
+  formatSupply(supply) {
+    if (!supply || isNaN(supply)) return '0';
+    if (supply >= 1e12) return (supply / 1e12).toFixed(2) + ' T';
+    if (supply >= 1e9) return (supply / 1e9).toFixed(2) + ' B';
+    if (supply >= 1e6) return (supply / 1e6).toFixed(2) + ' M';
+    if (supply >= 1e3) return (supply / 1e3).toFixed(2) + ' K';
+    return Math.round(supply).toLocaleString();
   }
 
   calculatePnL(holding, currentPrice) {

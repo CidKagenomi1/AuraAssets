@@ -10,6 +10,7 @@ import stockMarket from './StockMarket.js';
 import cryptoMarket from './CryptoMarket.js';
 import financeManager from '../finance/FinanceManager.js';
 import ui from '../ui/UIManager.js';
+import auraEconomy from './AuraEconomyEngine.js';
 
 class PassiveIncomeManager {
     constructor() {
@@ -357,6 +358,9 @@ class PassiveIncomeManager {
         const crypto = cryptoMarket.getCrypto(symbol);
         cryptoMarket.addToWallet(symbol, pending, crypto ? crypto.price : 1.0);
 
+        // AuraEconomy: Expand token supply dynamically from newly minted staking emissions
+        auraEconomy.mintLaunchdropTokens(symbol, pending);
+
         gameState.emit('cryptoUpdate', cryptoMarket.cryptos);
         document.dispatchEvent(new CustomEvent('passiveIncomeTick'));
         return true;
@@ -370,6 +374,7 @@ class PassiveIncomeManager {
                 state.stakingRewards[symbol] = 0;
                 const crypto = cryptoMarket.getCrypto(symbol);
                 cryptoMarket.addToWallet(symbol, amount, crypto ? crypto.price : 1.0);
+                auraEconomy.mintLaunchdropTokens(symbol, amount);
                 claimedCount++;
             }
         });
@@ -446,6 +451,9 @@ class PassiveIncomeManager {
             // Add free tokens to crypto wallet
             cryptoMarket.addToWallet(ld.symbol, tokenReward, currentPrice);
 
+            // AuraEconomy: Expand circulating token supply dynamically from Launchpool reward
+            auraEconomy.mintLaunchdropTokens(ld.symbol, tokenReward);
+
             if (financeManager?.addIncome) {
                 financeManager.addIncome(airdropValueUSD, 'Launchpool Reward', `Airdrop gratis ${tokenReward.toFixed(4)} ${ld.symbol} + modal kas $${refundCash.toLocaleString()} kembali utuh`);
             }
@@ -466,6 +474,9 @@ class PassiveIncomeManager {
 
             // Add tokens to wallet with discounted presale price as avgBuyPrice!
             cryptoMarket.addToWallet(ld.symbol, allocatedTokens, presalePrice);
+
+            // AuraEconomy: Expand circulating token supply dynamically from Launchpad presale
+            auraEconomy.mintLaunchdropTokens(ld.symbol, allocatedTokens);
 
             const marketValueUSD = allocatedTokens * currentPrice;
             const estimatedProfit = marketValueUSD - ld.committed;

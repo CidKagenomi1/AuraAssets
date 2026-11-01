@@ -39,14 +39,24 @@ export const supabase = isCloudConfigured
 
 /**
  * Convert user-friendly game username to a valid deterministic email for Supabase Auth
- * e.g. "Warren Buffett" -> "warren_buffett@auraassets.game"
+ * e.g. "Warren Buffett" -> "warren_buffett@auraassets.com"
  */
 export function usernameToEmail(username) {
   if (!username) return '';
   const clean = String(username).trim().toLowerCase();
   if (clean.includes('@')) return clean;
   const safeSlug = clean.replace(/[^a-z0-9_.-]/g, '_');
-  return `${safeSlug}@auraassets.game`;
+  return `${safeSlug}@auraassets.com`;
+}
+
+/**
+ * Adapt password for Supabase Auth which strictly requires minimum 6 characters.
+ * Deterministically pads 4-5 character passwords so players can use 4-character passwords.
+ */
+export function toAuthPassword(password) {
+  if (!password) return '';
+  const str = String(password);
+  return str.length < 6 ? `${str}#auraassets` : str;
 }
 
 /**
@@ -58,10 +68,11 @@ export async function authSignUp(username, password) {
   }
   const cleanName = String(username).trim();
   const email = usernameToEmail(cleanName);
+  const authPwd = toAuthPassword(password);
 
   const { data, error } = await supabase.auth.signUp({
     email,
-    password,
+    password: authPwd,
     options: {
       data: {
         username: cleanName,
@@ -85,10 +96,11 @@ export async function authSignIn(username, password) {
   }
   const cleanName = String(username).trim();
   const email = usernameToEmail(cleanName);
+  const authPwd = toAuthPassword(password);
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
-    password
+    password: authPwd
   });
 
   if (error) {

@@ -11,6 +11,7 @@ import { initMarketStateRealtime } from '../core/SupabaseClient.js';
 import patternTrajectoryManager from './PatternTrajectoryManager.js';
 import priceHistoryStore from './PriceHistoryStore.js';
 import deterministicMarket from './DeterministicMarket.js';
+import auraEconomy from './AuraEconomyEngine.js';
 
 
 class StockMarket {
@@ -22,6 +23,13 @@ class StockMarket {
         this.authoritativeMode = false;
         this.updateInterval = null;
         this.pricesLoaded = false;
+
+        // Initialize macro-economic supply & demand engine for stocks
+        try {
+            auraEconomy.init(this.stocks, {});
+        } catch (e) {
+            console.warn('[StockMarket] AuraEconomy init note:', e.message);
+        }
 
         // Connect to Supabase Realtime for live multi-device market state synchronization
         try {
@@ -261,14 +269,9 @@ class StockMarket {
     }
 
     /**
-     * Update all stock prices
+     * Update all stock prices (AuraEconomy Serverless Engine)
      */
     updatePrices() {
-        // When connected to authoritative multiplayer backend, prices are strictly driven by real trades
-        if (this.authoritativeMode) {
-            return;
-        }
-
         const economyIndex = gameState.get('economy.index') || 1000;
         const marketFactor = economyIndex / 1000;
 
@@ -314,8 +317,13 @@ class StockMarket {
             // 5. Directional drift from active breaking news events (accelerated 2.5x pacing)
             const newsDrift = newsManager.getPriceBias(symbol, stock.sector);
 
-            // 6. Gentle mean reversion towards basePrice to maintain authentic institutional trading bands
-            const meanReversion = ((stock.basePrice - stock.price) / (stock.basePrice || 1)) * 0.002;
+            // 6. Dynamic Scarcity Support & Institutional Profit-Taking Resistance
+            // Scarcity created by player ownership props up price; institutional profit-taking creates mild resistance only when extremely overextended (>+80%)
+            const eco = auraEconomy.getAsset(symbol);
+            const scarcitySupport = eco && eco.soldSupply > 0 ? ((eco.soldSupply / eco.totalSupply) * 0.005) : 0;
+            const overextendedRatio = (stock.price - stock.basePrice) / (stock.basePrice || 1);
+            const institutionalResistance = overextendedRatio > 0.80 ? -((overextendedRatio - 0.80) * 0.003) : 0;
+            const naturalEquilibriumDrift = scarcitySupport + institutionalResistance;
 
             // 7. Macro economy & luck drift
             const luckActive = (gameState.get('donations.luckTicksRemaining') || 0) > 0;
@@ -329,7 +337,7 @@ class StockMarket {
             stock.recentBuyVolume = (stock.recentBuyVolume || 0) * 0.88;
             stock.recentSellVolume = (stock.recentSellVolume || 0) * 0.88;
 
-            const totalChange = brownianMotion + signalDrift + newsDrift + meanReversion + marketInfluence + luckDrift + orderFlowDrift + patternDrift;
+            const totalChange = brownianMotion + signalDrift + newsDrift + naturalEquilibriumDrift + marketInfluence + luckDrift + orderFlowDrift + patternDrift;
             const newPrice = Math.max(0.01, parseFloat((stock.price * (1 + totalChange)).toFixed(2)));
 
             stock.previousPrice = stock.price;
@@ -372,10 +380,10 @@ class StockMarket {
     onDayPass() {
         Object.keys(this.stocks).forEach(sym => {
             const s = this.stocks[sym];
-            // Smooth EMA update for basePrice to maintain continuous chart lines
-            s.basePrice = Number((s.basePrice * 0.85 + s.price * 0.15).toFixed(2));
-            s.high24h = Math.max(s.price, Number((s.high24h * 0.95 + s.price * 0.05).toFixed(2)));
-            s.low24h = Math.min(s.price, Number((s.low24h * 0.95 + s.price * 0.05).toFixed(2)));
+            // Roll over previous close to today's closing price
+            s.basePrice = s.price;
+            s.high24h = s.price;
+            s.low24h = s.price;
             s.volume24h = Math.round((s.sharesOutstanding || 10000000) * 0.015 * (0.8 + Math.random() * 0.4));
         });
     }
@@ -396,26 +404,30 @@ class StockMarket {
 
         if (totalCost > balance) throw new Error('Saldo tidak cukup');
 
-        // Dynamic price impact from buy volume
-        const liquidityShares = (stock.sharesOutstanding || 10000000) * 0.005;
-        const rawImpact = (shares / liquidityShares) * 0.15;
-        const impact = Math.min(0.12, Math.max(0.0003, rawImpact));
-        if (impact > 0.00001) {
-            stock.previousPrice = stock.price;
-            stock.price = parseFloat((stock.price * (1 + impact)).toFixed(2));
-            stock.change = parseFloat((((stock.price - stock.basePrice) / (stock.basePrice || 1)) * 100).toFixed(2));
-            if (stock.price > (stock.high24h || stock.price)) stock.high24h = stock.price;
-            if (!stock.priceHistory) stock.priceHistory = [];
-            stock.priceHistory.push(stock.price);
-            if (stock.priceHistory.length > 300) stock.priceHistory.shift();
+        const actualSymbol = stock.symbol || sKey;
+
+        // AuraEconomy: Finite Supply & Bonding Curve Dynamic Pricing
+        const ecoRes = auraEconomy.executeBuy(actualSymbol, shares, stock.price, 'stock');
+        if (!ecoRes.success) {
+            throw new Error(ecoRes.error || 'Persediaan saham di bursa AuraAssets tidak mencukupi');
         }
+
+        stock.previousPrice = stock.price;
+        stock.price = ecoRes.newPrice;
+        stock.marketCap = ecoRes.marketCap;
+        stock.availableSupply = ecoRes.availableSupply;
+        stock.soldSupply = ecoRes.soldSupply;
+        stock.change = parseFloat((((stock.price - stock.basePrice) / (stock.basePrice || 1)) * 100).toFixed(2));
+        if (stock.price > (stock.high24h || stock.price)) stock.high24h = stock.price;
+        if (!stock.priceHistory) stock.priceHistory = [];
+        stock.priceHistory.push(stock.price);
+        if (stock.priceHistory.length > 300) stock.priceHistory.shift();
 
         gameState.update('player', p => ({
             ...p,
             balance: p.balance - totalCost
         }));
 
-        const actualSymbol = stock.symbol || sKey;
         this.addToPortfolio(actualSymbol, shares, stock.price);
 
         // Accumulate 24h volume & buy order pressure
@@ -467,13 +479,14 @@ class StockMarket {
 
         const totalValue = stock.price * shares;
 
-        // Dynamic price impact from sell volume
-        const liquidityShares = (stock.sharesOutstanding || 10000000) * 0.005;
-        const rawImpact = (shares / liquidityShares) * 0.15;
-        const impact = Math.min(0.12, Math.max(0.0003, rawImpact));
-        if (impact > 0.00001) {
+        // AuraEconomy: Replenish Supply & Price Cooling
+        const ecoRes = auraEconomy.executeSell(actualSymbol, shares, stock.price, 'stock');
+        if (ecoRes.success) {
             stock.previousPrice = stock.price;
-            stock.price = Math.max(0.01, parseFloat((stock.price * (1 - impact)).toFixed(2)));
+            stock.price = ecoRes.newPrice;
+            stock.marketCap = ecoRes.marketCap;
+            stock.availableSupply = ecoRes.availableSupply;
+            stock.soldSupply = ecoRes.soldSupply;
             stock.change = parseFloat((((stock.price - stock.basePrice) / (stock.basePrice || 1)) * 100).toFixed(2));
             if (stock.price < (stock.low24h || stock.price)) stock.low24h = stock.price;
             if (!stock.priceHistory) stock.priceHistory = [];
@@ -952,60 +965,11 @@ class StockMarket {
     // ========================================
 
     /**
-     * Connect to the authoritative Node.js + Fastify + Socket.IO + Supabase backend.
-     * Disables local browser price manipulation and synchronizes state from server.
+     * Connect to authoritative backend (Disabled in Solusi 1 Serverless mode to protect local save data & price engine)
      */
     async connectAuthoritativeServer() {
-        try {
-            const serverStocks = await marketClient.fetchStocks();
-            this.authoritativeMode = true;
-
-            serverStocks.forEach(s => {
-                const price = marketClient.fromMinorUnit(s.last_price);
-                const prevClose = marketClient.fromMinorUnit(s.previous_close);
-                const existing = this.stocks[s.symbol] || {};
-
-                this.stocks[s.symbol] = {
-                    ...existing,
-                    name: s.name,
-                    sector: s.sector,
-                    price,
-                    basePrice: prevClose || price,
-                    previousPrice: prevClose || price,
-                    change: Number(s.change_pct || 0),
-                    high24h: marketClient.fromMinorUnit(s.high_24h),
-                    low24h: marketClient.fromMinorUnit(s.low_24h),
-                    volume24h: Number(s.volume_24h || 0),
-                    bestBid: s.best_bid !== null ? marketClient.fromMinorUnit(s.best_bid) : null,
-                    bestAsk: s.best_ask !== null ? marketClient.fromMinorUnit(s.best_ask) : null,
-                    priceHistory: existing.priceHistory?.length ? existing.priceHistory : [price]
-                };
-            });
-
-            await this.syncPortfolioFromServer().catch(() => {});
-            await this.syncOrdersFromServer().catch(() => {});
-
-            await marketClient.connect({
-                onSnapshot: (snapshot) => this.applyServerSnapshot(snapshot),
-                onTrade: (trade) => this.applyServerTrade(trade),
-                onBookUpdate: (book) => this.applyServerBookUpdate(book),
-                onTicker: (ticker) => this.applyServerTicker(ticker),
-                onOrderUpdated: (order) => this.applyServerOrderUpdate(order),
-                onConnectChange: (connected) => {
-                    if (connected) {
-                        this.syncPortfolioFromServer().catch(() => {});
-                        this.syncOrdersFromServer().catch(() => {});
-                    }
-                }
-            });
-
-            gameState.emit('stocksUpdate', this.stocks);
-            return true;
-        } catch (err) {
-            console.warn('⚠️ Authoritative Market Server not reachable, running in local simulation fallback:', err.message);
-            this.authoritativeMode = false;
-            return false;
-        }
+        this.authoritativeMode = false;
+        return false;
     }
 
     subscribeStock(symbol) {
