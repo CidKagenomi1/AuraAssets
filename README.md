@@ -1,149 +1,398 @@
 # AuraAssets 💼📈
 
-An advanced, dark-themed **Idle Financial Portfolio & Enterprise Simulation Game** designed to simulate real-world financial systems, career ladders, investment markets, and corporate governance. Experience the journey from unemployment to becoming an industry tycoon.
+**AuraAssets** adalah game simulasi **investasi, trading, dan finansial** yang berfokus pada **simulasi pasar makroekonomi**. Harga aset tidak sekadar naik-turun acak. Setiap harga adalah hasil dari beberapa lapisan algoritma yang saling memengaruhi: siklus ekonomi global, suplai terbatas, berita pasar, pola grafik, sinyal trading, dan arus order pemain.
 
-> **Note:** AuraAssets is a client-side Single Page Application (SPA) utilizing a modern glassmorphism design system, now equipped with an **Authoritative Multiplayer Market Engine (`market-server/`)** powered by Fastify, Socket.IO, and Supabase PostgreSQL.
+Tujuan game ini adalah membuat pemain **merasakan cara kerja pasar**. Ekonomi berayun antara ekspansi dan resesi, bank sentral menyesuaikan suku bunga, aset langka menjadi mahal saat diborong, dan berita bisa menggerakkan satu sektor. Pemain belajar membaca kondisi itu, mengatur risiko, dan menumbuhkan kekayaan dari modal kecil.
+
+> **Catatan:** Frontend adalah *Single Page Application* (SPA) sisi klien dengan tema gelap bergaya glassmorphism. Frontend ini dilengkapi **Authoritative Multiplayer Market Engine** (`market-server/`) berbasis Fastify, Socket.IO, dan Supabase PostgreSQL untuk transaksi antarpemain yang aman.
 
 ---
 
-## 🎮 Gameplay Features
+## 📑 Daftar Isi
 
-### 1. 📈 Financial & Investment Markets
-- **Stock Market (Finite Supply & Macroeconomic Float):** Real-time stock price fluctuations across 100 stocks and 10 sectors, backed by the **AuraEconomyEngine** featuring finite shares outstanding, free float reserves, dynamic Market Capitalization tracking, and daily Previous Close rolling baselines.
-- **Cryptocurrency Exchange (Dynamic Tokenomics & Scarcity):** Trade 102 digital assets categorized across 10 standardized bidang (L1, DeFi, AI & Big Data, Meme, Stablecoin, DePIN, etc.) with elastic Bonding Curve pricing, dynamic token minting from Launchpad/Launchpool & Staking emissions, multi-criteria filtering, and drilldown sub-categories.
-- **Reksa Dana & Exchange-Traded Funds (ETF) Market:** Diversified managed portfolio and index fund market featuring 4 conventional mutual fund classes (Pasar Uang, Pendapatan Tetap, Campuran, Saham) and 6 Global ETFs (`SPY`, `QQQ`, `SMH`, `VNQ`, `EEM`, `XLV`) with daily Net Asset Value (NAV/NAB) drift, macroeconomic yield simulations, expense ratios, dividend yields, and passive compounding.
-- **Dedicated Global Commodity Market (Brankas Fisik Digital):** Spot trading and digital custody vault across 4 distinct commodity sectors: Logam Mulia (Gold, Silver, Platinum), Energi (WTI Crude, Brent, Natural Gas), Logam Industri (Copper, Nickel, Lithium, Aluminum), and Agrikultur (CPO, Coffee, Wheat). Features 1:1 digital vault storage, fractional spot purchases, real-time Plotly candlestick charts, and instant cash liquidations.
-- **Ultra-Safe Investment for Beginners & Settled Players:** Dedicated low-risk fund (*Manulife Dana Kas Mandiri* with ~5.2% p.a. guaranteed non-negative daily drift) engineered for beginner capital preservation and settled players securing profits away from high-volatility markets.
-- **Interactive Investment Suite & Live Return Simulator:** Modern fund purchase menu equipped with real-time 1-month and 1-year profit projections, total 1-year capital growth forecasts, quick capital allocation buttons (Min, 25%, 50%, 75%, Maks), quick-boost pills (+$250, +$500, +$1K, +$5K), live unit calculation @ NAV, and 0% transaction fee guarantees.
-- **Top Movers & AI Market Signals:** Live dashboard widget showcasing real-time Top Gainers and Top Losers with independent market category filters (**Semua**, **📈 Saham**, **🪙 Kripto**) and active AI Technical Signals (🚀 MOON, 🔥 HOT, ⚡ HEAT).
-- **Comprehensive Market Table & Category Labeling:** Modern tabular market view featuring explicit, clickable sortable headers (**Aset**, **Nama**, **Sektor**, **Volatilitas**, **Harga**, **24h %**) with colored sector pills and risk badges (🛡️ Rendah, ⚖️ Moderat, 🚀 Tinggi) clearly visible even when unfiltered, plus mobile-optimized card sublines.
-- **Investor Risk Profile Assessment:** Interactive onboarding questionnaire that evaluates player behavior and classifies them into **Investor Konservatif** (🛡️), **Investor Pasif** (⚖️), or **Investor Agresif** (🚀).
-- **Financial Milestones with 75% Cash Rewards:** Tiered financial achievements rewarding 75% of the milestone target value as instant claimable cash.
-- **Random Market Events & Breaking News (40 Macro & Sectoral Events):** Dynamic event engine containing 20 US Stock Market and 20 Cryptocurrency breaking news items that directly drive price movements, volatility shifts, and sectoral rallies or sell-offs over multi-day durations.
+1. [Filosofi Desain](#-filosofi-desain)
+2. [Cara Kerja Simulasi (Gambaran Besar)](#-cara-kerja-simulasi-gambaran-besar)
+3. [Mesin Makroekonomi](#-mesin-makroekonomi)
+4. [Pembentukan Harga Aset](#-pembentukan-harga-aset)
+5. [Instrumen Investasi](#-instrumen-investasi)
+6. [Perbankan & Kekayaan](#-perbankan--manajemen-kekayaan)
+7. [Pendapatan Pasif & Bot](#-pendapatan-pasif--bot-trading)
+8. [Profil Risiko Pemain](#-profil-risiko-pemain)
+9. [Mode Multiplayer](#-mode-multiplayer-market-server)
+10. [Tech Stack](#️-tech-stack) · [Memulai](#-memulai) · [Struktur Proyek](#-struktur-proyek) · [Pengujian](#-pengujian)
+11. [Fitur Terisolasi](#️-fitur-terisolasi-archived) · [Changelog](#-riwayat-pembaruan--changelog) · [Lisensi](#️-lisensi)
 
-### 2. 🏢 Enterprise & Corporate Operations
-- **Sectors:** Build and manage businesses in 8 distinct industries: Tech, Aerospace, Energy, Finance, Healthcare, Infrastructure, Retail, and Automotive.
-- **Corporate Governance:** Purchase subsidiaries, hire staff, manage operational budgets, and adjust executive salaries.
-- **Going Public (IPO):** Scale your enterprise, meet listing criteria, and launch an Initial Public Offering (IPO) to trade on the public stock exchange.
-- **AI Competitors:** Navigate a dynamic market with rival corporations competing for market share.
+---
 
-### 3. 🏦 Banking System & Wealth Management
-- **Digital Custody Vault:** 1:1 asset backing for physical commodity reserves with zero holding fees and automated net worth consolidation.
-- **Banking System:** Secure capital through bank loans or park your excess cash in high-yield time deposits.
-- **P2P Transfer & Kotak Donasi Komunitas:** Transfer dana instan antar pemain secara peer-to-peer (dengan biaya admin jaringan $ 1 per setiap $ 100 transfer) dan bagikan modal melalui Kotak Donasi Komunitas yang terhubung realtime via Supabase.
-- **Bukti Transfer Resmi & Unduh PNG (Minimalis Polos):** Setiap pengiriman transfer dana otomatis memunculkan modal Bukti Transfer Resmi berdesain struk perbankan digital putih polos minimalis yang realistis (lengkap dengan No. Referensi unik, waktu transaksi nyata, tanggal game, akun pengirim & penerima, nominal terdebit, rincian biaya admin $1/$100, status transaksi berhasil, dan catatan transfer). Pemain dapat mengunduh resi transfer dalam format gambar PNG beresolusi tinggi (2x Retina Canvas 1080x1480 px), serta membuka kembali bukti transfer kapan saja dari notifikasi cek transfer.
-- **Taxation (Perpajakan):** File monthly tax reports, declare income/assets, and manage corporate tax rates to stay compliant.
+## 🧠 Filosofi Desain
 
-### 4. 👔 Career Progression & Office Simulation
-- **Office Dashboard:** Perform daily office tasks to earn standard wages.
-- **Career Path:** Improve personal skills, apply for corporate promotions, and negotiate salary increases to build your seed capital.
+| Prinsip | Penjelasan |
+|---------|------------|
+| **Pasar punya "cuaca"** | Ada fase ekonomi global (Bull, Bear, dan seterusnya) yang berlangsung berminggu-minggu sampai berbulan-bulan. Fase ini menjadi latar bagi semua aset. |
+| **Harga = banyak gaya yang bertemu** | Harga bergerak karena acak, tren makro, berita, pola teknikal, kelangkaan, dan order flow sekaligus. Tidak ada satu faktor yang mendominasi. |
+| **Aset itu terbatas** | Saham dan kripto punya total suplai dan *free float* yang terbatas. Pemain yang memborong aset membuat aset itu makin langka dan harganya naik. |
+| **Pemain bukan Tuhan, tapi punya pengaruh** | Transaksi pemain mengubah harga lewat *price impact* dan *order flow*, tetapi dibatasi agar tidak merusak ekonomi global. |
+| **Ramah pemula, tetap menantang** | Ada *safety net* untuk pemain baru, instrumen ultra-aman, dan batas bawah harga. Risiko dan resesi tetap nyata. |
+| **Waktu nyata** | Jam game mengikuti **waktu UTC dunia nyata (1×)**. Satu hari game sama dengan satu hari UTC. Semua pemain berbagi "dunia" yang sama. |
+| **Konsisten antar perangkat** | Pergerakan harga mikro memakai PRNG ber-*seed* waktu UTC. Semua tab, akun, dan perangkat melihat harga yang sama tanpa server ticker 24/7. |
+
+---
+
+## 🔭 Cara Kerja Simulasi (Gambaran Besar)
+
+Game ini berjalan pada dua skala waktu yang saling terkait:
+
+- **Skala makro (harian):** `TimeManager` mendeteksi pergantian hari UTC lalu memanggil `GlobalEconomy.naturalFluctuation()`. Fungsi ini memperbarui indeks ekonomi, fase siklus, NAV reksa dana, harga komoditas, dan *rollover* harga penutupan.
+- **Skala mikro (detik):** Harga saham diperbarui tiap ±6 detik dan kripto tiap ±3–4 detik. Tick-tick ini direkam menjadi candlestick OHLC.
+
+```mermaid
+flowchart TD
+    TM["TimeManager<br/>Jam UTC real-time"] -->|pergantian hari| GE["GlobalEconomy<br/>Fase siklus + Indeks Ekonomi"]
+    GE --> SAV["SavingsManager<br/>Suku bunga acuan"]
+    GE --> FG["Fear & Greed Index"]
+    GE --> DEM["Demand Multiplier<br/>per sektor"]
+    GE -->|economy.index| SM["StockMarket / CryptoMarket<br/>updatePrices tiap beberapa detik"]
+    NEWS["NewsManager<br/>Event berita"] --> SM
+    PAT["PatternTrajectoryManager<br/>Pola grafik"] --> SM
+    SIG["TradingSignalManager<br/>Sinyal MOON/HOT/HEAT"] --> SM
+    DET["DeterministicMarket<br/>Noise ber-seed UTC"] --> SM
+    AE["AuraEconomyEngine<br/>Suplai, float, kelangkaan"] <--> SM
+    PLAYER["Order pemain"] --> AE
+    PLAYER -->|order flow| SM
+    SM --> PHS["PriceHistoryStore<br/>Tick ke candle OHLC"]
+    PHS --> CHART["ChartEngine<br/>Plotly / Chart.js"]
+    SM -->|rata-rata perubahan saham| MF["MutualFundManager<br/>NAV reksa dana / ETF"]
+    NEWS -.sentimen.-> FG
+```
+
+---
+
+## 🌐 Mesin Makroekonomi
+
+### 1. Siklus Bisnis dengan Rantai Markov (`GlobalEconomy`)
+Ekonomi memiliki **indeks** (basis 1000, batas bawah 150) dan satu dari **6 fase**:
+
+| Fase | Drift/hari | Volatilitas | Durasi (hari) | Makna |
+|------|:---------:|:-----------:|:-------------:|-------|
+| 🔵 Recovery | +0,12% | 0,6% | 90–180 | Ekonomi mulai pulih |
+| 🟢 Bull | +0,25% | 1,0% | 120–240 | Ekspansi, optimisme |
+| 🟠 Correction | −0,06% | 0,7% | 30–60 | Koreksi sehat |
+| 🟡 Peak | −0,04% | 0,8% | 60–120 | Puncak, risiko gelembung |
+| 🔴 Bear | −0,18% | 1,5% | 90–180 | Resesi |
+| ⚪ Trough | +0,06% | 0,4% | 60–120 | Dasar pasar, peluang akumulasi |
+
+**Perpindahan fase bersifat probabilistik** dan memakai *transition matrix*, bukan urutan tetap. Contoh:
+- Dari **Bull**, kemungkinan terbesar ke Correction (52%), lalu Peak (30%).
+- Dari **Peak**, kemungkinan terbesar ke Bear (55%).
+- Dari **Bear**, kemungkinan terbesar ke Trough (45%), lalu Recovery (28%).
+- Dari **Trough**, kemungkinan terbesar ke Recovery (60%).
+
+Dengan begitu pola "naik, puncak, jatuh, pulih" cenderung terbentuk, tetapi tidak pernah persis sama dua kali.
+
+**Perubahan indeks harian** dihitung dari empat komponen:
+
+$$\Delta = \underbrace{m_t}_{\text{momentum}} + \underbrace{drift_{fase}}_{\text{tren fase}} + \underbrace{0{,}004 \cdot \frac{1000-I}{1000}}_{\text{mean reversion}} + \underbrace{bonus_{recovery}}_{\text{pemulihan progresif}}$$
+
+- **Momentum:** `m_t = 0,65·m_(t−1) + 0,35·acak(±volatilitas)`. Gerakan hari ini dipengaruhi hari kemarin, jadi tren terasa "mengalir".
+- **Mean reversion:** Indeks yang menyimpang jauh dari 1000 ditarik kembali ke tengah, sehingga crash dan bubble tidak berlangsung selamanya.
+- **Recovery bonus:** Semakin lama fase Bear atau Trough, semakin kuat dorongan pemulihan berikutnya (maksimum +0,3%/hari).
+
+### 2. Demand Multiplier per Sektor
+`getDemandMultiplier(sektor)` menerjemahkan fase ekonomi menjadi permintaan konsumen (rentang aman 0,55–2,20). Multiplier ini dipengaruhi oleh:
+- **Fase** (Bull 1,22 · Peak 1,10 · Recovery 1,04 · Correction 0,96 · Bear 0,82 · Trough 0,72).
+- **Sensitivitas sektor:** Healthcare (0,30) dan Infrastruktur (0,35) bersifat defensif. Otomotif (1,10) dan Retail (1,00) siklikal. Tech 0,85, Aerospace 0,90, dan F&B 0,75.
+- **Posisi indeks** terhadap basis, serta **kebijakan politik** sektoral bila ada.
+- **Safety net:** 180 hari game pertama punya batas bawah 0,82 agar pemain baru tidak langsung terkena resesi.
+
+### 3. Fear & Greed Index (5–95)
+Skor dihitung dari fase ekonomi (Trough 15 sampai Peak 85), deviasi indeks, dan **berita aktif**. Berita negatif dibobot 1,35× dan berita positif 1,1×, karena rasa takut menyebar lebih cepat daripada keserakahan.
+
+### 4. Suku Bunga Acuan Dinamis (`SavingsManager`)
+Suku bunga bank sentral mengikuti fase ekonomi:
+
+| Fase | Suku bunga acuan |
+|------|:----------------:|
+| Bull | 4,75% |
+| Recovery | 5,25% |
+| Peak | 5,75% |
+| Bear / Correction | 6,50% |
+
+Bunga deposito per tenor (3, 7 hari, dan seterusnya) dihitung dari suku bunga acuan ditambah *spread*, dan ada penalti pencairan dini. Saat pasar jatuh, deposito menjadi lebih menarik sebagai tempat berlindung.
+
+### 5. Berita & Event Pasar (`NewsManager`)
+- 40 event (20 saham AS dan 20 kripto) dengan target *ticker*, sektor, atau seluruh pasar (`broad_market`).
+- Event dipicu otomatis: jeda minimal 3 menit, maksimal 2 berita aktif, dan peluang acak tiap 15 detik.
+- Dampak (`impact_percent`) dibagi rata sepanjang durasi event dan menjadi *bias* harga di setiap tick. Berita bisa mengangkat satu sektor, satu saham, atau seluruh pasar.
+- Event dapat disinkronkan dari cloud, sehingga semua pemain melihat berita yang sama.
+
+---
+
+## 💹 Pembentukan Harga Aset
+
+Setiap tick, harga saham dan kripto dihitung dari penjumlahan banyak komponen:
+
+```text
+harga_baru = harga × (1 + Brownian + Pola + Berita + Sinyal
+                        + Kelangkaan/Resistensi + Makro + Order Flow + Luck)
+```
+
+| Komponen | Sumber | Penjelasan |
+|----------|--------|------------|
+| **Brownian** | `DeterministicMarket` | Noise acak berbasis hash simbol + bucket waktu UTC (FNV-1a + Mulberry32). Hasilnya sama di semua perangkat. Skalanya mengikuti volatilitas aset. |
+| **Pola teknikal** | `PatternTrajectoryManager` | Menarik harga mengikuti pola 24 jam (Head & Shoulders, Triangle, Double Top/Bottom, Doji). Doji meredam volatilitas hingga 65%. |
+| **Berita** | `NewsManager` | Bias arah dari event yang aktif dan relevan dengan aset. |
+| **Sinyal** | `TradingSignalManager` | Sinyal mingguan (MOON, HOT, HEAT, WARM, NEUTRAL, COOL) memberi dorongan bullish kecil dan mengubah volatilitas. |
+| **Kelangkaan & resistensi** | `AuraEconomyEngine` | Semakin banyak aset dimiliki pemain, semakin besar dukungan harga. Saat harga naik berlebihan (saham >+80%, kripto >+150%), muncul tekanan *profit-taking*. |
+| **Makro** | `GlobalEconomy` | Selisih indeks ekonomi dari 1000 memberi dorongan halus ke seluruh pasar. |
+| **Order flow** | Transaksi pemain | Selisih volume beli dan jual membentuk *drift* (maks ±1,2% saham, ±1,8% kripto) yang meluruh 12% per tick. |
+| **Luck** | Donasi komunitas | Bonus kecil sementara bila berlaku. |
+
+### Suplai Terbatas & Bonding Curve (`AuraEconomyEngine`)
+Mesin ini mengelola **202 aset** (100 saham dan 102 kripto) sebagai ekonomi tertutup:
+
+- **Total supply realistis:** Mega-cap memakai jumlah saham beredar nyata (AAPL 15,5 M lembar). Kripto memakai suplai tokenomics (BTC 21 juta, ETH 120,4 juta, dan seterusnya). Aset lain diestimasi dari tingkat harga.
+- **Free float:** 40% untuk saham dan 50% untuk kripto tersedia di *Treasury* AuraAssets.
+- **Beli:** Float berkurang, harga naik, dan kas masuk ke reserve. Dampak harga = `(qty / float tersedia) × sensitivitas`, dibatasi maks 20% (saham) atau 35% (kripto) per transaksi. Makin tipis float, makin tajam lonjakannya (*short-squeeze*).
+- **Jual:** Float bertambah dan harga turun, dibatasi maks 18% (saham) atau 30% (kripto). Ada *circuit breaker* yang menahan harga agar tidak jatuh di bawah **10% harga dasar**.
+- **Metrik makro:** Market cap global, cadangan kas bursa, volume 24 jam, uang beredar, dan papan peringkat aset yang paling banyak dikuasai pemain.
+- **Mint token:** Launchpad/Launchpool menambah suplai kripto secara dinamis.
+
+### Grafik Candlestick yang Jujur (`PriceHistoryStore`)
+- Setiap tick harga direkam, lalu diagregasi menjadi candle OHLC pada timeframe **1h, 1d, 1w, dan 1m**.
+- Data historis awal dibangun dengan *backfill* realistis yang konsisten dengan harga saat ini.
+- Candle dapat diambil dari server multiplayer (`market_candles`) agar seragam antarpemain.
+
+### Sinyal Trading Mingguan (`TradingSignalManager`)
+Tiap 7 hari game, setiap aset diberi "suhu": **MOON 🚀 → HOT 🔥 → HEAT ⚡ → WARM ☀️ → NEUTRAL 😐 → COOL ❄️**. Peluang MOON hanya sekitar 2–4% dan hanya untuk kripto atau saham volatil. Sinyal berisi estimasi potensi, horizon waktu, dan tingkat risiko. Sinyal ini benar-benar memengaruhi harga, jadi bukan sekadar hiasan.
+
+---
+
+## 📊 Instrumen Investasi
+
+### 📈 Saham (100 emiten, 10 sektor)
+Order market dan limit, *take-profit* dan *stop-loss*, dan order book. Harga penutupan di-*roll over* setiap hari sebagai acuan perubahan 24 jam.
+
+### 🪙 Kripto (102 aset, 10 bidang)
+L1, DeFi, AI & Big Data, Meme, Stablecoin, DePIN, dan lainnya. Volatilitas lebih tinggi, tick lebih cepat, dampak harga lebih besar, dan ada filter serta sub-kategori.
+
+### 🧺 Reksa Dana & ETF (`MutualFundManager`)
+NAV diperbarui harian. Setiap produk punya karakter berbeda terhadap pasar saham:
+
+| Produk | Karakter |
+|--------|----------|
+| Pasar Uang | Hanya naik, tidak pernah negatif. Cocok untuk pemula |
+| Pendapatan Tetap | Imbal hasil stabil, volatilitas rendah |
+| Campuran | ~45% mengikuti pasar saham + yield tetap |
+| Saham | ~85% mengikuti rata-rata saham |
+| ETF `SPY` | Beta 1,0 |
+| ETF `QQQ` | Beta 1,35 |
+| ETF `SMH` | Beta 1,7 (semikonduktor, paling agresif) |
+| ETF `EEM` | Beta 0,75 |
+| ETF `XLV` | Beta 0,35 (healthcare, defensif) |
+| ETF `VNQ` | Properti, berbasis yield |
+
+Jadi NAV reksa dana dan ETF **bergantung langsung pada rata-rata perubahan 100 saham**. Saat pasar saham jatuh, reksa dana saham ikut jatuh, dan Pasar Uang tetap aman. Ada juga simulator proyeksi return 1 bulan dan 1 tahun.
+
+### 🛢️ Komoditas (Brankas Fisik Digital)
+12 komoditas di 4 sektor: Logam Mulia, Energi, Logam Industri, dan Agrikultur. Pergerakan harian memiliki karakter volatilitas per sektor: logam mulia paling tenang, energi paling liar. Aset disimpan 1:1 di vault digital tanpa biaya penyimpanan, bisa dibeli pecahan, dan dilikuidasi instan.
+
+---
+
+## 🏦 Perbankan & Manajemen Kekayaan
+
+- **Pinjaman (`BankSystem`):** 4 produk dengan bunga dan tenor berbeda, yaitu Flash (1,5%, 3 hari), Personal (2,5%, 7 hari), Modal Usaha (4%, 14 hari), dan Kredit Investasi (6%, 30 hari). Plafon bergantung pada **skor kredit**. Cicilan dipotong otomatis harian, pelunasan awal mendapat diskon bunga, dan skor kredit naik atau turun sesuai kedisiplinan bayar.
+- **Deposito & Tabungan:** Bunga mengikuti suku bunga acuan yang dipengaruhi fase ekonomi (lihat di atas). Ada bunga bulanan dan setoran otomatis.
+- **Transfer P2P (`TransferManager`):** Kirim dana antarpemain dengan biaya admin $1 per $100. Ada **Kotak Donasi Komunitas** yang tersinkron realtime lewat Supabase.
+- **Bukti Transfer PNG:** Struk digital minimalis (No. Referensi unik, waktu, pengirim, penerima, nominal, biaya, status, catatan). Struk dapat diunduh dalam resolusi tinggi (1080×1480 px) dan dibuka ulang dari notifikasi.
+- **Perpajakan:** Laporan pajak bulanan dan deklarasi pendapatan atau aset.
+- **Milestone Finansial:** Pencapaian bertingkat dengan hadiah tunai 75% dari nilai target.
+- **Net worth terkonsolidasi:** Kas, saham, kripto, reksa dana, komoditas, deposito, dan staking, dikurangi pinjaman.
+
+---
+
+## 💤 Pendapatan Pasif & Bot Trading
+
+`PassiveIncomeManager` menyediakan cara menumbuhkan aset tanpa trading aktif:
+
+- **Staking kripto:** 18 pool dengan APY berbeda (ETH 4,8%, SOL 7,2%, DOT 11,5%, HYPE 14,5%, DEXE 18%, dan seterusnya). Pool lain mengikuti APY default per sektor. Tersedia mode *flexible* dan *locked*, serta klaim reward.
+- **Launchpad / Launchpool / Launchdrop:** Event alokasi token baru dengan fase dan timer. Hasilnya menambah suplai token lewat `AuraEconomyEngine.mintLaunchdropTokens`.
+- **Bot trading otomatis (strategi momentum):**
+  - *Bot Pasar* (modal min $1.000) mendiversifikasi trading di seluruh pasar.
+  - *Bot Sektor* (min $2.000) melakukan rotasi momentum dalam satu sektor.
+  - *Bot Aset* (min $500) fokus pada satu aset.
+
+---
+
+## 🧭 Profil Risiko Pemain
+
+Kuesioner onboarding (`RoleManager`) menilai perilaku pemain lalu mengklasifikasikannya sebagai **Investor Konservatif** 🛡️, **Pasif** ⚖️, atau **Agresif** 🚀. Profil ini membentuk rekomendasi dan pengalaman awal. Instrumen berlabel risiko (🛡️ Rendah, ⚖️ Moderat, 🚀 Tinggi) membantu pemain mencocokkan aset dengan profilnya. Tersedia juga *Manulife Dana Kas Mandiri* (~5,2% p.a., tidak pernah negatif) sebagai tempat berlindung.
+
+---
+
+## 🖥️ Antarmuka & Pengalaman
+
+- Dasbor gelap glassmorphism dengan mikro-animasi, responsif, dan navigasi mobile serta keyboard.
+- Tabel pasar yang dapat diurutkan (Aset, Nama, Sektor, Volatilitas, Harga, 24h %), badge sektor dan risiko, serta **Top Gainers/Losers** dengan filter Semua, Saham, atau Kripto.
+- Chart interaktif (Plotly.js, Chart.js, ECharts) dengan overlay volume dan anotasi pola.
+- Panel order dengan tombol alokasi cepat (Min, 25%, 50%, 75%, Maks), riwayat trading, dan pencarian aset.
+- Glosarium istilah finansial, efek suara, dan halaman pengaturan.
+
+---
+
+## 🌍 Mode Multiplayer (`market-server/`)
+
+Untuk transaksi antarpemain, server menjadi **sumber kebenaran** (*authoritative*) sehingga klien tidak bisa memalsukan saldo.
+
+```mermaid
+flowchart LR
+    subgraph Client["Frontend (Vite SPA)"]
+        UI["UI & Views"]
+        TR["Trading Engines"]
+        MC["MarketClient"]
+    end
+    subgraph Server["market-server (Fastify)"]
+        API["REST API + Zod"]
+        ME["Matching Engine + Orderbook"]
+        OB["Outbox Worker"]
+        WS["Socket.IO"]
+    end
+    DB[("Supabase PostgreSQL<br/>fn_execute_order_atomic<br/>ledger_entries")]
+    UI --> TR --> MC
+    MC <-->|HTTP / WebSocket| API
+    API --> ME --> DB
+    DB --> OB --> WS --> MC
+```
+
+- **Atomic settlement:** Eksekusi dan pembatalan order berjalan dalam satu transaksi PL/pgSQL (`fn_execute_order_atomic`, `fn_cancel_order_atomic`).
+- **Presisi uang:** Nilai disimpan sebagai `BIGINT` dalam satuan minor.
+- **Immutable ledger:** Tabel `ledger_entries` dilindungi *trigger* sebagai log audit yang tidak dapat diubah.
+- **Transactional Outbox:** Event dikirim lewat worker `FOR UPDATE SKIP LOCKED`, sehingga tidak ada event yang hilang.
+- **Keamanan:** JWT Supabase Auth (`jose`), validasi skema Zod, dan RLS Postgres.
+- **Fitur lain:** Penyimpanan candle, berita pasar, sinkronisasi cloud langsung, transfer, dan donasi komunitas (lihat `migrations/001`–`009`).
+
+> Tanpa konfigurasi cloud, game tetap berjalan dalam mode lokal. Ekonomi dan harga tetap dihitung di klien, dan state disimpan di `localStorage`.
 
 ---
 
 ## 🛠️ Tech Stack
 
-### Frontend (`src/`)
-- **Markup:** Semantic HTML5
-- **Styling:** Custom Vanilla CSS3 (features a premium Dark/Glassmorphic dashboard theme with micro-animations)
-- **Logic:** Vanilla JavaScript (ES6+ Modular architecture)
-- **Visualizations & Charts:** Plotly.js, Chart.js & ECharts (interactive financial Candlestick & Line charts with volume overlays, plus macroeconomic analytics)
-- **Real-Time Client:** `socket.io-client` & `@supabase/supabase-js` (`MarketClient.js`)
-- **Bundler & Server:** Vite 5.x
+**Frontend (`src/`)**
+- HTML5 semantik, CSS3 Vanilla, JavaScript ES6+ modular
+- Plotly.js, Chart.js, dan ECharts untuk visualisasi
+- `socket.io-client` dan `@supabase/supabase-js` untuk real-time
+- Vite 5.x sebagai bundler dan dev server
 
-### Backend Authoritative Market Engine (`market-server/`)
-- **Runtime & HTTP API:** Node.js LTS + Fastify
-- **Real-Time Events:** Socket.IO + Transactional Outbox Worker (`FOR UPDATE SKIP LOCKED`)
-- **Database & Atomic Settlement:** Supabase PostgreSQL (`BIGINT` minor currency units, PL/pgSQL atomic functions `fn_execute_order_atomic` & `fn_cancel_order_atomic`, immutable `ledger_entries` audit log)
-- **Authentication & Validation:** Supabase Auth JWT (`jose`) & Zod schema validation
-- **Testing Framework:** Vitest
+**Backend (`market-server/`)**
+- Node.js LTS + Fastify
+- Socket.IO + Transactional Outbox Worker
+- Supabase PostgreSQL (PL/pgSQL)
+- Supabase Auth JWT (`jose`) + Zod
+- Vitest
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Memulai
 
-### Prerequisites
-Make sure you have [Node.js](https://nodejs.org/) (v20+ LTS recommended) installed on your machine.
+### Prasyarat
+- [Node.js](https://nodejs.org/) v20+ (LTS)
+- *(Opsional, untuk multiplayer)* Proyek Supabase
 
-### Installation
-1. Clone this repository or download the source files.
-2. Install frontend dependencies in the root directory:
-   ```bash
-   cd AuraAssets
-   npm install
-   ```
-3. *(Optional - Multiplayer Market Engine)* Install backend dependencies:
-   ```bash
-   cd market-server
-   npm install
-   ```
-
-### Running Locally
-Start the Vite frontend development server:
+### Instalasi
 ```bash
-npm run dev
-```
-Open the local server URL (usually `http://localhost:5173`) in your web browser.
+cd AuraAssets
+npm install
 
-To run the authoritative market server (once `market-server/.env` is configured):
-```bash
+# (Opsional) market server
 cd market-server
-npm run migrate
-npm run dev
+npm install
 ```
 
-### Building for Production
-Bundle the project for production deployment:
+### Konfigurasi
+- Frontend: buat `.env` di root dengan kredensial Supabase (URL dan anon key).
+- Backend: salin `market-server/.env.example` ke `market-server/.env` lalu isi variabelnya.
+
+### Menjalankan
 ```bash
-npm run build
+npm run dev            # frontend, biasanya http://localhost:5173
+
+cd market-server
+npm run migrate        # terapkan skema & seed
+npm run dev            # jalankan server pasar
+
+npm run admin          # (dari root) konsol admin market server
 ```
-The output files will be built into the `dist/` directory, ready to be served by any static host (GitHub Pages, Vercel, Netlify, etc.).
+
+### Build Produksi
+```bash
+npm run build          # hasil di dist/
+npm run preview
+```
+Folder `dist/` siap di-host di GitHub Pages, Vercel, Netlify, atau layanan statis lain.
 
 ---
 
-## 📂 Project Structure
+## 📂 Struktur Proyek
 
 ```text
 AuraAssets/
-├── index.html              # Application entry point and layout shell
-├── package.json            # Frontend Node metadata and dependencies
-├── vite.config.js          # Vite configuration file
-├── Implamantation plan.md  # Authoritative Market Engine architecture & progress checklist
+├── index.html
+├── package.json / vite.config.js
+├── update.md               # Changelog & catatan pengembangan
+├── audit.md / mobile.md / chart_isue.md
 ├── src/
-│   ├── styles/             # Curated stylesheets (main, components, trading, compact, mobile)
+│   ├── styles/             # main, components, trading, compact, mobile
 │   └── js/
-│       ├── main.js         # Game entry point, Risk Assessment onboarding, & master orchestration
-│       ├── core/           # GameState, TimeManager, GlobalEconomy, RoleManager (Risk Profiles)
-│       ├── finance/        # Core engines: FinanceManager, BankSystem, SavingsManager, TaxSystem
-│       ├── trading/        # StockMarket, MarketClient, CryptoMarket, CommodityManager, MutualFundManager, PassiveIncome, ChartEngine, CandleGenerator, TradingPage
-│       │   └── panels/     # OrderPanel, TradeHistoryPanel, AssetSearchModal, StockPanel, CryptoPanel, CommodityPanel, TradingSignalPanel
-│       └── ui/             # ViewManager, HomeScreen, LoginPortal, KeyboardNav, UIManager
-├── market-server/          # Authoritative Multiplayer Stock Market Backend
-│   ├── migrations/         # PostgreSQL schema, immutable ledger trigger, & atomic PL/pgSQL procedures
-│   ├── src/
-│   │   ├── config/         # Environment validation (env.js)
-│   │   ├── plugins/        # PostgreSQL pool (database.js) & Socket.IO server (socket.js)
-│   │   ├── modules/        # auth, accounts, market (orderbook, matching-engine), trading, portfolio, events
-│   │   └── routes/         # market.routes.js, orders.routes.js, portfolio.routes.js
-│   └── tests/              # Vitest suites: matching-engine.test.js, trading.test.js, concurrency.test.js
-├── isolated_features/      # Isolated feature modules (cleanly decoupled)
-│   ├── property/           # Archived Real Estate & Property Management engine
-│   ├── marketplace/        # Archived Luxury Goods & Watch Marketplace
-│   ├── gambling/           # Full Casino engines (Slot, Mahjong, Zeus, Wheel, Lottery, Parlay)
-│   ├── business/           # Enterprise, 12 Sectors, 12 Ops Panels, Board, M&A, IPO Dashboard
-│   └── career/             # Office Workplace, Work Simulations, Assistant, Politics System
-└── dist/                   # Compiled production bundle (via npm run build)
+│       ├── main.js         # Orkestrasi game & loop harian
+│       ├── core/           # GameState, TimeManager, GlobalEconomy, NewsManager,
+│       │                   # RoleManager, SupabaseClient, SecurityUtils
+│       ├── finance/        # FinanceManager, BankSystem, SavingsManager, TransferManager
+│       │   └── panels/     # FinancePanel, LoanPanel, SavingsPanel
+│       ├── trading/        # AuraEconomyEngine, StockMarket, CryptoMarket,
+│       │   │               # CommodityManager, MutualFundManager, PassiveIncomeManager,
+│       │   │               # DeterministicMarket, PatternTrajectoryManager,
+│       │   │               # PriceHistoryStore, CandleGenerator, ChartEngine,
+│       │   │               # TradingSignalManager, MarketClient, TradingPage
+│       │   └── panels/     # OrderPanel, TradeHistoryPanel, AssetSearchModal,
+│       │                   # CommodityPanel, TradingSignalPanel
+│       └── ui/             # ViewManager, HomeScreen, LoginPortal, UIManager,
+│           │               # KeyboardNavigation, AuraSound, Animations, glossary
+│           └── views/      # market/ (Coordinator, StockCrypto, MutualFunds,
+│                           # Commodity, News, Portfolio), PassiveIncomeView, SettingsPage
+├── market-server/
+│   ├── migrations/         # Skema, seed, ledger, fungsi atomik, RLS, transfer
+│   ├── src/                # config, plugins, modules, routes, scripts
+│   └── tests/              # Suite Vitest
+├── isolated_features/      # Modul yang dipisahkan (archived)
+└── dist/                   # Hasil build
 ```
+
+---
+
+## 🧪 Pengujian
+
+Suite Vitest di `market-server/tests/`: `matching-engine`, `trading`, `concurrency`, dan `candle-service`.
+
+```bash
+cd market-server
+npm test
+```
+
+---
+
+## 🗄️ Fitur Terisolasi (Archived)
+
+Modul berikut dipisahkan ke `isolated_features/` agar fokus pada simulasi makroekonomi dan pasar tetap terjaga: **Property**, **Marketplace** barang mewah, **Gambling** (kasino), **Business** (korporasi, IPO, M&A), dan **Career** (simulasi kantor). Modul ini bisa diaktifkan kembali.
 
 ---
 
 ## 🚀 Riwayat Pembaruan & Changelog
 
-Seluruh riwayat pembaruan fitur, log perubahan versi, keputusan rekayasa finansial, penanda kelanjutan proyek, dan arsitektur sistem telah dipindahkan dan dirangkum secara lengkap di file terpisah:
+Riwayat fitur, perubahan versi, dan keputusan rekayasa finansial ada di:
 
-👉 **[Lihat Riwayat Pembaruan Lengkap di update.md](update.md)**
+👉 **[update.md](update.md)**
 
 ---
 
-## ⚖️ License
+## ⚖️ Lisensi
 
-This project is licensed under the MIT License - see the [LICENSE](file:///d:/Data%20Project/Personal%20Project/AuraAssets/LICENSE) file for details.
+Dilisensikan di bawah MIT License. Lihat [LICENSE](LICENSE).
